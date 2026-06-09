@@ -16,6 +16,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Monocle.Core\Monocle.Core.csproj" />
     <ProjectReference Include="..\..\src\Monocle.Models\Monocle.Models.csproj" />
+    <ProjectReference Include="..\..\src\Monocle.Pipeline\Monocle.Pipeline.csproj" />
   </ItemGroup>
 
 </Project>

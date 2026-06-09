@@ -10,6 +10,7 @@ using Monocle.Core.Model;
 using Monocle.Models;
 using Monocle.Models.Aesthetic;
 using Monocle.Models.Heuristic;
+using Monocle.Pipeline;
 
 namespace Monocle.App.ViewModels;
 
@@ -74,6 +75,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public bool HasSelection => SelectedPhoto is not null;
 
+    // ---- Pipeline / flowchart (#14-16, #20) ----
+    [ObservableProperty] private PipelineRun? _pipeline;
+    private List<string> _activeStages = new();
+
     // ---- Progress (auto-refreshing, #3, #16) ----
     [ObservableProperty] private int _total;
     [ObservableProperty] private int _analyzed;
@@ -117,17 +122,22 @@ public partial class MainWindowViewModel : ViewModelBase
         _cache?.Dispose();
         _cache = new ShootCache(folder);
 
+        var scorers = SelectedScorers();
+        SetupPipeline(scorers);
+
         var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
         foreach (var item in items)
             Photos.Add(new PhotoTileViewModel(item));
         ApplyFilter();
+        Pipeline?.SetStatus("scan", StageStatus.Done);
 
         Total = Photos.Count;
         Analyzed = 0;
         ProgressFraction = 0;
         StatusText = $"Analyzing {Total} photos…";
 
-        await AnalyzeAllAsync(ct);
+        await AnalyzeAllAsync(scorers, ct);
+        CompletePipeline();
 
         ApplyFilter();   // apply the chosen sort now that every frame is analysed
         IsBusy = false;
@@ -135,11 +145,35 @@ public partial class MainWindowViewModel : ViewModelBase
                      $"{Photos.Count(p => p.Item.IsReject)} rejects.";
     }
 
-    private async Task AnalyzeAllAsync(CancellationToken ct)
+    private void SetupPipeline(IReadOnlyList<IModelRunner> scorers)
+    {
+        var gpu = scorers.Any(r => r.Descriptor.Resource == ResourceKind.Gpu);
+        var run = new PipelineRun(PipelineGraph.BuildAnalysis(gpu, useClaude: false));
+        run.SetStatus("scan", StageStatus.Running);
+        run.Skip("claude");   // Claude cull arrives in Phase 4
+        run.Skip("write");    // auto-analysis rates in memory; sidecars are written on user action
+
+        _activeStages = new List<string> { "decode", "exif", "metrics", "rate" };
+        if (scorers.Count > 0)
+            _activeStages.Insert(3, "aesthetic");
+        else
+            run.Skip("aesthetic");
+
+        Pipeline = run;
+    }
+
+    private void CompletePipeline()
+    {
+        if (Pipeline is not { } run)
+            return;
+        foreach (var id in _activeStages)
+            run.SetStatus(id, StageStatus.Done);
+    }
+
+    private async Task AnalyzeAllAsync(IReadOnlyList<IModelRunner> scorers, CancellationToken ct)
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
-        var scorers = SelectedScorers();
         var maxConcurrency = Math.Clamp(Environment.ProcessorCount - 1, 2, 8);
 
         await Parallel.ForEachAsync(tiles,
@@ -158,7 +192,11 @@ public partial class MainWindowViewModel : ViewModelBase
                         tile.Analyzing = false;
                         tile.RefreshFromItem();
                         Analyzed++;
-                        ProgressFraction = Total == 0 ? 0 : (double)Analyzed / Total;
+                        var frac = Total == 0 ? 0 : (double)Analyzed / Total;
+                        ProgressFraction = frac;
+                        if (Pipeline is { } run)
+                            foreach (var id in _activeStages)
+                                run.SetProgress(id, frac);
                         if (!IsAllFilter)
                             UpdateTileVisibility(tile);
                     });

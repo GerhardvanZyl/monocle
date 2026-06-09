@@ -28,5 +28,6 @@
   <ItemGroup>
     <ProjectReference Include="..\Monocle.Core\Monocle.Core.csproj" />
     <ProjectReference Include="..\Monocle.Models\Monocle.Models.csproj" />
+    <ProjectReference Include="..\Monocle.Pipeline\Monocle.Pipeline.csproj" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Monocle.App.ViewModels"
+        xmlns:ctl="using:Monocle.App.Controls"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -66,8 +67,10 @@
 
         <!-- Main area: grid + detail -->
         <Grid ColumnDefinitions="*,380">
-            <!-- Thumbnail grid (ListBox + WrapPanel; native selection & keyboard nav) -->
-            <ListBox Grid.Column="0" Padding="6"
+            <!-- Center: Library grid + Pipeline flowchart -->
+            <TabControl Grid.Column="0">
+                <TabItem Header="Library">
+                    <ListBox Padding="6"
                      ItemsSource="{Binding VisiblePhotos}"
                      SelectedItem="{Binding SelectedPhoto}"
                      Background="Transparent"
@@ -105,7 +108,18 @@
                         </Border>
                     </DataTemplate>
                 </ListBox.ItemTemplate>
-            </ListBox>
+                    </ListBox>
+                </TabItem>
+                <TabItem Header="Pipeline">
+                    <Grid RowDefinitions="Auto,*">
+                        <StackPanel Grid.Row="0" Margin="8,8,8,0">
+                            <TextBlock Text="Overall progress" Foreground="#AAA" FontSize="11"/>
+                            <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="8"/>
+                        </StackPanel>
+                        <ctl:FlowchartControl Grid.Row="1" Run="{Binding Pipeline}" Margin="8"/>
+                    </Grid>
+                </TabItem>
+            </TabControl>
 
             <!-- Detail pane -->
             <Border Grid.Column="1" Background="#202020" Padding="10">
