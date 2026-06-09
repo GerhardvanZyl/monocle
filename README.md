@@ -18,8 +18,8 @@ See [`FEATURES.md`](FEATURES.md) for the product vision and
 > into `models/`; the optional **Python sidecar** unlocks the full HuggingFace zoo (Q-Align,
 > Qwen2-VL). **Visualizations** + **CSV/JSON export**. Self-contained **Windows/Linux** builds.
 >
-> Known follow-up: the thumbnail grid is not yet virtualized (Avalonia 11 has no built-in
-> virtualizing wrap-panel); fine for shoots up to a few hundred frames.
+> The thumbnail grid is **virtualized** (row-chunked into a VirtualizingStackPanel, since
+> Avalonia 11 has no built-in virtualizing wrap-panel) so large shoots stay fast.
 
 ## Packaging (no .NET install needed to run)
 

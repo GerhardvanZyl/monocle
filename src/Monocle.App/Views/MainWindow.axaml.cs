@@ -1,3 +1,4 @@
+using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -7,13 +8,30 @@ namespace Monocle.App.Views;
 
 public partial class MainWindow : Window
 {
+    private const double TileWidth = 200; // tile incl. padding/border
+
+    private ListBox? _grid;
+
     public MainWindow()
     {
         InitializeComponent();
+        _grid = this.FindControl<ListBox>("PhotoGrid");
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
     }
 
     private MainWindowViewModel? Vm => DataContext as MainWindowViewModel;
+
+    private void OnGridSizeChanged(object? sender, SizeChangedEventArgs e)
+    {
+        if (Vm is not null)
+            Vm.Columns = Math.Max(1, (int)((e.NewSize.Width - 20) / TileWidth));
+    }
+
+    private void OnTilePressed(object? sender, PointerPressedEventArgs e)
+    {
+        if (sender is Control { DataContext: PhotoTileViewModel tile } && Vm is not null)
+            Vm.SelectedPhoto = tile;
+    }
 
     private void OnTileDoubleTapped(object? sender, TappedEventArgs e)
     {
@@ -70,10 +88,13 @@ public partial class MainWindow : Window
             case Key.R or Key.X: Vm.SetStarsCommand.Execute("1"); e.Handled = true; break;  // reject
             case Key.F: OpenFullscreen(); e.Handled = true; break;
             case Key.C: OpenCrop(); e.Handled = true; break;
+            case Key.V: Vm.ToggleVariantCommand.Execute(null); e.Handled = true; break;
             case Key.OemOpenBrackets: Vm.RotateLeftCommand.Execute(null); e.Handled = true; break;
             case Key.OemCloseBrackets: Vm.RotateRightCommand.Execute(null); e.Handled = true; break;
             case Key.Left or Key.H: MoveSelection(-1); e.Handled = true; break;
             case Key.Right or Key.L: MoveSelection(1); e.Handled = true; break;
+            case Key.Up: MoveSelection(-Math.Max(1, Vm.Columns)); e.Handled = true; break;
+            case Key.Down: MoveSelection(Math.Max(1, Vm.Columns)); e.Handled = true; break;
         }
     }
 
@@ -82,11 +103,17 @@ public partial class MainWindow : Window
         if (Vm is null || Vm.VisiblePhotos.Count == 0)
             return;
         var index = Vm.SelectedPhoto is null ? -1 : Vm.VisiblePhotos.IndexOf(Vm.SelectedPhoto);
-        var next = System.Math.Clamp(index + delta, 0, Vm.VisiblePhotos.Count - 1);
-        Vm.SelectedPhoto = Vm.VisiblePhotos[next];   // ListBox scrolls the selection into view
+        var next = Math.Clamp(index + delta, 0, Vm.VisiblePhotos.Count - 1);
+        Vm.SelectedPhoto = Vm.VisiblePhotos[next];
+
+        // Scroll the row containing the new selection into view (the ListBox virtualizes rows).
+        var cols = Math.Max(1, Vm.Columns);
+        var rowIndex = next / cols;
+        if (rowIndex >= 0 && rowIndex < Vm.PhotoRows.Count)
+            _grid?.ScrollIntoView(Vm.PhotoRows[rowIndex]);
     }
 
-    protected override void OnClosed(System.EventArgs e)
+    protected override void OnClosed(EventArgs e)
     {
         Vm?.Cleanup();
         base.OnClosed(e);

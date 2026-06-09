@@ -34,6 +34,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _registry = BuildRegistry(_sidecar);
         Photos = new ObservableCollection<PhotoTileViewModel>();
         VisiblePhotos = new ObservableCollection<PhotoTileViewModel>();
+        PhotoRows = new ObservableCollection<PhotoRowViewModel>();
         Models = new ObservableCollection<ModelOptionViewModel>();
         _ = InitModelsAsync();
     }
@@ -101,6 +102,22 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<PhotoTileViewModel> Photos { get; }
     public ObservableCollection<PhotoTileViewModel> VisiblePhotos { get; }
 
+    /// <summary>The virtualized grid binds to rows (Avalonia 11 has no virtualizing wrap panel).</summary>
+    public ObservableCollection<PhotoRowViewModel> PhotoRows { get; }
+
+    /// <summary>Number of tiles per row, set by the view from its width.</summary>
+    [ObservableProperty] private int _columns = 5;
+
+    partial void OnColumnsChanged(int value) => RebuildRows();
+
+    private void RebuildRows()
+    {
+        var cols = Math.Max(1, Columns);
+        PhotoRows.Clear();
+        for (int i = 0; i < VisiblePhotos.Count; i += cols)
+            PhotoRows.Add(new PhotoRowViewModel(VisiblePhotos.Skip(i).Take(cols).ToList()));
+    }
+
     // ---- Filter facets + sort (#23) ----
     [ObservableProperty] private RatingFilter _rating = RatingFilter.All;
     [ObservableProperty] private TechnicalReason? _reasonFacet;
@@ -147,6 +164,7 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private ObservableCollection<string> _detailScores = new();
     [ObservableProperty] private string _notesText = "";
     [ObservableProperty] private string _detailExif = "";
+    [ObservableProperty] private string _detailRating = "";
 
     partial void OnRatingChanged(RatingFilter value) => ApplyFilter();
     partial void OnReasonFacetChanged(TechnicalReason? value) => ApplyFilter();
@@ -154,7 +172,12 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnSortChanged(SortKey value) => ApplyFilter();
     partial void OnSortDescendingChanged(bool value) => ApplyFilter();
 
-    partial void OnSelectedPhotoChanged(PhotoTileViewModel? value) => _ = LoadDetailAsync(value);
+    partial void OnSelectedPhotoChanged(PhotoTileViewModel? oldValue, PhotoTileViewModel? newValue)
+    {
+        if (oldValue is not null) oldValue.IsSelected = false;
+        if (newValue is not null) newValue.IsSelected = true;
+        _ = LoadDetailAsync(newValue);
+    }
 
     [RelayCommand]
     private async Task ScanAsync()
@@ -279,6 +302,7 @@ public partial class MainWindowViewModel : ViewModelBase
         tile.Item.RatedByModel = "Manual";
         _service.Save(tile.Item);
         tile.RefreshFromItem();
+        DetailRating = FormatRating(tile.Item);
         ApplyFilter();
         RefreshStats();
     }
@@ -359,6 +383,8 @@ public partial class MainWindowViewModel : ViewModelBase
             SidecarService.Load(tile.Item);
             tile.RefreshFromItem();
         }
+        if (SelectedPhoto is { } sel)
+            DetailRating = FormatRating(sel.Item);
         ApplyFilter();
         RefreshStats();
     }
@@ -434,12 +460,14 @@ public partial class MainWindowViewModel : ViewModelBase
             DetailPreview = null;
             DetailMetrics = "";
             DetailExif = "";
+            DetailRating = "";
             DetailScores = new ObservableCollection<string>();
             NotesText = "";
             return;
         }
 
         NotesText = tile.Item.UserNotes ?? "";
+        DetailRating = FormatRating(tile.Item);
         DetailMetrics = FormatMetrics(tile.Item);
         DetailExif = FormatExif(tile.Item);
         DetailScores = new ObservableCollection<string>(tile.Item.Scores.Select(FormatScore));
@@ -463,6 +491,7 @@ public partial class MainWindowViewModel : ViewModelBase
         VisiblePhotos.Clear();
         foreach (var tile in ordered.ThenBy(t => t.Item.BaseName, StringComparer.OrdinalIgnoreCase))
             VisiblePhotos.Add(tile);
+        RebuildRows();
     }
 
     private void UpdateTileVisibility(PhotoTileViewModel tile)
@@ -470,9 +499,26 @@ public partial class MainWindowViewModel : ViewModelBase
         var shouldShow = PhotoQuery.Matches(tile.Item, Spec);
         var isShown = VisiblePhotos.Contains(tile);
         if (shouldShow && !isShown)
+        {
             VisiblePhotos.Add(tile);
+            RebuildRows();
+        }
         else if (!shouldShow && isShown)
+        {
             VisiblePhotos.Remove(tile);
+            RebuildRows();
+        }
+    }
+
+    private static string FormatRating(PhotoItem item)
+    {
+        var parts = new List<string> { item.Stars > 0 ? $"{item.Stars}★" : "unrated" };
+        if (item.IsPick) parts.Add("Pick");
+        if (item.IsReject) parts.Add("Reject");
+        if (item.Reason != TechnicalReason.None) parts.Add($"reason: {item.Reason}");
+        if (!string.IsNullOrEmpty(item.RatedByModel)) parts.Add($"by {item.RatedByModel}");
+        if (item.Keywords.Count > 0) parts.Add("keywords: " + string.Join(", ", item.Keywords));
+        return string.Join("   ·   ", parts);
     }
 
     private static string FormatMetrics(PhotoItem item)

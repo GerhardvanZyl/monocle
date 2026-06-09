@@ -32,6 +32,14 @@ public partial class PhotoTileViewModel : ViewModelBase
     [ObservableProperty] private IBrush _reasonDot = Brushes.Transparent;
     [ObservableProperty] private bool _analyzing = true;
 
+    // Selection highlight (the virtualized grid selects rows, so tiles track their own state).
+    private static readonly IBrush SelectedBrush = new SolidColorBrush(Color.FromArgb(140, 30, 144, 255));
+    [ObservableProperty] private IBrush _selectionBrush = Brushes.Transparent;
+    [ObservableProperty] private bool _isSelected;
+
+    partial void OnIsSelectedChanged(bool value) =>
+        SelectionBrush = value ? SelectedBrush : Brushes.Transparent;
+
     /// <summary>Recompute all display properties from the underlying item.</summary>
     public void RefreshFromItem()
     {
