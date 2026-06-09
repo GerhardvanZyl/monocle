@@ -1,0 +1,68 @@
+using Monocle.Models.Claude;
+using Xunit;
+
+namespace Monocle.Core.Tests;
+
+public class ClaudeTests
+{
+    [Fact]
+    public void ParsesAssistantText()
+    {
+        var line = """{"type":"assistant","message":{"role":"assistant","content":[{"type":"text","text":"Reviewing the burst."}]}}""";
+        var ev = ClaudeStreamParser.ParseLine(line);
+        Assert.Equal(ClaudeEventKind.AssistantText, ev.Kind);
+        Assert.Equal("Reviewing the burst.", ev.Text);
+    }
+
+    [Fact]
+    public void ParsesToolUse()
+    {
+        var line = """{"type":"assistant","message":{"content":[{"type":"tool_use","name":"mcp__monocle__set_rating","input":{"id":"x","stars":4}}]}}""";
+        var ev = ClaudeStreamParser.ParseLine(line);
+        Assert.Equal(ClaudeEventKind.ToolUse, ev.Kind);
+        Assert.Equal("mcp__monocle__set_rating", ev.ToolName);
+        Assert.Contains("\"stars\":4", ev.ToolInput);
+    }
+
+    [Fact]
+    public void ParsesResultWithCostAndTurns()
+    {
+        var line = """{"type":"result","subtype":"success","is_error":false,"duration_ms":4200,"num_turns":7,"total_cost_usd":0.0123,"result":"Done."}""";
+        var ev = ClaudeStreamParser.ParseLine(line);
+        Assert.Equal(ClaudeEventKind.Result, ev.Kind);
+        Assert.Equal(0.0123, ev.CostUsd!.Value, 6);
+        Assert.Equal(7, ev.NumTurns);
+        Assert.Equal(4200, ev.DurationMs);
+        Assert.False(ev.IsError);
+        Assert.Equal("Done.", ev.Text);
+    }
+
+    [Fact]
+    public void ParsesInitAndIgnoresGarbage()
+    {
+        Assert.Equal(ClaudeEventKind.Init,
+            ClaudeStreamParser.ParseLine("""{"type":"system","subtype":"init","model":"claude-haiku-4-5"}""").Kind);
+        Assert.Equal(ClaudeEventKind.Unknown, ClaudeStreamParser.ParseLine("not json").Kind);
+        Assert.Equal(ClaudeEventKind.Unknown, ClaudeStreamParser.ParseLine("").Kind);
+    }
+
+    [Fact]
+    public void BuildArgumentsLocksDownToMonocleTools()
+    {
+        var args = ClaudeCullService.BuildArguments(new ClaudeCullOptions
+        {
+            Folder = "/photos", Prompt = "cull", McpConfigPath = "x.json", MaxTurns = 30,
+        });
+
+        Assert.Contains("--strict-mcp-config", args);
+        Assert.Contains("--output-format", args);
+        Assert.Contains("stream-json", args);
+        Assert.Contains("--allowedTools", args);
+        var allowed = args[args.IndexOf("--allowedTools") + 1];
+        Assert.Contains("mcp__monocle__set_rating", allowed);
+        var denied = args[args.IndexOf("--disallowedTools") + 1];
+        Assert.Contains("Bash", denied);
+        Assert.Contains("Write", denied);
+        Assert.Contains("30", args);
+    }
+}

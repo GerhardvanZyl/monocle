@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "monocle": {
+      "command": "C:\\Users\\vanzy\\AppData\\Local\\Microsoft\\dotnet\\dotnet.exe",
+      "args": [
+        "E:\\Projects 2024\\monocle\\src\\Monocle.Mcp\\bin\\Debug\\net10.0\\Monocle.Mcp.dll"
+      ],
+      "env": {
+        "DOTNET_ROOT": "C:\\Users\\vanzy\\AppData\\Local\\Microsoft\\dotnet"
+      }
+    }
+  }
+}
