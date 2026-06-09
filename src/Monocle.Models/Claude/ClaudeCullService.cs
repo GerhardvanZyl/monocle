@@ -77,6 +77,10 @@ public sealed class ClaudeCullService
         ClaudeEvent? result = null;
         using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });
 
+        // Drain stderr concurrently: the CLI runs with --verbose, and if it fills the stderr pipe
+        // buffer while we're blocked reading stdout, the child blocks on write and the cull hangs.
+        var stderrTask = process.StandardError.ReadToEndAsync(ct);
+
         string? line;
         while ((line = await process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
         {
@@ -89,6 +93,7 @@ public sealed class ClaudeCullService
         }
 
         await process.WaitForExitAsync(ct).ConfigureAwait(false);
+        try { await stderrTask.ConfigureAwait(false); } catch { /* stderr is diagnostic only */ }
         return result;
     }
 }

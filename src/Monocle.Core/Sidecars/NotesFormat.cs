@@ -15,9 +15,10 @@ public static class NotesFormat
 
     /// <summary>
     /// Compose the description On1 displays: the AI/heuristic headline followed by the
-    /// user's notes block (only when notes exist).
+    /// user's notes block (only when notes exist). Returns <c>null</c> when there is nothing
+    /// to write, so callers leave any externally-authored caption untouched rather than wiping it.
     /// </summary>
-    public static string Compose(string? aiHeadline, string? userNotes)
+    public static string? Compose(string? aiHeadline, string? userNotes)
     {
         var sb = new StringBuilder();
         if (!string.IsNullOrWhiteSpace(aiHeadline))
@@ -32,7 +33,7 @@ public static class NotesFormat
               .Append(NotesEnd);
         }
 
-        return sb.ToString();
+        return sb.Length == 0 ? null : sb.ToString();
     }
 
     /// <summary>Split a composed description back into (aiHeadline, userNotes).</summary>

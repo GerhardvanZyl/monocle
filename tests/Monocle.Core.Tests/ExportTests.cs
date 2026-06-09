@@ -37,6 +37,15 @@ public class ExportTests
     }
 
     [Fact]
+    public void CsvNeutralizesFormulaInjectionInNotes()
+    {
+        // A note beginning with '=' must not survive as a live formula when opened in Excel.
+        var csv = ShootExporter.ToCsv(new[] { Item("A", 4, "=HYPERLINK(\"http://evil\")") });
+        Assert.Contains("'=HYPERLINK", csv);        // apostrophe-guarded so Excel treats it as text
+        Assert.DoesNotContain("\"=HYPERLINK", csv);  // not the unguarded (quote-then-formula) form
+    }
+
+    [Fact]
     public void JsonParsesAndIncludesScores()
     {
         var json = ShootExporter.ToJson(new[] { Item("A", 3) });

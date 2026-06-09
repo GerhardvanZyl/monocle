@@ -37,8 +37,24 @@ public static class PlainTextSidecar
         }
 
         var path = PathFor(imagePath);
+        using var _ = SidecarLock.Acquire(path);
         BackupOnce(path);
-        File.WriteAllText(path, sb.ToString(), new UTF8Encoding(false));
+
+        // Temp-then-replace so a crash can't truncate the sidecar mid-write.
+        var tmp = path + ".tmp";
+        try
+        {
+            File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
+            if (File.Exists(path))
+                File.Replace(tmp, path, destinationBackupFileName: null);
+            else
+                File.Move(tmp, path);
+        }
+        finally
+        {
+            if (File.Exists(tmp))
+                File.Delete(tmp);
+        }
     }
 
     private static void BackupOnce(string path)

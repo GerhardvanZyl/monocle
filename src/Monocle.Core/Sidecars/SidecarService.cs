@@ -24,8 +24,13 @@ public static class SidecarService
     public static void Save(PhotoItem item)
     {
         var xmp = BuildXmp(item);
+        var exif = new ExifReader();
         foreach (var file in item.Files)
         {
+            // Compose the display orientation from THIS file's own EXIF base: a RAW and its JPG can
+            // carry different embedded orientations, so mirroring one composed value to both could
+            // rotate one of them incorrectly when On1/Lightroom reads it back (#26).
+            xmp.Orientation = OrientationForFile(exif.Read(file.Path).Orientation, item.RotationQuarters);
             XmpSidecar.Write(file.Path, xmp);
             PlainTextSidecar.Write(file.Path, item);
         }
@@ -78,19 +83,19 @@ public static class SidecarService
             Label = LabelFor(item.Reason),
             Keywords = keywords,
             Description = NotesFormat.Compose(headline, item.UserNotes),
-            Orientation = OrientationFor(item),
+            // Orientation is set per-file in Save (each file's own EXIF base).
             Crop = item.Crop,
         };
     }
 
-    /// <summary>The composed display orientation to record, or null to leave the sidecar's
-    /// orientation untouched (preserves any externally-written value for un-rotated frames).</summary>
-    private static int? OrientationFor(PhotoItem item)
+    /// <summary>The composed display orientation to record for one file, or null to leave the
+    /// sidecar's orientation untouched (preserves any externally-written value for un-rotated frames).</summary>
+    private static int? OrientationForFile(int baseOrientation, int rotationQuarters)
     {
-        if (item.RotationQuarters != 0)
-            return OrientationMath.Compose(item.ExifOrientation, item.RotationQuarters);
+        if (rotationQuarters != 0)
+            return OrientationMath.Compose(baseOrientation, rotationQuarters);
         // No user rotation: only normalise the sidecar for pure-rotation bases.
-        return item.ExifOrientation is 1 or 3 or 6 or 8 ? item.ExifOrientation : null;
+        return baseOrientation is 1 or 3 or 6 or 8 ? baseOrientation : null;
     }
 
     private static string? BuildHeadline(PhotoItem item)

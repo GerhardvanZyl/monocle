@@ -49,6 +49,26 @@ public sealed class FlowchartControl : Control
         }
     }
 
+    protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnAttachedToVisualTree(e);
+        if (Run is not null && _subscribed is null)
+        {
+            _subscribed = Run;
+            _subscribed.Changed += OnRunChanged;
+        }
+    }
+
+    protected override void OnDetachedFromVisualTree(VisualTreeAttachmentEventArgs e)
+    {
+        base.OnDetachedFromVisualTree(e);
+        if (_subscribed is not null)
+        {
+            _subscribed.Changed -= OnRunChanged;
+            _subscribed = null;
+        }
+    }
+
     private void OnRunChanged() => Dispatcher.UIThread.Post(InvalidateVisual);
 
     public override void Render(DrawingContext context)

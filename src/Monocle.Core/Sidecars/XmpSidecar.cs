@@ -36,20 +36,27 @@ public static class XmpSidecar
         var doc = new XmlDocument { PreserveWhitespace = true };
         doc.Load(path);
         var ns = NsManager(doc);
-        var desc = doc.SelectSingleNode("//rdf:Description", ns);
-        if (desc is null)
+
+        // Adobe/Lightroom/exiftool often split properties across several rdf:Description siblings
+        // (one per namespace), so read across all of them rather than just the first.
+        var descriptions = doc.SelectNodes("//rdf:Description", ns);
+        if (descriptions is null || descriptions.Count == 0)
             return data;
 
-        if (int.TryParse(SelectText(desc, "xmp:Rating", ns), out var rating))
-            data.Rating = rating;
-        data.Label = SelectText(desc, "xmp:Label", ns);
-        if (int.TryParse(SelectText(desc, "tiff:Orientation", ns), out var orientation))
-            data.Orientation = orientation;
-        data.Crop = ReadCrop(desc, ns);
-        data.Description = SelectLangAlt(desc, "dc:description", ns);
-        foreach (XmlNode li in desc.SelectNodes("dc:subject/rdf:Bag/rdf:li", ns) ?? Empty())
-            if (!string.IsNullOrWhiteSpace(li.InnerText))
-                data.Keywords.Add(li.InnerText);
+        var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        foreach (XmlNode desc in descriptions)
+        {
+            if (data.Rating is null && int.TryParse(SelectText(desc, "xmp:Rating", ns), out var rating))
+                data.Rating = rating;
+            data.Label ??= SelectText(desc, "xmp:Label", ns);
+            if (data.Orientation is null && int.TryParse(SelectText(desc, "tiff:Orientation", ns), out var orientation))
+                data.Orientation = orientation;
+            data.Crop ??= ReadCrop(desc, ns);
+            data.Description ??= SelectLangAlt(desc, "dc:description", ns);
+            foreach (XmlNode li in desc.SelectNodes("dc:subject/rdf:Bag/rdf:li", ns) ?? Empty())
+                if (!string.IsNullOrWhiteSpace(li.InnerText) && keywords.Add(li.InnerText.Trim()))
+                    data.Keywords.Add(li.InnerText.Trim());
+        }
 
         return data;
     }
@@ -61,6 +68,11 @@ public static class XmpSidecar
     public static void Write(string imagePath, XmpData data)
     {
         var path = PathFor(imagePath);
+
+        // Serialize the whole read-modify-write: the app and the spawned MCP server can both
+        // write the same sidecar, and a half-merged interleave would lose one writer's edits.
+        using var _ = SidecarLock.Acquire(path);
+
         var doc = File.Exists(path) ? LoadExisting(path) : NewDocument();
         var ns = NsManager(doc);
         var desc = EnsureDescription(doc, ns);
@@ -71,17 +83,24 @@ public static class XmpSidecar
         if (!string.IsNullOrEmpty(data.Label))
             SetSimple(doc, desc, NsXmp, "xmp", "Label", data.Label);
         else
-            RemoveChild(desc, "xmp:Label", ns);
+            RemoveProperty(desc, "xmp", "Label", ns);
 
         if (data.Orientation is { } orientation)
             SetSimple(doc, desc, NsTiff, "tiff", "Orientation", orientation.ToString());
 
         WriteCrop(doc, desc, ns, data.Crop);
 
-        if (data.Keywords.Count > 0)
-            SetBag(doc, desc, ns, data.Keywords);
+        // Merge, never clobber: keep any keywords On1/Lightroom wrote and re-apply Monocle's
+        // managed set (user keywords + current Pick/reject), dropping stale managed flags.
+        var merged = MergeKeywords(ReadBag(desc, ns), data.Keywords);
+        if (merged.Count > 0)
+            SetBag(doc, desc, ns, merged);
+        else
+            RemoveChild(desc, "dc:subject", ns);
 
-        if (data.Description is not null)
+        // Only write dc:description when Monocle actually has something to say; a null/empty
+        // value means "leave the existing caption alone" so we never wipe an On1/LR caption.
+        if (!string.IsNullOrEmpty(data.Description))
             SetLangAlt(doc, desc, data.Description);
 
         BackupOnce(path);
@@ -139,7 +158,7 @@ public static class XmpSidecar
     private static void SetSimple(XmlDocument doc, XmlElement desc, string nsUri, string prefix, string local, string value)
     {
         var ns = NsManager(doc);
-        RemoveChild(desc, $"{prefix}:{local}", ns);
+        RemoveProperty(desc, prefix, local, ns);
         var el = doc.CreateElement(prefix, local, nsUri);
         el.InnerText = value;
         desc.AppendChild(el);
@@ -153,7 +172,7 @@ public static class XmpSidecar
         foreach (var v in values)
         {
             var li = doc.CreateElement("rdf", "li", NsRdf);
-            li.InnerText = v;
+            li.InnerText = SanitizeXmlText(v);
             bag.AppendChild(li);
         }
         subject.AppendChild(bag);
@@ -168,7 +187,7 @@ public static class XmpSidecar
         var alt = doc.CreateElement("rdf", "Alt", NsRdf);
         var li = doc.CreateElement("rdf", "li", NsRdf);
         li.SetAttribute("xml:lang", "x-default");
-        li.InnerText = value;
+        li.InnerText = SanitizeXmlText(value);
         alt.AppendChild(li);
         description.AppendChild(alt);
         desc.AppendChild(description);
@@ -179,6 +198,69 @@ public static class XmpSidecar
         if (desc.SelectSingleNode(xpath, ns) is XmlNode node)
             desc.RemoveChild(node);
     }
+
+    /// <summary>
+    /// Remove a simple property in <em>both</em> serializations: the child-element form
+    /// (<c>&lt;xmp:Rating&gt;</c>) and the RDF-attribute shorthand (<c>xmp:Rating="…"</c>) that
+    /// On1/Lightroom use, so a re-write never leaves a stale duplicate next to the new value.
+    /// </summary>
+    private static void RemoveProperty(XmlElement desc, string prefix, string local, XmlNamespaceManager ns)
+    {
+        RemoveChild(desc, $"{prefix}:{local}", ns);
+        var uri = ns.LookupNamespace(prefix);
+        if (uri is not null && desc.HasAttribute(local, uri))
+            desc.RemoveAttribute(local, uri);
+    }
+
+    /// <summary>Read the dc:subject keyword bag (child-element form; the only form Adobe uses for it).</summary>
+    private static List<string> ReadBag(XmlNode desc, XmlNamespaceManager ns)
+    {
+        var bag = new List<string>();
+        foreach (XmlNode li in desc.SelectNodes("dc:subject/rdf:Bag/rdf:li", ns) ?? Empty())
+            if (!string.IsNullOrWhiteSpace(li.InnerText))
+                bag.Add(li.InnerText.Trim());
+        return bag;
+    }
+
+    /// <summary>
+    /// Union the keywords already on disk with Monocle's managed set. Existing keywords are
+    /// preserved (On1/LR data), except the Monocle-managed Pick/reject flags, which are dropped
+    /// from the existing set so the current rating's flags (carried in <paramref name="managed"/>)
+    /// win rather than accumulating.
+    /// </summary>
+    private static List<string> MergeKeywords(List<string> existing, IEnumerable<string> managed)
+    {
+        var result = new List<string>();
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        foreach (var k in existing)
+            if (!IsManagedFlag(k) && seen.Add(k))
+                result.Add(k);
+        foreach (var k in managed)
+            if (!string.IsNullOrWhiteSpace(k) && seen.Add(k))
+                result.Add(k);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Strip characters that are illegal in XML 1.0 (NUL and most C0 controls) so a control char
+    /// pasted into a note doesn't make <see cref="XmlWriter"/> throw and abort the entire save.
+    /// Tab/LF/CR and all printable text (including emoji/surrogate pairs) are preserved.
+    /// </summary>
+    private static string SanitizeXmlText(string s)
+    {
+        if (string.IsNullOrEmpty(s) || s.All(IsLegalXmlChar))
+            return s;
+        return new string(s.Where(IsLegalXmlChar).ToArray());
+    }
+
+    private static bool IsLegalXmlChar(char c) =>
+        c is '\t' or '\n' or '\r' || (c >= ' ' && c != '￾' && c != '￿');
+
+    private static bool IsManagedFlag(string keyword) =>
+        keyword.Equals("Pick", StringComparison.OrdinalIgnoreCase) ||
+        keyword.Equals("reject", StringComparison.OrdinalIgnoreCase);
 
     private static CropRect? ReadCrop(XmlNode desc, XmlNamespaceManager ns)
     {
@@ -193,8 +275,8 @@ public static class XmpSidecar
 
     private static void WriteCrop(XmlDocument doc, XmlElement desc, XmlNamespaceManager ns, CropRect? crop)
     {
-        foreach (var field in new[] { "crs:HasCrop", "crs:CropLeft", "crs:CropTop", "crs:CropRight", "crs:CropBottom" })
-            RemoveChild(desc, field, ns);
+        foreach (var field in new[] { "HasCrop", "CropLeft", "CropTop", "CropRight", "CropBottom" })
+            RemoveProperty(desc, "crs", field, ns);
         if (crop is not { } c)
             return;
         SetSimple(doc, desc, NsCrs, "crs", "HasCrop", "True");
@@ -209,8 +291,20 @@ public static class XmpSidecar
     private static bool TryD(string? s, out double v) =>
         double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
 
-    private static string? SelectText(XmlNode desc, string xpath, XmlNamespaceManager ns) =>
-        desc.SelectSingleNode(xpath, ns)?.InnerText;
+    private static string? SelectText(XmlNode desc, string xpath, XmlNamespaceManager ns)
+    {
+        // Adobe serializes simple properties either as a child element (<xmp:Rating>3</xmp:Rating>)
+        // or as an attribute on rdf:Description (xmp:Rating="3"). On1 and Lightroom routinely use
+        // the attribute form, so fall back to it when the element is absent.
+        if (desc.SelectSingleNode(xpath, ns)?.InnerText is { } elementText)
+            return elementText;
+
+        if (desc is XmlElement el && xpath.Split(':') is [var prefix, var local]
+            && ns.LookupNamespace(prefix) is { } uri && el.HasAttribute(local, uri))
+            return el.GetAttribute(local, uri);
+
+        return null;
+    }
 
     private static string? SelectLangAlt(XmlNode desc, string field, XmlNamespaceManager ns) =>
         desc.SelectSingleNode($"{field}/rdf:Alt/rdf:li", ns)?.InnerText
@@ -232,9 +326,23 @@ public static class XmpSidecar
             Encoding = new System.Text.UTF8Encoding(false),
             OmitXmlDeclaration = false,
         };
-        using (var writer = XmlWriter.Create(tmp, settings))
-            doc.Save(writer);
-        File.Move(tmp, path, overwrite: true);
+        try
+        {
+            using (var writer = XmlWriter.Create(tmp, settings))
+                doc.Save(writer);
+
+            // File.Replace is atomic on NTFS (single rename, never a delete-then-rename gap), so a
+            // crash can't leave the sidecar missing. Fall back to Move for the first-write case.
+            if (File.Exists(path))
+                File.Replace(tmp, path, destinationBackupFileName: null);
+            else
+                File.Move(tmp, path);
+        }
+        finally
+        {
+            if (File.Exists(tmp))
+                File.Delete(tmp);
+        }
     }
 
     private static XmlNodeList Empty() => new XmlDocument().ChildNodes;

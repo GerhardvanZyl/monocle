@@ -17,6 +17,11 @@ public sealed class ShootCache : IDisposable
     private readonly SqliteConnection _db;
     private readonly string _previewDir;
 
+    // Analysis runs through Parallel.ForEachAsync (up to 8 threads) sharing this one instance,
+    // but Microsoft.Data.Sqlite does not support concurrent commands/readers on a single
+    // connection. Every DB access is serialized through this gate; the operations are short.
+    private readonly object _gate = new();
+
     public ShootCache(string shootFolder)
     {
         var cacheDir = Path.Combine(shootFolder, ".monocle-cache");
@@ -28,6 +33,9 @@ public sealed class ShootCache : IDisposable
         // locked after Dispose, blocking reopening the shoot or moving the folder.
         _db = new SqliteConnection($"Data Source={Path.Combine(cacheDir, "cache.db")};Pooling=False");
         _db.Open();
+        // WAL + a busy timeout keep readers and the writer from tripping over each other if the
+        // db is ever touched concurrently (e.g. a future cross-process reader).
+        Exec("PRAGMA journal_mode=WAL; PRAGMA busy_timeout=5000;");
         Exec("""
             CREATE TABLE IF NOT EXISTS items (
                 id TEXT PRIMARY KEY,
@@ -42,69 +50,86 @@ public sealed class ShootCache : IDisposable
                 json TEXT NOT NULL,
                 PRIMARY KEY (id, modelId)
             );
+            CREATE TABLE IF NOT EXISTS previews (
+                path TEXT PRIMARY KEY,
+                id TEXT NOT NULL,
+                fingerprint TEXT NOT NULL
+            );
             """);
     }
 
     /// <summary>Cached model scores whose fingerprint still matches the file.</summary>
     public List<ModelScore> GetScores(string id, string fingerprint)
     {
-        var result = new List<ModelScore>();
-        using var cmd = _db.CreateCommand();
-        cmd.CommandText = "SELECT json FROM scores WHERE id = $id AND fingerprint = $fp";
-        cmd.Parameters.AddWithValue("$id", id);
-        cmd.Parameters.AddWithValue("$fp", fingerprint);
-        using var r = cmd.ExecuteReader();
-        while (r.Read())
+        lock (_gate)
         {
-            var score = JsonSerializer.Deserialize<ModelScore>(r.GetString(0));
-            if (score is not null)
-                result.Add(score);
+            var result = new List<ModelScore>();
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "SELECT json FROM scores WHERE id = $id AND fingerprint = $fp";
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.Parameters.AddWithValue("$fp", fingerprint);
+            using var r = cmd.ExecuteReader();
+            while (r.Read())
+            {
+                var score = JsonSerializer.Deserialize<ModelScore>(r.GetString(0));
+                if (score is not null)
+                    result.Add(score);
+            }
+            return result;
         }
-        return result;
     }
 
     public void PutScore(string id, string fingerprint, ModelScore score)
     {
-        using var cmd = _db.CreateCommand();
-        cmd.CommandText = """
-            INSERT INTO scores (id, modelId, fingerprint, json) VALUES ($id, $m, $fp, $j)
-            ON CONFLICT(id, modelId) DO UPDATE SET fingerprint=$fp, json=$j;
-            """;
-        cmd.Parameters.AddWithValue("$id", id);
-        cmd.Parameters.AddWithValue("$m", score.ModelId);
-        cmd.Parameters.AddWithValue("$fp", fingerprint);
-        cmd.Parameters.AddWithValue("$j", JsonSerializer.Serialize(score));
-        cmd.ExecuteNonQuery();
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO scores (id, modelId, fingerprint, json) VALUES ($id, $m, $fp, $j)
+                ON CONFLICT(id, modelId) DO UPDATE SET fingerprint=$fp, json=$j;
+                """;
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.Parameters.AddWithValue("$m", score.ModelId);
+            cmd.Parameters.AddWithValue("$fp", fingerprint);
+            cmd.Parameters.AddWithValue("$j", JsonSerializer.Serialize(score));
+            cmd.ExecuteNonQuery();
+        }
     }
 
     public bool TryGetAnalysis(string id, string fingerprint, out TechnicalMetrics? metrics, out ExifInfo? exif)
     {
-        metrics = null;
-        exif = null;
-        using var cmd = _db.CreateCommand();
-        cmd.CommandText = "SELECT fingerprint, metrics, exif FROM items WHERE id = $id";
-        cmd.Parameters.AddWithValue("$id", id);
-        using var r = cmd.ExecuteReader();
-        if (!r.Read() || r.GetString(0) != fingerprint)
-            return false;
+        lock (_gate)
+        {
+            metrics = null;
+            exif = null;
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = "SELECT fingerprint, metrics, exif FROM items WHERE id = $id";
+            cmd.Parameters.AddWithValue("$id", id);
+            using var r = cmd.ExecuteReader();
+            if (!r.Read() || r.GetString(0) != fingerprint)
+                return false;
 
-        metrics = r.IsDBNull(1) ? null : JsonSerializer.Deserialize<TechnicalMetrics>(r.GetString(1));
-        exif = r.IsDBNull(2) ? null : JsonSerializer.Deserialize<ExifInfo>(r.GetString(2));
-        return metrics is not null;
+            metrics = r.IsDBNull(1) ? null : JsonSerializer.Deserialize<TechnicalMetrics>(r.GetString(1));
+            exif = r.IsDBNull(2) ? null : JsonSerializer.Deserialize<ExifInfo>(r.GetString(2));
+            return metrics is not null;
+        }
     }
 
     public void PutAnalysis(string id, string fingerprint, TechnicalMetrics metrics, ExifInfo exif)
     {
-        using var cmd = _db.CreateCommand();
-        cmd.CommandText = """
-            INSERT INTO items (id, fingerprint, metrics, exif) VALUES ($id, $fp, $m, $e)
-            ON CONFLICT(id) DO UPDATE SET fingerprint=$fp, metrics=$m, exif=$e;
-            """;
-        cmd.Parameters.AddWithValue("$id", id);
-        cmd.Parameters.AddWithValue("$fp", fingerprint);
-        cmd.Parameters.AddWithValue("$m", JsonSerializer.Serialize(metrics));
-        cmd.Parameters.AddWithValue("$e", JsonSerializer.Serialize(exif));
-        cmd.ExecuteNonQuery();
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = """
+                INSERT INTO items (id, fingerprint, metrics, exif) VALUES ($id, $fp, $m, $e)
+                ON CONFLICT(id) DO UPDATE SET fingerprint=$fp, metrics=$m, exif=$e;
+                """;
+            cmd.Parameters.AddWithValue("$id", id);
+            cmd.Parameters.AddWithValue("$fp", fingerprint);
+            cmd.Parameters.AddWithValue("$m", JsonSerializer.Serialize(metrics));
+            cmd.Parameters.AddWithValue("$e", JsonSerializer.Serialize(exif));
+            cmd.ExecuteNonQuery();
+        }
     }
 
     /// <summary>Path to a cached preview at the given size + rotation + crop, or null on a miss.</summary>
@@ -114,11 +139,46 @@ public sealed class ShootCache : IDisposable
         return File.Exists(path) ? path : null;
     }
 
-    /// <summary>Write a preview JPEG to the cache and return its path.</summary>
+    /// <summary>Write a preview JPEG to the cache and return its path. Old previews for the same
+    /// frame whose fingerprint is now stale (the file changed) are pruned so the blob folder
+    /// doesn't grow unbounded across edits.</summary>
     public string PutPreview(string id, string fingerprint, int longEdge, int rotation, byte[] jpeg, string cropTag = "")
     {
         var path = PreviewPath(id, fingerprint, longEdge, rotation, cropTag);
         File.WriteAllBytes(path, jpeg);
+
+        lock (_gate)
+        {
+            using (var ins = _db.CreateCommand())
+            {
+                ins.CommandText = "INSERT OR REPLACE INTO previews (path, id, fingerprint) VALUES ($p, $id, $fp)";
+                ins.Parameters.AddWithValue("$p", path);
+                ins.Parameters.AddWithValue("$id", id);
+                ins.Parameters.AddWithValue("$fp", fingerprint);
+                ins.ExecuteNonQuery();
+            }
+
+            var stale = new List<string>();
+            using (var sel = _db.CreateCommand())
+            {
+                sel.CommandText = "SELECT path FROM previews WHERE id = $id AND fingerprint <> $fp";
+                sel.Parameters.AddWithValue("$id", id);
+                sel.Parameters.AddWithValue("$fp", fingerprint);
+                using var r = sel.ExecuteReader();
+                while (r.Read())
+                    stale.Add(r.GetString(0));
+            }
+            foreach (var p in stale)
+                try { File.Delete(p); } catch { /* best-effort; the row removal still reclaims tracking */ }
+            if (stale.Count > 0)
+            {
+                using var del = _db.CreateCommand();
+                del.CommandText = "DELETE FROM previews WHERE id = $id AND fingerprint <> $fp";
+                del.Parameters.AddWithValue("$id", id);
+                del.Parameters.AddWithValue("$fp", fingerprint);
+                del.ExecuteNonQuery();
+            }
+        }
         return path;
     }
 
@@ -131,10 +191,17 @@ public sealed class ShootCache : IDisposable
 
     private void Exec(string sql)
     {
-        using var cmd = _db.CreateCommand();
-        cmd.CommandText = sql;
-        cmd.ExecuteNonQuery();
+        lock (_gate)
+        {
+            using var cmd = _db.CreateCommand();
+            cmd.CommandText = sql;
+            cmd.ExecuteNonQuery();
+        }
     }
 
-    public void Dispose() => _db.Dispose();
+    public void Dispose()
+    {
+        lock (_gate)
+            _db.Dispose();
+    }
 }

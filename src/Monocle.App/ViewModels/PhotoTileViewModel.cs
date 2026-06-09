@@ -23,6 +23,12 @@ public partial class PhotoTileViewModel : ViewModelBase
     public bool IsPair { get; }
 
     [ObservableProperty] private Bitmap? _thumbnail;
+
+    // Bitmap holds unmanaged image memory; on a large shoot, replacing thumbnails (re-rotate,
+    // re-crop, re-analyse) without disposing the old one leaks native memory until GC. Each tile
+    // owns its own decoded bitmap, so disposing the outgoing one when it changes is safe.
+    partial void OnThumbnailChanged(Bitmap? oldValue, Bitmap? newValue) => oldValue?.Dispose();
+
     [ObservableProperty] private int _stars;
     [ObservableProperty] private string _starText = "";
     [ObservableProperty] private string _technicalText = "";

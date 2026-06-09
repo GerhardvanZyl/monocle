@@ -55,6 +55,21 @@ public class CacheAndServiceTests : IDisposable
     }
 
     [Fact]
+    public void PutPreviewPrunesStaleFingerprintBlobs()
+    {
+        using var cache = new ShootCache(_dir);
+        var jpeg = new byte[] { 1, 2, 3, 4 };
+
+        var oldPath = cache.PutPreview("id1", "fp-v1", 360, 0, jpeg);
+        Assert.True(File.Exists(oldPath));
+
+        // The file changed (new fingerprint): writing the new preview prunes the stale one.
+        var newPath = cache.PutPreview("id1", "fp-v2", 360, 0, jpeg);
+        Assert.True(File.Exists(newPath));
+        Assert.False(File.Exists(oldPath), "stale-fingerprint preview should be deleted");
+    }
+
+    [Fact]
     public async Task EndToEndAnalyzeRateSaveAndReload()
     {
         WriteJpeg("DSC001.jpg");

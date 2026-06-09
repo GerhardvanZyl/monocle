@@ -86,12 +86,18 @@ public sealed class ShootService
                 };
                 foreach (var runner in toRun)
                 {
-                    if (!await runner.IsAvailableAsync(ct).ConfigureAwait(false))
-                        continue;
                     try
                     {
+                        // The availability probe is inside the try: a runner whose probe throws must
+                        // be skipped, not abort the whole frame (FEATURES §6 graceful degrade).
+                        if (!await runner.IsAvailableAsync(ct).ConfigureAwait(false))
+                            continue;
                         var score = await runner.ScoreAsync(context, ct).ConfigureAwait(false);
                         cache.PutScore(item.Id, fp, score);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw; // genuine cancellation propagates; a swallowed runner failure does not
                     }
                     catch { /* one model failing must not break the run (FEATURES §6 graceful degrade) */ }
                 }

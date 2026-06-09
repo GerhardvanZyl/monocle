@@ -22,7 +22,8 @@ public sealed class SidecarRunner : IModelRunner
         _info = info;
     }
 
-    public ModelDescriptor Descriptor => new()
+    private ModelDescriptor? _descriptor;
+    public ModelDescriptor Descriptor => _descriptor ??= new()
     {
         Id = _info.Id,
         DisplayName = _info.Name,
@@ -39,7 +40,7 @@ public sealed class SidecarRunner : IModelRunner
     {
         if (!_manager.Running)
             return false;
-        var health = await _manager.Client.HealthAsync(ct).ConfigureAwait(false);
+        var health = await _manager.HealthAsync(ct).ConfigureAwait(false);  // cached per short TTL
         return health?.Models.Contains(_info.Id) == true;
     }
 

@@ -21,7 +21,8 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
         _modelPath = Path.Combine(modelsDir, config.FileName);
     }
 
-    public ModelDescriptor Descriptor => new()
+    private ModelDescriptor? _descriptor;
+    public ModelDescriptor Descriptor => _descriptor ??= new()
     {
         Id = _config.Id,
         DisplayName = _config.DisplayName,

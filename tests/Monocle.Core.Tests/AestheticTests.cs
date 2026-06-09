@@ -42,6 +42,17 @@ public class AestheticTests
     }
 
     [Fact]
+    public void EmptyImageScoresFiniteNotNaN()
+    {
+        // A degenerate 0-pixel decode must not produce NaN (which would silently mis-rate frames).
+        var rgb = new RgbImage(0, 0, System.Array.Empty<byte>());
+        var gray = new GrayImage(0, 0, System.Array.Empty<float>());
+        var s = AestheticCalculator.Compute(rgb, gray);
+        Assert.False(double.IsNaN(s));
+        Assert.InRange(s, 0.0, 1.0);
+    }
+
+    [Fact]
     public void IsDeterministic()
     {
         var (rgb, gray) = Make(40, 40, (x, y) => ((byte)(x % 255), (byte)(y % 255), (byte)128));

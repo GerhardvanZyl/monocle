@@ -28,6 +28,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ModelRegistry _registry;
     private ShootCache? _cache;
     private CancellationTokenSource? _scanCts;
+    private CancellationTokenSource? _cullCts;
 
     public MainWindowViewModel()
     {
@@ -160,6 +161,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ---- Detail pane ----
     [ObservableProperty] private Bitmap? _detailPreview;
+
+    // The detail preview is a full-size decode (DetailLongEdge); dispose the outgoing one when the
+    // selection changes so its native memory is released instead of waiting on GC.
+    partial void OnDetailPreviewChanged(Bitmap? oldValue, Bitmap? newValue) => oldValue?.Dispose();
     [ObservableProperty] private string _detailMetrics = "";
     [ObservableProperty] private ObservableCollection<string> _detailScores = new();
     [ObservableProperty] private string _notesText = "";
@@ -194,6 +199,10 @@ public partial class MainWindowViewModel : ViewModelBase
         var ct = _scanCts.Token;
 
         IsBusy = true;
+        // Release the previous shoot's thumbnails (the dominant resident cost) before dropping the
+        // tiles; setting Thumbnail = null disposes the old bitmap via OnThumbnailChanged.
+        foreach (var tile in Photos)
+            tile.Thumbnail = null;
         Photos.Clear();
         VisiblePhotos.Clear();
         SelectedPhoto = null;
@@ -267,6 +276,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
+                        // This callback may be queued behind a newer scan that already cleared the
+                        // grid; if our run was cancelled, drop it (and the bitmap) instead of
+                        // corrupting the new shoot's counters/pipeline.
+                        if (token.IsCancellationRequested) { bmp?.Dispose(); return; }
                         tile.Thumbnail = bmp;
                         tile.Analyzing = false;
                         tile.RefreshFromItem();
@@ -285,6 +298,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
+                        if (token.IsCancellationRequested) return;
                         tile.Analyzing = false;
                         Analyzed++;
                         ProgressFraction = Total == 0 ? 0 : (double)Analyzed / Total;
@@ -294,13 +308,13 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void SetStars(string starsText)
+    private async Task SetStarsAsync(string starsText)
     {
         if (SelectedPhoto is not { } tile || !int.TryParse(starsText, out var stars))
             return;
         tile.Item.Stars = stars;
         tile.Item.RatedByModel = "Manual";
-        _service.Save(tile.Item);
+        await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
         tile.RefreshFromItem();
         DetailRating = FormatRating(tile.Item);
         ApplyFilter();
@@ -325,6 +339,8 @@ public partial class MainWindowViewModel : ViewModelBase
         CullLog.Clear();
         CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
         Pipeline?.SetStatus("claude", StageStatus.Running);
+        _cullCts?.Cancel();
+        _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
 
         var options = new ClaudeCullOptions
         {
@@ -357,10 +373,10 @@ public partial class MainWindowViewModel : ViewModelBase
                         CullLog.Add($"Done — {ev.NumTurns} turns, {ev.DurationMs} ms, ${ev.CostUsd:0.0000}.");
                         break;
                 }
-            }), _scanCts?.Token ?? CancellationToken.None);
+            }), _cullCts.Token);
 
             Pipeline?.SetStatus("claude", StageStatus.Done);
-            ReloadRatings();
+            await ReloadRatingsAsync();
             if (result is { } r)
                 StatusText = $"Cull done: {r.NumTurns} turns, ${r.CostUsd:0.0000}.";
         }
@@ -372,17 +388,22 @@ public partial class MainWindowViewModel : ViewModelBase
         finally
         {
             CullRunning = false;
+            try { System.IO.File.Delete(options.McpConfigPath); } catch { /* best-effort temp cleanup */ }
         }
     }
 
-    /// <summary>Re-read sidecars after a cull so the grid shows the ratings Claude wrote.</summary>
-    private void ReloadRatings()
+    /// <summary>Re-read sidecars after a cull so the grid shows the ratings Claude wrote. The disk
+    /// reads (one per photo) run off the UI thread so the window stays responsive on large shoots.</summary>
+    private async Task ReloadRatingsAsync()
     {
-        foreach (var tile in Photos)
+        var tiles = Photos.ToList();
+        await Task.Run(() =>
         {
-            SidecarService.Load(tile.Item);
+            foreach (var tile in tiles)
+                SidecarService.Load(tile.Item);
+        });
+        foreach (var tile in tiles)
             tile.RefreshFromItem();
-        }
         if (SelectedPhoto is { } sel)
             DetailRating = FormatRating(sel.Item);
         ApplyFilter();
@@ -390,12 +411,12 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private void SaveNotes()
+    private async Task SaveNotesAsync()
     {
         if (SelectedPhoto is not { } tile)
             return;
         tile.Item.UserNotes = string.IsNullOrWhiteSpace(NotesText) ? null : NotesText.Trim();
-        _service.Save(tile.Item);
+        await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
         StatusText = $"Saved notes for {tile.Title}.";
     }
 
@@ -477,7 +498,9 @@ public partial class MainWindowViewModel : ViewModelBase
             var path = await _service.GetPreviewAsync(tile.Item, _cache, ShootService.DetailLongEdge);
             DetailPreview = SafeLoadBitmap(path);
         }
-        catch { DetailPreview = tile.Thumbnail; }
+        // Don't alias the tile's thumbnail here: DetailPreview owns and disposes its bitmap, and
+        // sharing the thumbnail would double-free it. A failed preview just shows nothing.
+        catch { DetailPreview = null; }
     }
 
     private void ApplyFilter()
@@ -501,13 +524,29 @@ public partial class MainWindowViewModel : ViewModelBase
         if (shouldShow && !isShown)
         {
             VisiblePhotos.Add(tile);
-            RebuildRows();
+            ScheduleRebuildRows();
         }
         else if (!shouldShow && isShown)
         {
             VisiblePhotos.Remove(tile);
-            RebuildRows();
+            ScheduleRebuildRows();
         }
+    }
+
+    private bool _rowsRebuildScheduled;
+
+    /// <summary>Coalesce row rebuilds: during analysis many tiles change visibility in a burst, and
+    /// rebuilding the whole row collection per tile is O(n²). Defer to one rebuild per UI tick.</summary>
+    private void ScheduleRebuildRows()
+    {
+        if (_rowsRebuildScheduled)
+            return;
+        _rowsRebuildScheduled = true;
+        Dispatcher.UIThread.Post(() =>
+        {
+            _rowsRebuildScheduled = false;
+            RebuildRows();
+        }, DispatcherPriority.Background);
     }
 
     private static string FormatRating(PhotoItem item)
@@ -602,6 +641,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public void Cleanup()
     {
         _scanCts?.Cancel();
+        _cullCts?.Cancel();
         _cache?.Dispose();
         _sidecar.Dispose();
     }

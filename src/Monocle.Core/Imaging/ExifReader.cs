@@ -32,8 +32,11 @@ public sealed class ExifReader : IExifReader
             Camera = Join(ifd0?.GetDescription(ExifDirectoryBase.TagMake),
                           ifd0?.GetDescription(ExifDirectoryBase.TagModel)),
             Lens = sub?.GetDescription(ExifDirectoryBase.TagLensModel),
-            PixelWidth = TryInt(sub, ExifDirectoryBase.TagExifImageWidth) ?? 0,
-            PixelHeight = TryInt(sub, ExifDirectoryBase.TagExifImageHeight) ?? 0,
+            // Prefer the SubIFD pixel dimensions, but many RAWs/JPEGs carry them only in IFD0.
+            PixelWidth = TryInt(sub, ExifDirectoryBase.TagExifImageWidth)
+                         ?? TryInt(ifd0, ExifDirectoryBase.TagImageWidth) ?? 0,
+            PixelHeight = TryInt(sub, ExifDirectoryBase.TagExifImageHeight)
+                          ?? TryInt(ifd0, ExifDirectoryBase.TagImageHeight) ?? 0,
         };
     }
 

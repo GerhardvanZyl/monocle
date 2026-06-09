@@ -80,6 +80,13 @@ public static class ShootExporter
 
     private static string Escape(string field)
     {
+        // Neutralize spreadsheet formula injection: a cell beginning with = + - @ (or a tab/CR
+        // lead) is executed as a formula when the CSV is opened in Excel/Sheets, and notes,
+        // keywords and model text are user/LLM-controlled. A leading apostrophe forces text.
+        // The numeric columns here are non-negative, so this never mangles a legitimate number.
+        if (field.Length > 0 && "=+-@\t\r".IndexOf(field[0]) >= 0)
+            field = "'" + field;
+
         if (field.IndexOfAny(new[] { ',', '"', '\n', '\r' }) < 0)
             return field;
         return "\"" + field.Replace("\"", "\"\"") + "\"";

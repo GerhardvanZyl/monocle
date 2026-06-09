@@ -53,7 +53,9 @@ public static class CullLauncher
             ["mcpServers"] = new Dictionary<string, object> { ["monocle"] = server },
         };
 
-        var path = Path.Combine(Path.GetTempPath(), "monocle-cull-mcp.json");
+        // Unique per run so concurrent culls don't clobber each other's config; the caller deletes
+        // it when the run ends. It holds no secrets (only the dotnet host + server dll paths).
+        var path = Path.Combine(Path.GetTempPath(), $"monocle-cull-mcp-{Guid.NewGuid():N}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
         return path;
     }

@@ -48,11 +48,21 @@ public partial class MainWindow : Window
 
     private async void OpenFullscreen()
     {
-        if (Vm?.SelectedPhoto is { } tile)
+        // async void event handler: an unguarded throw (preview decode or window construction)
+        // would escape to the sync context as an unhandled exception and crash the app.
+        try
         {
-            var bmp = await Vm.GetDetailBitmapAsync(tile);
-            if (bmp is not null)
-                new FullscreenWindow(bmp).Show();
+            if (Vm?.SelectedPhoto is { } tile)
+            {
+                var bmp = await Vm.GetDetailBitmapAsync(tile);
+                if (bmp is not null)
+                    new FullscreenWindow(bmp).Show();
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Vm is not null)
+                Vm.StatusText = $"Couldn't open fullscreen: {ex.Message}";
         }
     }
 
@@ -60,11 +70,19 @@ public partial class MainWindow : Window
 
     private async void OpenCrop()
     {
-        if (Vm?.SelectedPhoto is { } tile)
+        try
         {
-            var bmp = await Vm.GetUncroppedBitmapAsync(tile);
-            if (bmp is not null)
-                new CropWindow(bmp, tile.Item.Crop, crop => _ = Vm.ApplyCropAsync(tile, crop)).Show(this);
+            if (Vm?.SelectedPhoto is { } tile)
+            {
+                var bmp = await Vm.GetUncroppedBitmapAsync(tile);
+                if (bmp is not null)
+                    new CropWindow(bmp, tile.Item.Crop, crop => _ = Vm.ApplyCropAsync(tile, crop)).Show(this);
+            }
+        }
+        catch (Exception ex)
+        {
+            if (Vm is not null)
+                Vm.StatusText = $"Couldn't open crop editor: {ex.Message}";
         }
     }
 

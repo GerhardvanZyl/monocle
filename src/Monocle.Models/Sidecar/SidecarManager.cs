@@ -9,6 +9,10 @@ namespace Monocle.Models.Sidecar;
 public sealed class SidecarManager : IDisposable
 {
     private Process? _process;
+    private readonly SemaphoreSlim _healthGate = new(1, 1);
+    private SidecarHealth? _cachedHealth;
+    private DateTime _healthAt;
+    private static readonly TimeSpan HealthTtl = TimeSpan.FromSeconds(2);
 
     public string BaseUrl { get; private set; } = "http://127.0.0.1:8765";
     public SidecarClient Client { get; private set; }
@@ -17,6 +21,30 @@ public sealed class SidecarManager : IDisposable
 
     public bool Running => _process is { HasExited: false };
 
+    /// <summary>
+    /// Health, cached for a short TTL. The analysis loop probes availability per frame across many
+    /// threads; without this each frame would fire a separate HTTP GET /health (thousands per shoot).
+    /// </summary>
+    public async Task<SidecarHealth?> HealthAsync(CancellationToken ct = default)
+    {
+        if (_cachedHealth is not null && DateTime.UtcNow - _healthAt < HealthTtl)
+            return _cachedHealth;
+
+        await _healthGate.WaitAsync(ct).ConfigureAwait(false);
+        try
+        {
+            if (_cachedHealth is not null && DateTime.UtcNow - _healthAt < HealthTtl)
+                return _cachedHealth;
+            _cachedHealth = await Client.HealthAsync(ct).ConfigureAwait(false);
+            _healthAt = DateTime.UtcNow;
+            return _cachedHealth;
+        }
+        finally
+        {
+            _healthGate.Release();
+        }
+    }
+
     /// <summary>Start the sidecar and poll until /health is ok (or time out). Idempotent.</summary>
     public async Task<bool> StartAsync(string pythonExe, string serverScript, int port = 8765, CancellationToken ct = default)
     {
@@ -24,7 +52,9 @@ public sealed class SidecarManager : IDisposable
             return true;
 
         BaseUrl = $"http://127.0.0.1:{port}";
+        Client.Dispose();                  // release the previous client's HttpClient before replacing it
         Client = new SidecarClient(BaseUrl);
+        _cachedHealth = null;              // a new endpoint invalidates any cached health
 
         var psi = new ProcessStartInfo(pythonExe)
         {
@@ -65,5 +95,10 @@ public sealed class SidecarManager : IDisposable
         _process = null;
     }
 
-    public void Dispose() => Stop();
+    public void Dispose()
+    {
+        Stop();
+        Client.Dispose();
+        _healthGate.Dispose();
+    }
 }

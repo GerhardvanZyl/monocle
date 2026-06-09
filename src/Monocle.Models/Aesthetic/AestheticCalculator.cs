@@ -30,6 +30,8 @@ public static class AestheticCalculator
     {
         double sumRg = 0, sumYb = 0, sumRgSq = 0, sumYbSq = 0;
         var n = img.Width * img.Height;
+        if (n <= 0)
+            return 0;   // a degenerate (empty) decode must not poison the score with 0/0 = NaN
         var px = img.Rgb;
         for (int i = 0; i < n; i++)
         {
@@ -54,6 +56,8 @@ public static class AestheticCalculator
         double sum = 0, sumSq = 0;
         foreach (var v in gray.Luma) { sum += v; sumSq += (double)v * v; }
         var n = gray.Luma.Length;
+        if (n == 0)
+            return (0, 0);   // empty luma → no stats, rather than NaN flowing into the rating
         var mean = sum / n;
         var std = Math.Sqrt(Math.Max(0, sumSq / n - mean * mean));
         return (mean, Math.Clamp(std * 2.5, 0, 1));
