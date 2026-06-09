@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace Monocle.Core.Model;
 
 /// <summary>
@@ -29,6 +31,7 @@ public sealed class ModelScore
     public DateTime TimestampUtc { get; init; } = DateTime.UtcNow;
 
     /// <summary>Value rescaled to 0..1 for cross-model sorting/visualisation, when numeric.</summary>
+    [JsonIgnore]
     public double? Normalized =>
         Value is { } v && ScaleMax is { } max && max > 0 ? Math.Clamp(v / max, 0, 1) : null;
 }

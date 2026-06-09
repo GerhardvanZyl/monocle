@@ -11,6 +11,9 @@ public sealed class DecodeResult
     /// <summary>Downscaled luma image for technical metrics.</summary>
     public required GrayImage Gray { get; init; }
 
+    /// <summary>Downscaled colour image for colour-aware scorers (same dimensions as Gray).</summary>
+    public RgbImage? Rgb { get; init; }
+
     public int SourceWidth { get; init; }
     public int SourceHeight { get; init; }
 }

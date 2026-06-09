@@ -27,10 +27,10 @@ public sealed class HeuristicRunner : IModelRunner
 
     public Task<bool> IsAvailableAsync(CancellationToken ct = default) => Task.FromResult(true);
 
-    public Task<ModelScore> ScoreAsync(PhotoItem item, CancellationToken ct = default)
+    public Task<ModelScore> ScoreAsync(ScoringContext context, CancellationToken ct = default)
     {
-        _engine.Rate(item);
-        var score = item.Scores.First(s => s.ModelId == HeuristicRatingEngine.ModelId);
+        _engine.Rate(context.Item);
+        var score = context.Item.Scores.First(s => s.ModelId == HeuristicRatingEngine.ModelId);
         return Task.FromResult(score);
     }
 }

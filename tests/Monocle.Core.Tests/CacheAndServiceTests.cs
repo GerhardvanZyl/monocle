@@ -3,6 +3,7 @@ using Monocle.Core.Imaging;
 using Monocle.Core.Model;
 using Monocle.Core.Sidecars;
 using Monocle.Models;
+using Monocle.Models.Aesthetic;
 using SkiaSharp;
 using Xunit;
 
@@ -100,6 +101,25 @@ public class CacheAndServiceTests : IDisposable
         var item2 = svc.Load(_dir)[0];
         await svc.AnalyzeAsync(item2, cache);
         Assert.Equal(first, item2.Metrics!.CompositeScore, 10);
+    }
+
+    [Fact]
+    public async Task SelectedScorerRunsAttachesAndCaches()
+    {
+        WriteJpeg("DSC050.jpg");
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var scorers = new IModelRunner[] { new AestheticRunner() };
+
+        var item = svc.Load(_dir)[0];
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, scorers);
+        Assert.Contains(item.Scores, s => s.ModelId == AestheticRunner.ModelId && s.Kind == ScoreKind.Aesthetic);
+        Assert.NotEmpty(cache.GetScores(item.Id, item.Fingerprint));
+
+        // A fresh load re-attaches the cached aesthetic score.
+        var reloaded = svc.Load(_dir)[0];
+        await svc.AnalyzeAsync(reloaded, cache, rateIfUnrated: true, scorers);
+        Assert.Contains(reloaded.Scores, s => s.ModelId == AestheticRunner.ModelId);
     }
 
     public void Dispose() => System.IO.Directory.Delete(_dir, recursive: true);

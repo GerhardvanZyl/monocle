@@ -8,12 +8,17 @@ using CommunityToolkit.Mvvm.Input;
 using Monocle.Core.Cache;
 using Monocle.Core.Model;
 using Monocle.Models;
+using Monocle.Models.Aesthetic;
+using Monocle.Models.Heuristic;
 
 namespace Monocle.App.ViewModels;
 
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ShootService _service = new();
+    private readonly ModelRegistry _registry = new ModelRegistry()
+        .Register(new HeuristicRunner())
+        .Register(new AestheticRunner());
     private ShootCache? _cache;
     private CancellationTokenSource? _scanCts;
 
@@ -21,7 +26,27 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Photos = new ObservableCollection<PhotoTileViewModel>();
         VisiblePhotos = new ObservableCollection<PhotoTileViewModel>();
+        Models = new ObservableCollection<ModelOptionViewModel>();
+        _ = InitModelsAsync();
     }
+
+    /// <summary>Selectable scorer models (everything except the always-on heuristic rater).</summary>
+    public ObservableCollection<ModelOptionViewModel> Models { get; }
+
+    private async Task InitModelsAsync()
+    {
+        foreach (var runner in _registry.All)
+        {
+            if (runner.Descriptor.Category == ModelCategory.Heuristic)
+                continue;
+            var available = await runner.IsAvailableAsync();
+            Models.Add(new ModelOptionViewModel(runner, available,
+                enabled: runner.Descriptor.Id == AestheticRunner.ModelId));
+        }
+    }
+
+    private IReadOnlyList<IModelRunner> SelectedScorers() =>
+        Models.Where(m => m.IsEnabled && m.Available).Select(m => m.Runner).ToList();
 
     // ---- Inputs ----
     [ObservableProperty] private string _folderPath = "";
@@ -114,6 +139,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
+        var scorers = SelectedScorers();
         var maxConcurrency = Math.Clamp(Environment.ProcessorCount - 1, 2, 8);
 
         await Parallel.ForEachAsync(tiles,
@@ -122,7 +148,7 @@ public partial class MainWindowViewModel : ViewModelBase
             {
                 try
                 {
-                    await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated: true, token);
+                    await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated: true, scorers, token);
                     var previewPath = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge, token);
                     var bmp = SafeLoadBitmap(previewPath);
 

@@ -35,7 +35,46 @@ public sealed class ShootCache : IDisposable
                 metrics TEXT,
                 exif TEXT
             );
+            CREATE TABLE IF NOT EXISTS scores (
+                id TEXT NOT NULL,
+                modelId TEXT NOT NULL,
+                fingerprint TEXT NOT NULL,
+                json TEXT NOT NULL,
+                PRIMARY KEY (id, modelId)
+            );
             """);
+    }
+
+    /// <summary>Cached model scores whose fingerprint still matches the file.</summary>
+    public List<ModelScore> GetScores(string id, string fingerprint)
+    {
+        var result = new List<ModelScore>();
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = "SELECT json FROM scores WHERE id = $id AND fingerprint = $fp";
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.Parameters.AddWithValue("$fp", fingerprint);
+        using var r = cmd.ExecuteReader();
+        while (r.Read())
+        {
+            var score = JsonSerializer.Deserialize<ModelScore>(r.GetString(0));
+            if (score is not null)
+                result.Add(score);
+        }
+        return result;
+    }
+
+    public void PutScore(string id, string fingerprint, ModelScore score)
+    {
+        using var cmd = _db.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO scores (id, modelId, fingerprint, json) VALUES ($id, $m, $fp, $j)
+            ON CONFLICT(id, modelId) DO UPDATE SET fingerprint=$fp, json=$j;
+            """;
+        cmd.Parameters.AddWithValue("$id", id);
+        cmd.Parameters.AddWithValue("$m", score.ModelId);
+        cmd.Parameters.AddWithValue("$fp", fingerprint);
+        cmd.Parameters.AddWithValue("$j", JsonSerializer.Serialize(score));
+        cmd.ExecuteNonQuery();
     }
 
     public bool TryGetAnalysis(string id, string fingerprint, out TechnicalMetrics? metrics, out ExifInfo? exif)

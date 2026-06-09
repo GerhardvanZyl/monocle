@@ -45,11 +45,13 @@ public sealed class SkiaImageDecoder : IImageDecoder
 
         using var small = ResizeLongEdge(view, MetricsLongEdge);
         var gray = ToGray(small);
+        var rgb = ToRgb(small);
 
         return new DecodeResult
         {
             PreviewJpeg = previewJpeg,
             Gray = gray,
+            Rgb = rgb,
             SourceWidth = srcW,
             SourceHeight = srcH,
         };
@@ -165,5 +167,21 @@ public sealed class SkiaImageDecoder : IImageDecoder
             luma[i] = (0.299f * c.Red + 0.587f * c.Green + 0.114f * c.Blue) / 255f;
         }
         return new GrayImage(w, h, luma);
+    }
+
+    private static RgbImage ToRgb(SKBitmap bmp)
+    {
+        var w = bmp.Width;
+        var h = bmp.Height;
+        var rgb = new byte[w * h * 3];
+        var pixels = bmp.Pixels;
+        for (int i = 0; i < pixels.Length; i++)
+        {
+            var c = pixels[i];
+            rgb[i * 3] = c.Red;
+            rgb[i * 3 + 1] = c.Green;
+            rgb[i * 3 + 2] = c.Blue;
+        }
+        return new RgbImage(w, h, rgb);
     }
 }

@@ -109,8 +109,33 @@
 
             <!-- Detail pane -->
             <Border Grid.Column="1" Background="#202020" Padding="10">
-                <ScrollViewer>
-                    <StackPanel Spacing="8" IsVisible="{Binding HasSelection}">
+                <DockPanel>
+                    <Expander DockPanel.Dock="Top" Header="Models" IsExpanded="True" Margin="0,0,0,8">
+                        <StackPanel>
+                            <TextBlock Text="Tick models, then Scan to apply. Hover for tradeoffs."
+                                       Foreground="#888" FontSize="10" Margin="0,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding Models}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ModelOptionViewModel">
+                                        <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3"
+                                              ToolTip.Tip="{Binding Tradeoffs}">
+                                            <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
+                                                      IsEnabled="{Binding Available}" VerticalAlignment="Top"/>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="{Binding Header}" FontSize="12"/>
+                                                <TextBlock Text="{Binding Description}" FontSize="10"
+                                                           Foreground="#999" TextWrapping="Wrap"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
+                                                       Foreground="#7CF" VerticalAlignment="Top" Margin="4,0,0,0"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Expander>
+                    <ScrollViewer>
+                        <StackPanel Spacing="8" IsVisible="{Binding HasSelection}">
                         <Border Height="280" Background="#111">
                             <Image Source="{Binding DetailPreview}" Stretch="Uniform"
                                    DoubleTapped="OnPreviewDoubleTapped"/>
@@ -151,8 +176,9 @@
                         <TextBox Text="{Binding NotesText}" AcceptsReturn="True" Height="90"
                                  TextWrapping="Wrap" Watermark="Your own thoughts on this image…"/>
                         <Button Content="Save notes" Command="{Binding SaveNotesCommand}" HorizontalAlignment="Right"/>
-                    </StackPanel>
-                </ScrollViewer>
+                        </StackPanel>
+                    </ScrollViewer>
+                </DockPanel>
             </Border>
         </Grid>
     </DockPanel>
