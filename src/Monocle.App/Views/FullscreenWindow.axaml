@@ -1,0 +1,11 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        x:Class="Monocle.App.Views.FullscreenWindow"
+        WindowState="FullScreen"
+        SystemDecorations="None"
+        Background="Black"
+        Title="Monocle — Fullscreen">
+    <Border Name="Viewport" ClipToBounds="True" Background="Black">
+        <Image Name="Img" Stretch="None" RenderTransformOrigin="0,0"/>
+    </Border>
+</Window>

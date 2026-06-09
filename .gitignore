@@ -1,0 +1,25 @@
+# .NET build output
+bin/
+obj/
+*.user
+.vs/
+
+# Rider / VS Code
+.idea/
+.vscode/
+
+# Avalonia / publish
+publish/
+*.AppImage
+
+# Python sidecar venv (Phase 5)
+python/.venv/
+__pycache__/
+*.pyc
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Monocle cache (per-shoot SQLite + preview blobs)
+.monocle-cache/
