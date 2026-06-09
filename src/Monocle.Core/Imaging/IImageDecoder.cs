@@ -24,6 +24,9 @@ public interface IImageDecoder
 {
     bool CanDecode(string extension);
 
-    /// <summary>Decode <paramref name="item"/>'s preview-source file at up to <paramref name="maxLongEdge"/> px.</summary>
-    Task<DecodeResult> DecodeAsync(PhotoItem item, int maxLongEdge, CancellationToken ct = default);
+    /// <summary>
+    /// Decode <paramref name="item"/>'s preview-source file at up to <paramref name="maxLongEdge"/> px,
+    /// applying <paramref name="rotationQuarters"/> extra clockwise 90° turns on top of EXIF (#25).
+    /// </summary>
+    Task<DecodeResult> DecodeAsync(PhotoItem item, int maxLongEdge, int rotationQuarters = 0, CancellationToken ct = default);
 }

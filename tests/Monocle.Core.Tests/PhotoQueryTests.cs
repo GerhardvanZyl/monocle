@@ -28,8 +28,8 @@ public class PhotoQueryTests
         };
 
         Assert.Equal(2, items.Count(i => PhotoQuery.Matches(i, new PhotoFilterSpec(RatingFilter.Pick))));
-        Assert.Single(items.Where(i => PhotoQuery.Matches(i, new PhotoFilterSpec(RatingFilter.Reject))));
-        Assert.Single(items.Where(i => PhotoQuery.Matches(i, new PhotoFilterSpec(RatingFilter.Unrated))));
+        Assert.Single(items, i => PhotoQuery.Matches(i, new PhotoFilterSpec(RatingFilter.Reject)));
+        Assert.Single(items, i => PhotoQuery.Matches(i, new PhotoFilterSpec(RatingFilter.Unrated)));
         // stars {4,1,0,3}: two are >= 2 (the 4 and the 3).
         Assert.Equal(2, items.Count(i => PhotoQuery.Matches(i, new PhotoFilterSpec(RatingFilter.Star2))));
     }

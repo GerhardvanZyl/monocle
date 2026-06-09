@@ -14,6 +14,7 @@ public static class XmpSidecar
     private const string NsRdf = "http://www.w3.org/1999/02/22-rdf-syntax-ns#";
     private const string NsDc = "http://purl.org/dc/elements/1.1/";
     private const string NsXmp = "http://ns.adobe.com/xap/1.0/";
+    private const string NsTiff = "http://ns.adobe.com/tiff/1.0/";
 
     /// <summary>The sidecar path for a given image file: replaces the extension with .xmp.</summary>
     public static string PathFor(string imagePath) =>
@@ -39,6 +40,8 @@ public static class XmpSidecar
         if (int.TryParse(SelectText(desc, "xmp:Rating", ns), out var rating))
             data.Rating = rating;
         data.Label = SelectText(desc, "xmp:Label", ns);
+        if (int.TryParse(SelectText(desc, "tiff:Orientation", ns), out var orientation))
+            data.Orientation = orientation;
         data.Description = SelectLangAlt(desc, "dc:description", ns);
         foreach (XmlNode li in desc.SelectNodes("dc:subject/rdf:Bag/rdf:li", ns) ?? Empty())
             if (!string.IsNullOrWhiteSpace(li.InnerText))
@@ -65,6 +68,9 @@ public static class XmpSidecar
             SetSimple(doc, desc, NsXmp, "xmp", "Label", data.Label);
         else
             RemoveChild(desc, "xmp:Label", ns);
+
+        if (data.Orientation is { } orientation)
+            SetSimple(doc, desc, NsTiff, "tiff", "Orientation", orientation.ToString());
 
         if (data.Keywords.Count > 0)
             SetBag(doc, desc, ns, data.Keywords);
@@ -106,6 +112,7 @@ public static class XmpSidecar
         ns.AddNamespace("rdf", NsRdf);
         ns.AddNamespace("dc", NsDc);
         ns.AddNamespace("xmp", NsXmp);
+        ns.AddNamespace("tiff", NsTiff);
         return ns;
     }
 

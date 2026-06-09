@@ -182,6 +182,23 @@ public partial class MainWindowViewModel : ViewModelBase
         _ = LoadDetailAsync(tile);
     }
 
+    [RelayCommand] private Task RotateLeftAsync() => RotateAsync(-1);
+    [RelayCommand] private Task RotateRightAsync() => RotateAsync(1);
+
+    /// <summary>Rotate the selected frame by 90° (#25): persists a composed XMP orientation,
+    /// mirrors across the pair, and refreshes the cached previews.</summary>
+    private async Task RotateAsync(int delta)
+    {
+        if (SelectedPhoto is not { } tile || _cache is null)
+            return;
+        tile.Item.RotationQuarters = (((tile.Item.RotationQuarters + delta) % 4) + 4) % 4;
+        _service.Save(tile.Item);
+        var thumbPath = await _service.GetPreviewAsync(tile.Item, _cache, ShootService.ThumbLongEdge);
+        tile.Thumbnail = SafeLoadBitmap(thumbPath);
+        await LoadDetailAsync(tile);
+        StatusText = $"Rotated {tile.Title}.";
+    }
+
     [RelayCommand]
     private void SetFilter(string filter) =>
         Rating = Enum.TryParse<RatingFilter>(filter, out var f) ? f : RatingFilter.All;

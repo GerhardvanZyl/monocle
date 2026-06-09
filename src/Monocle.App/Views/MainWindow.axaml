@@ -117,6 +117,8 @@
                         </Border>
                         <StackPanel Orientation="Horizontal" Spacing="4">
                             <Button Content="Fullscreen" Click="OnFullscreenClick"/>
+                            <Button Content="⟲" Command="{Binding RotateLeftCommand}" ToolTip.Tip="Rotate left ( [ )"/>
+                            <Button Content="⟳" Command="{Binding RotateRightCommand}" ToolTip.Tip="Rotate right ( ] )"/>
                             <Button Content="Switch RAW/JPG" Command="{Binding ToggleVariantCommand}"/>
                         </StackPanel>
 

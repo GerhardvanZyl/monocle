@@ -23,4 +23,7 @@ public sealed class XmpData
 
     /// <summary>The dc:description x-default value (caption On1 displays).</summary>
     public string? Description { get; set; }
+
+    /// <summary>tiff:Orientation — the composed display orientation (rotation), 1/3/6/8.</summary>
+    public int? Orientation { get; set; }
 }

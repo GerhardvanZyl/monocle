@@ -15,15 +15,15 @@ public sealed class SkiaImageDecoder : IImageDecoder
 
     public bool CanDecode(string extension) => SupportedFormats.IsSupported(extension);
 
-    public Task<DecodeResult> DecodeAsync(PhotoItem item, int maxLongEdge, CancellationToken ct = default)
+    public Task<DecodeResult> DecodeAsync(PhotoItem item, int maxLongEdge, int rotationQuarters = 0, CancellationToken ct = default)
     {
         var file = item.PreviewSourceFile
                    ?? throw new InvalidOperationException("PhotoItem has no files to decode.");
-        return Task.Run(() => Decode(file.Path, maxLongEdge), ct);
+        return Task.Run(() => Decode(file.Path, maxLongEdge, rotationQuarters), ct);
     }
 
     /// <summary>Decode a single file path; public so callers can decode previews directly.</summary>
-    public static DecodeResult Decode(string path, int maxLongEdge)
+    public static DecodeResult Decode(string path, int maxLongEdge, int rotationQuarters = 0)
     {
         var encoded = GetEncodedBytes(path);
         using var codec = SKCodec.Create(new MemoryStream(encoded, writable: false))
@@ -32,7 +32,8 @@ public sealed class SkiaImageDecoder : IImageDecoder
         var origin = codec.EncodedOrigin;
         using var raw = SKBitmap.Decode(codec)
             ?? throw new InvalidDataException($"Could not decode pixels: {path}");
-        using var upright = Orient(raw, origin);
+        using var oriented = Orient(raw, origin);
+        using var upright = RotateQuarters(oriented, rotationQuarters);
 
         var srcW = upright.Width;
         var srcH = upright.Height;
@@ -62,6 +63,27 @@ public sealed class SkiaImageDecoder : IImageDecoder
                        $"No embedded JPEG preview found in RAW: {Path.GetFileName(path)}");
         }
         return File.ReadAllBytes(path);
+    }
+
+    /// <summary>Rotate a bitmap clockwise by <paramref name="quarters"/> 90° turns.</summary>
+    private static SKBitmap RotateQuarters(SKBitmap src, int quarters)
+    {
+        quarters = ((quarters % 4) + 4) % 4;
+        if (quarters == 0)
+            return src.Copy();
+
+        var swap = quarters is 1 or 3;
+        var dstW = swap ? src.Height : src.Width;
+        var dstH = swap ? src.Width : src.Height;
+
+        var dst = new SKBitmap(dstW, dstH, src.ColorType, src.AlphaType);
+        using var canvas = new SKCanvas(dst);
+        canvas.Translate(dstW / 2f, dstH / 2f);
+        canvas.RotateDegrees(90 * quarters);
+        canvas.Translate(-src.Width / 2f, -src.Height / 2f);
+        canvas.DrawBitmap(src, 0, 0);
+        canvas.Flush();
+        return dst;
     }
 
     private static SKBitmap Orient(SKBitmap src, SKEncodedOrigin origin)

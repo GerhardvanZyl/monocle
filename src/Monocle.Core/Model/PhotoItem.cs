@@ -60,6 +60,10 @@ public sealed class PhotoItem
     /// <summary>Burst/near-duplicate group id, or null if ungrouped.</summary>
     public string? BurstGroupId { get; set; }
 
+    /// <summary>The user's in-app rotation in clockwise quarter-turns (0-3), applied on top of
+    /// the EXIF-upright preview. Persisted as a composed XMP orientation so On1 matches (#25).</summary>
+    public int RotationQuarters { get; set; }
+
     /// <summary>The file currently chosen for display.</summary>
     public PhotoFile? ActiveFile =>
         ActiveVariant == PhotoVariant.Raw

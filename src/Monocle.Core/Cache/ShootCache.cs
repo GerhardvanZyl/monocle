@@ -68,24 +68,24 @@ public sealed class ShootCache : IDisposable
         cmd.ExecuteNonQuery();
     }
 
-    /// <summary>Path to a cached preview at the given size, or null on a miss.</summary>
-    public string? GetPreviewPath(string id, string fingerprint, int longEdge)
+    /// <summary>Path to a cached preview at the given size + rotation, or null on a miss.</summary>
+    public string? GetPreviewPath(string id, string fingerprint, int longEdge, int rotation = 0)
     {
-        var path = PreviewPath(id, fingerprint, longEdge);
+        var path = PreviewPath(id, fingerprint, longEdge, rotation);
         return File.Exists(path) ? path : null;
     }
 
     /// <summary>Write a preview JPEG to the cache and return its path.</summary>
-    public string PutPreview(string id, string fingerprint, int longEdge, byte[] jpeg)
+    public string PutPreview(string id, string fingerprint, int longEdge, int rotation, byte[] jpeg)
     {
-        var path = PreviewPath(id, fingerprint, longEdge);
+        var path = PreviewPath(id, fingerprint, longEdge, rotation);
         File.WriteAllBytes(path, jpeg);
         return path;
     }
 
-    private string PreviewPath(string id, string fingerprint, int longEdge)
+    private string PreviewPath(string id, string fingerprint, int longEdge, int rotation)
     {
-        var key = $"{id}|{fingerprint}|{longEdge}";
+        var key = $"{id}|{fingerprint}|{longEdge}|r{rotation}";
         var hash = Convert.ToHexString(SHA1.HashData(Encoding.UTF8.GetBytes(key)));
         return Path.Combine(_previewDir, $"{hash}.jpg");
     }

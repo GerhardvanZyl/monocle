@@ -1,3 +1,4 @@
+using Monocle.Core.Imaging;
 using Monocle.Core.Model;
 
 namespace Monocle.Core.Sidecars;
@@ -46,6 +47,16 @@ public static class SidecarService
         item.UserNotes = notes;
         if (headline is not null && !item.Rationale.ContainsKey("headline"))
             item.Rationale["headline"] = headline;
+
+        // Restore the user's rotation: it is the composed XMP orientation minus the file's
+        // own EXIF orientation (read cheaply, only when a rotation was recorded).
+        if (xmp.Orientation is { } composed)
+        {
+            var baseOrientation = new ExifReader().Read(primary.Path).Orientation;
+            item.RotationQuarters = OrientationMath.Norm(
+                OrientationMath.QuartersFromOrientation(composed) -
+                OrientationMath.QuartersFromOrientation(baseOrientation));
+        }
     }
 
     private static XmpData BuildXmp(PhotoItem item)
@@ -65,7 +76,18 @@ public static class SidecarService
             Label = LabelFor(item.Reason),
             Keywords = keywords,
             Description = NotesFormat.Compose(headline, item.UserNotes),
+            Orientation = OrientationFor(item),
         };
+    }
+
+    /// <summary>The composed display orientation to record, or null to leave the sidecar's
+    /// orientation untouched (preserves any externally-written value for un-rotated frames).</summary>
+    private static int? OrientationFor(PhotoItem item)
+    {
+        if (item.RotationQuarters != 0)
+            return OrientationMath.Compose(item.ExifOrientation, item.RotationQuarters);
+        // No user rotation: only normalise the sidecar for pure-rotation bases.
+        return item.ExifOrientation is 1 or 3 or 6 or 8 ? item.ExifOrientation : null;
     }
 
     private static string? BuildHeadline(PhotoItem item)

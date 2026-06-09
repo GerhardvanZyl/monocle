@@ -56,11 +56,11 @@ public sealed class ShootService
             var exif = source is not null ? _exif.Read(source.Path) : new ExifInfo();
             ApplyExif(item, exif);
 
-            var decoded = await _decoder.DecodeAsync(item, ThumbLongEdge, ct).ConfigureAwait(false);
+            var decoded = await _decoder.DecodeAsync(item, ThumbLongEdge, item.RotationQuarters, ct).ConfigureAwait(false);
             item.Metrics = TechnicalMetricsCalculator.Compute(decoded.Gray, item.Iso);
 
             cache.PutAnalysis(item.Id, fp, item.Metrics, exif);
-            cache.PutPreview(item.Id, fp, ThumbLongEdge, decoded.PreviewJpeg);
+            cache.PutPreview(item.Id, fp, ThumbLongEdge, item.RotationQuarters, decoded.PreviewJpeg);
         }
 
         if (rateIfUnrated && item.Stars == 0)
@@ -71,12 +71,13 @@ public sealed class ShootService
     public async Task<string> GetPreviewAsync(PhotoItem item, ShootCache cache, int longEdge, CancellationToken ct = default)
     {
         var fp = item.Fingerprint;
-        var cached = cache.GetPreviewPath(item.Id, fp, longEdge);
+        var rot = item.RotationQuarters;
+        var cached = cache.GetPreviewPath(item.Id, fp, longEdge, rot);
         if (cached is not null)
             return cached;
 
-        var decoded = await _decoder.DecodeAsync(item, longEdge, ct).ConfigureAwait(false);
-        return cache.PutPreview(item.Id, fp, longEdge, decoded.PreviewJpeg);
+        var decoded = await _decoder.DecodeAsync(item, longEdge, rot, ct).ConfigureAwait(false);
+        return cache.PutPreview(item.Id, fp, longEdge, rot, decoded.PreviewJpeg);
     }
 
     /// <summary>Persist the item's rating, keywords, notes and rationale to its sidecars.</summary>

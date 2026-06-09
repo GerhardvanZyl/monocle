@@ -57,6 +57,8 @@ public partial class MainWindow : Window
             case Key.P: Vm.SetStarsCommand.Execute("4"); e.Handled = true; break;          // pick
             case Key.R or Key.X: Vm.SetStarsCommand.Execute("1"); e.Handled = true; break;  // reject
             case Key.F: OpenFullscreen(); e.Handled = true; break;
+            case Key.OemOpenBrackets: Vm.RotateLeftCommand.Execute(null); e.Handled = true; break;
+            case Key.OemCloseBrackets: Vm.RotateRightCommand.Execute(null); e.Handled = true; break;
             case Key.Left or Key.H: MoveSelection(-1); e.Handled = true; break;
             case Key.Right or Key.L: MoveSelection(1); e.Handled = true; break;
         }
