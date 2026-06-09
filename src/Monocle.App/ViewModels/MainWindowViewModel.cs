@@ -10,6 +10,7 @@ using Monocle.Core.Model;
 using Monocle.Models;
 using Monocle.Models.Aesthetic;
 using Monocle.Models.Heuristic;
+using Monocle.Models.Onnx;
 using Monocle.Pipeline;
 
 namespace Monocle.App.ViewModels;
@@ -17,18 +18,27 @@ namespace Monocle.App.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ShootService _service = new();
-    private readonly ModelRegistry _registry = new ModelRegistry()
-        .Register(new HeuristicRunner())
-        .Register(new AestheticRunner());
+    private readonly ModelRegistry _registry;
     private ShootCache? _cache;
     private CancellationTokenSource? _scanCts;
 
     public MainWindowViewModel()
     {
+        _registry = BuildRegistry();
         Photos = new ObservableCollection<PhotoTileViewModel>();
         VisiblePhotos = new ObservableCollection<PhotoTileViewModel>();
         Models = new ObservableCollection<ModelOptionViewModel>();
         _ = InitModelsAsync();
+    }
+
+    private static ModelRegistry BuildRegistry()
+    {
+        var registry = new ModelRegistry()
+            .Register(new HeuristicRunner())
+            .Register(new AestheticRunner());
+        foreach (var onnx in OnnxModelCatalog.BuildRunners(OnnxModelCatalog.DefaultModelsDir()))
+            registry.Register(onnx);
+        return registry;
     }
 
     /// <summary>Selectable scorer models (everything except the always-on heuristic rater).</summary>

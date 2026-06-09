@@ -8,6 +8,13 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <!-- Base (cross-platform, CPU) ONNX Runtime. For AMD GPU acceleration on Windows,
+         swap this for Microsoft.ML.OnnxRuntime.DirectML; for NVIDIA, the .Gpu package.
+         EP auto-select tries DML/CUDA at runtime and falls back to CPU. -->
+    <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Monocle.Core\Monocle.Core.csproj" />
   </ItemGroup>
 

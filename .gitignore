@@ -23,3 +23,6 @@ Thumbs.db
 
 # Monocle cache (per-shoot SQLite + preview blobs)
 .monocle-cache/
+
+# ONNX model weights (large; not committed)
+models/*.onnx
