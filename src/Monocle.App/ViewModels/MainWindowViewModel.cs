@@ -5,9 +5,12 @@ using Avalonia.Media.Imaging;
 using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using Monocle.App.Services;
 using Monocle.Core.Cache;
 using Monocle.Core.Model;
+using Monocle.Core.Sidecars;
 using Monocle.Models;
+using Monocle.Models.Claude;
 using Monocle.Models.Aesthetic;
 using Monocle.Models.Heuristic;
 using Monocle.Models.Onnx;
@@ -88,6 +91,12 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Pipeline / flowchart (#14-16, #20) ----
     [ObservableProperty] private PipelineRun? _pipeline;
     private List<string> _activeStages = new();
+
+    // ---- Claude cull (#5, #11) ----
+    public ObservableCollection<string> CullLog { get; } = new();
+    public string[] ClaudeModels { get; } = { "claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-8" };
+    [ObservableProperty] private string _claudeModel = "claude-haiku-4-5";
+    [ObservableProperty] private bool _cullRunning;
 
     // ---- Progress (auto-refreshing, #3, #16) ----
     [ObservableProperty] private int _total;
@@ -233,6 +242,85 @@ public partial class MainWindowViewModel : ViewModelBase
         tile.Item.RatedByModel = "Manual";
         _service.Save(tile.Item);
         tile.RefreshFromItem();
+        ApplyFilter();
+    }
+
+    [RelayCommand]
+    private async Task CullWithClaudeAsync()
+    {
+        if (_cache is null || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
+        {
+            StatusText = "Scan a folder before culling.";
+            return;
+        }
+        if (!CullLauncher.McpServerExists())
+        {
+            CullLog.Add("Monocle MCP server not found next to the app — build the solution first.");
+            return;
+        }
+
+        CullRunning = true;
+        CullLog.Clear();
+        CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
+        Pipeline?.SetStatus("claude", StageStatus.Running);
+
+        var options = new ClaudeCullOptions
+        {
+            Folder = FolderPath,
+            Prompt = CullLauncher.BuildCullPrompt(FolderPath),
+            McpConfigPath = CullLauncher.WriteMcpConfig(),
+            Model = ClaudeModel,
+        };
+        var service = new ClaudeCullService { Executable = CullLauncher.ResolveClaude() };
+        var rated = 0;
+
+        try
+        {
+            var result = await service.RunAsync(options, ev => Dispatcher.UIThread.Post(() =>
+            {
+                switch (ev.Kind)
+                {
+                    case ClaudeEventKind.AssistantText when !string.IsNullOrWhiteSpace(ev.Text):
+                        CullLog.Add(ev.Text!.Trim());
+                        break;
+                    case ClaudeEventKind.ToolUse:
+                        CullLog.Add($"→ {ev.ToolName}");
+                        if (ev.ToolName?.EndsWith("set_rating", StringComparison.Ordinal) == true)
+                        {
+                            rated++;
+                            Pipeline?.SetProgress("claude", Total == 0 ? 0 : Math.Min(1.0, (double)rated / Total));
+                        }
+                        break;
+                    case ClaudeEventKind.Result:
+                        CullLog.Add($"Done — {ev.NumTurns} turns, {ev.DurationMs} ms, ${ev.CostUsd:0.0000}.");
+                        break;
+                }
+            }), _scanCts?.Token ?? CancellationToken.None);
+
+            Pipeline?.SetStatus("claude", StageStatus.Done);
+            ReloadRatings();
+            if (result is { } r)
+                StatusText = $"Cull done: {r.NumTurns} turns, ${r.CostUsd:0.0000}.";
+        }
+        catch (Exception ex)
+        {
+            CullLog.Add($"Cull failed: {ex.Message}");
+            StatusText = "Cull failed — is Claude Code installed and signed in?";
+        }
+        finally
+        {
+            CullRunning = false;
+        }
+    }
+
+    /// <summary>Re-read sidecars after a cull so the grid shows the ratings Claude wrote.</summary>
+    private void ReloadRatings()
+    {
+        foreach (var tile in Photos)
+        {
+            SidecarService.Load(tile.Item);
+            tile.RefreshFromItem();
+        }
         ApplyFilter();
     }
 

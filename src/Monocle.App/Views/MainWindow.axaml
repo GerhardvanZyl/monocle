@@ -111,12 +111,30 @@
                     </ListBox>
                 </TabItem>
                 <TabItem Header="Pipeline">
-                    <Grid RowDefinitions="Auto,*">
-                        <StackPanel Grid.Row="0" Margin="8,8,8,0">
+                    <Grid RowDefinitions="Auto,*,Auto">
+                        <StackPanel Grid.Row="0" Margin="8,8,8,0" Spacing="4">
                             <TextBlock Text="Overall progress" Foreground="#AAA" FontSize="11"/>
                             <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="8"/>
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <TextBlock Text="Claude cull:" VerticalAlignment="Center"/>
+                                <ComboBox ItemsSource="{Binding ClaudeModels}" SelectedItem="{Binding ClaudeModel}" Width="170"/>
+                                <Button Content="Cull with Claude" Command="{Binding CullWithClaudeCommand}" IsEnabled="{Binding !CullRunning}"/>
+                                <TextBlock Text="(uses your Claude Code; no API keys)" Foreground="#888" FontSize="10" VerticalAlignment="Center"/>
+                            </StackPanel>
                         </StackPanel>
                         <ctl:FlowchartControl Grid.Row="1" Run="{Binding Pipeline}" Margin="8"/>
+                        <Border Grid.Row="2" Height="150" Background="#161616" Margin="8,0,8,8">
+                            <ScrollViewer>
+                                <ItemsControl ItemsSource="{Binding CullLog}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <TextBlock Text="{Binding}" Foreground="#BBB" FontSize="11"
+                                                       TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </ScrollViewer>
+                        </Border>
                     </Grid>
                 </TabItem>
             </TabControl>

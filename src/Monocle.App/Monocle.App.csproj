@@ -34,5 +34,16 @@
     <ProjectReference Include="..\Monocle.Core\Monocle.Core.csproj" />
     <ProjectReference Include="..\Monocle.Models\Monocle.Models.csproj" />
     <ProjectReference Include="..\Monocle.Pipeline\Monocle.Pipeline.csproj" />
+    <!-- ReferenceOutputAssembly=false: we don't link the MCP server, only ensure it's built and
+         its output is available so the cull job can launch it as a separate process. -->
+    <ProjectReference Include="..\Monocle.Mcp\Monocle.Mcp.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
+
+  <!-- Copy the built MCP server next to the app so the cull can spawn it. -->
+  <Target Name="CopyMcpServer" AfterTargets="Build">
+    <ItemGroup>
+      <McpFiles Include="$(MSBuildProjectDirectory)\..\Monocle.Mcp\bin\$(Configuration)\$(TargetFramework)\**\*.*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(McpFiles)" DestinationFiles="@(McpFiles->'$(OutDir)mcp\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
