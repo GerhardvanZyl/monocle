@@ -7,15 +7,19 @@ XMP sidecars so the same shoot is fully usable from **On1 Photo RAW** (and Light
 See [`FEATURES.md`](FEATURES.md) for the product vision and
 [`docs/models.md`](docs/models.md) for the AI/critique model catalog.
 
-> **Status: Phase 2 in progress (viewer/organizer).** Scan a folder, get a thumbnail grid
-> with instant heuristic ratings and technical metrics; multi-key **sort** and **facet
-> filters**; view full-screen with **zoom/pan**; **rotate** and **crop** non-destructively;
-> rate with the keyboard; capture your own notes — all written to On1-readable sidecars.
-> AI culling (Claude + HuggingFace models), the live architecture flowchart, visualizations
-> and the optional Python sidecar land in later phases. See the plan for the full roadmap.
+> **Status: Phase 3 done (models + flowchart).** Scan a folder for instant heuristic ratings,
+> technical metrics and a fast native **aesthetic** score; pick **any combination of models**
+> (each with a description + tradeoffs) and watch a **live architecture flowchart** show each
+> step, what's complete (green), per-step progress, an overall bar and which steps use
+> CPU/GPU/Claude. Multi-key **sort** + **facet filters**; full-screen **zoom/pan**;
+> non-destructive **rotate**/**crop**; keyboard rating; your own notes — all to On1-readable
+> sidecars. Native **ONNX** models (NIMA, aesthetic-predictor-v2.5) plug in by dropping weights
+> into `models/` (GPU via a package swap).
 >
-> Known follow-up: the thumbnail grid is not yet virtualized (Avalonia 11 has no built-in
-> virtualizing wrap-panel); fine for shoots up to a few hundred frames.
+> Next phases: Claude `/cull` integration, the optional Python sidecar for the full HF zoo,
+> visualizations and packaging. Known follow-up: the thumbnail grid is not yet virtualized
+> (Avalonia 11 has no built-in virtualizing wrap-panel); fine for shoots up to a few hundred
+> frames.
 
 ## Architecture (current)
 
