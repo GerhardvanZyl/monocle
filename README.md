@@ -24,10 +24,11 @@ See [`FEATURES.md`](FEATURES.md) for the product vision and
 
 ## Prerequisites
 
-- **.NET 9 SDK** (build) and the **.NET 9 Desktop Runtime** (run).
+- **.NET 10 SDK** (build) and the **.NET 10 Desktop Runtime** (run).
   - This repo was bootstrapped with a user-local SDK at
     `%LOCALAPPDATA%\Microsoft\dotnet`. If `dotnet` on your `PATH` is an older version,
     use that full path, or set `DOTNET_ROOT` (see below).
+  - Easiest run path: double-click **`run-monocle.cmd`** (sets `DOTNET_ROOT` and launches).
 
 ## Build & test
 
