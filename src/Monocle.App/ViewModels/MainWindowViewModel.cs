@@ -11,10 +11,12 @@ using Monocle.Core.Model;
 using Monocle.Core.Sidecars;
 using Monocle.Models;
 using Monocle.Models.Claude;
+using Monocle.Models.Export;
 using Monocle.Models.Aesthetic;
 using Monocle.Models.Heuristic;
 using Monocle.Models.Onnx;
 using Monocle.Models.Sidecar;
+using Monocle.Models.Stats;
 using Monocle.Pipeline;
 
 namespace Monocle.App.ViewModels;
@@ -127,6 +129,11 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _claudeModel = "claude-haiku-4-5";
     [ObservableProperty] private bool _cullRunning;
 
+    // ---- Visualizations (#24) ----
+    [ObservableProperty] private ShootStats? _stats;
+
+    private void RefreshStats() => Stats = StatsCalculator.Compute(Photos.Select(p => p.Item));
+
     // ---- Progress (auto-refreshing, #3, #16) ----
     [ObservableProperty] private int _total;
     [ObservableProperty] private int _analyzed;
@@ -186,6 +193,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         await AnalyzeAllAsync(scorers, ct);
         CompletePipeline();
+        RefreshStats();
 
         ApplyFilter();   // apply the chosen sort now that every frame is analysed
         IsBusy = false;
@@ -272,6 +280,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _service.Save(tile.Item);
         tile.RefreshFromItem();
         ApplyFilter();
+        RefreshStats();
     }
 
     [RelayCommand]
@@ -351,6 +360,7 @@ public partial class MainWindowViewModel : ViewModelBase
             tile.RefreshFromItem();
         }
         ApplyFilter();
+        RefreshStats();
     }
 
     [RelayCommand]
@@ -388,6 +398,18 @@ public partial class MainWindowViewModel : ViewModelBase
         tile.Thumbnail = SafeLoadBitmap(thumbPath);
         await LoadDetailAsync(tile);
         StatusText = $"Rotated {tile.Title}.";
+    }
+
+    [RelayCommand]
+    private void Export()
+    {
+        if (string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
+        {
+            StatusText = "Scan a folder before exporting.";
+            return;
+        }
+        var (csv, _) = ShootExporter.Export(Photos.Select(p => p.Item), FolderPath);
+        StatusText = $"Exported {Photos.Count} rows to {System.IO.Path.GetFileName(csv)} (+ .json) in the shoot folder.";
     }
 
     [RelayCommand]

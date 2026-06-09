@@ -22,6 +22,8 @@
                     <TextBox Width="640" Watermark="Paste a folder path…" Text="{Binding FolderPath}" />
                     <CheckBox Content="Fold RAW+JPG" IsChecked="{Binding FoldPairs}" VerticalAlignment="Center"/>
                     <Button Content="Scan" Command="{Binding ScanCommand}" IsEnabled="{Binding !IsBusy}"/>
+                    <Button Content="Export CSV/JSON" Command="{Binding ExportCommand}"
+                            ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder."/>
                 </StackPanel>
                 <StackPanel Orientation="Horizontal" Spacing="4">
                     <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,4,0"/>
@@ -136,6 +138,9 @@
                             </ScrollViewer>
                         </Border>
                     </Grid>
+                </TabItem>
+                <TabItem Header="Visualizations">
+                    <ctl:ChartsControl Stats="{Binding Stats}" Margin="8"/>
                 </TabItem>
             </TabControl>
 

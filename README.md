@@ -7,19 +7,28 @@ XMP sidecars so the same shoot is fully usable from **On1 Photo RAW** (and Light
 See [`FEATURES.md`](FEATURES.md) for the product vision and
 [`docs/models.md`](docs/models.md) for the AI/critique model catalog.
 
-> **Status: Phase 3 done (models + flowchart).** Scan a folder for instant heuristic ratings,
-> technical metrics and a fast native **aesthetic** score; pick **any combination of models**
-> (each with a description + tradeoffs) and watch a **live architecture flowchart** show each
-> step, what's complete (green), per-step progress, an overall bar and which steps use
-> CPU/GPU/Claude. Multi-key **sort** + **facet filters**; full-screen **zoom/pan**;
-> non-destructive **rotate**/**crop**; keyboard rating; your own notes — all to On1-readable
-> sidecars. Native **ONNX** models (NIMA, aesthetic-predictor-v2.5) plug in by dropping weights
-> into `models/` (GPU via a package swap).
+> **Status: Phases 1–6 implemented.** Scan a folder for instant heuristic ratings, technical
+> metrics and a fast native **aesthetic** score; pick **any combination of models** (each with
+> a description + tradeoffs) and watch a **live architecture flowchart** show each step, what's
+> complete (green), per-step progress, an overall bar and which steps use CPU/GPU/Claude.
+> Multi-key **sort** + **facet filters**; full-screen **zoom/pan**; non-destructive
+> **rotate**/**crop**; keyboard rating; your own notes — all to On1-readable sidecars.
+> **AI culling** with your own Claude Code (`/cull`, no API keys) and the locked-down photo-tools
+> MCP server. Native **ONNX** models (NIMA, aesthetic-predictor-v2.5) plug in by dropping weights
+> into `models/`; the optional **Python sidecar** unlocks the full HuggingFace zoo (Q-Align,
+> Qwen2-VL). **Visualizations** + **CSV/JSON export**. Self-contained **Windows/Linux** builds.
 >
-> Next phases: Claude `/cull` integration, the optional Python sidecar for the full HF zoo,
-> visualizations and packaging. Known follow-up: the thumbnail grid is not yet virtualized
-> (Avalonia 11 has no built-in virtualizing wrap-panel); fine for shoots up to a few hundred
-> frames.
+> Known follow-up: the thumbnail grid is not yet virtualized (Avalonia 11 has no built-in
+> virtualizing wrap-panel); fine for shoots up to a few hundred frames.
+
+## Packaging (no .NET install needed to run)
+
+```powershell
+pwsh scripts/publish-windows.ps1   # -> publish/win-x64/Monocle.App.exe (self-contained)
+```
+```bash
+bash scripts/publish-linux.sh      # -> self-contained linux-x64 + an AppImage (needs appimagetool)
+```
 
 ## Architecture (current)
 
