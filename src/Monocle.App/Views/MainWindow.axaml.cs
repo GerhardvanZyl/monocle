@@ -15,14 +15,27 @@ public partial class MainWindow : Window
 
     private MainWindowViewModel? Vm => DataContext as MainWindowViewModel;
 
+    private void OnTileDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (sender is Control { DataContext: PhotoTileViewModel tile } && Vm is not null)
+        {
+            Vm.SelectedPhoto = tile;
+            OpenFullscreen();
+        }
+    }
+
     private void OnPreviewDoubleTapped(object? sender, TappedEventArgs e) => OpenFullscreen();
 
     private void OnFullscreenClick(object? sender, RoutedEventArgs e) => OpenFullscreen();
 
-    private void OpenFullscreen()
+    private async void OpenFullscreen()
     {
-        if (Vm?.DetailPreview is { } bmp)
-            new FullscreenWindow(bmp).Show();
+        if (Vm?.SelectedPhoto is { } tile)
+        {
+            var bmp = await Vm.GetDetailBitmapAsync(tile);
+            if (bmp is not null)
+                new FullscreenWindow(bmp).Show();
+        }
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs e)
@@ -55,7 +68,7 @@ public partial class MainWindow : Window
             return;
         var index = Vm.SelectedPhoto is null ? -1 : Vm.VisiblePhotos.IndexOf(Vm.SelectedPhoto);
         var next = System.Math.Clamp(index + delta, 0, Vm.VisiblePhotos.Count - 1);
-        Vm.SelectedPhoto = Vm.VisiblePhotos[next];
+        Vm.SelectedPhoto = Vm.VisiblePhotos[next];   // ListBox scrolls the selection into view
     }
 
     protected override void OnClosed(System.EventArgs e)

@@ -11,8 +11,6 @@ using Monocle.Models;
 
 namespace Monocle.App.ViewModels;
 
-public enum PhotoFilter { All, Pick, Reject, Unrated, Star2, Star3, Star4 }
-
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ShootService _service = new();
@@ -33,7 +31,17 @@ public partial class MainWindowViewModel : ViewModelBase
     public ObservableCollection<PhotoTileViewModel> Photos { get; }
     public ObservableCollection<PhotoTileViewModel> VisiblePhotos { get; }
 
-    [ObservableProperty] private PhotoFilter _filter = PhotoFilter.All;
+    // ---- Filter facets + sort (#23) ----
+    [ObservableProperty] private RatingFilter _rating = RatingFilter.All;
+    [ObservableProperty] private TechnicalReason? _reasonFacet;
+    [ObservableProperty] private string? _ratedByFacet;
+    [ObservableProperty] private SortKey _sort = SortKey.Name;
+    [ObservableProperty] private bool _sortDescending;
+
+    public Array SortKeys { get; } = Enum.GetValues(typeof(SortKey));
+
+    private PhotoFilterSpec Spec => new(Rating, ReasonFacet, RatedByFacet);
+    private bool IsAllFilter => Rating == RatingFilter.All && ReasonFacet is null && RatedByFacet is null;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection))]
@@ -55,7 +63,11 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _notesText = "";
     [ObservableProperty] private string _detailExif = "";
 
-    partial void OnFilterChanged(PhotoFilter value) => ApplyFilter();
+    partial void OnRatingChanged(RatingFilter value) => ApplyFilter();
+    partial void OnReasonFacetChanged(TechnicalReason? value) => ApplyFilter();
+    partial void OnRatedByFacetChanged(string? value) => ApplyFilter();
+    partial void OnSortChanged(SortKey value) => ApplyFilter();
+    partial void OnSortDescendingChanged(bool value) => ApplyFilter();
 
     partial void OnSelectedPhotoChanged(PhotoTileViewModel? value) => _ = LoadDetailAsync(value);
 
@@ -92,6 +104,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         await AnalyzeAllAsync(ct);
 
+        ApplyFilter();   // apply the chosen sort now that every frame is analysed
         IsBusy = false;
         StatusText = $"Done. {Total} photos, {Photos.Count(p => p.Item.IsPick)} picks, " +
                      $"{Photos.Count(p => p.Item.IsReject)} rejects.";
@@ -120,7 +133,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         tile.RefreshFromItem();
                         Analyzed++;
                         ProgressFraction = Total == 0 ? 0 : (double)Analyzed / Total;
-                        if (Filter != PhotoFilter.All)
+                        if (!IsAllFilter)
                             UpdateTileVisibility(tile);
                     });
                 }
@@ -146,7 +159,7 @@ public partial class MainWindowViewModel : ViewModelBase
         tile.Item.RatedByModel = "Manual";
         _service.Save(tile.Item);
         tile.RefreshFromItem();
-        UpdateTileVisibility(tile);
+        ApplyFilter();
     }
 
     [RelayCommand]
@@ -171,7 +184,18 @@ public partial class MainWindowViewModel : ViewModelBase
 
     [RelayCommand]
     private void SetFilter(string filter) =>
-        Filter = Enum.TryParse<PhotoFilter>(filter, out var f) ? f : PhotoFilter.All;
+        Rating = Enum.TryParse<RatingFilter>(filter, out var f) ? f : RatingFilter.All;
+
+    [RelayCommand]
+    private void SetReason(string reason) =>
+        ReasonFacet = Enum.TryParse<TechnicalReason>(reason, out var r) && r != TechnicalReason.None ? r : null;
+
+    [RelayCommand]
+    private void SetRatedBy(string model) =>
+        RatedByFacet = string.IsNullOrEmpty(model) || model == "Any" ? null : model;
+
+    [RelayCommand]
+    private void ToggleSortDir() => SortDescending = !SortDescending;
 
     private async Task LoadDetailAsync(PhotoTileViewModel? tile)
     {
@@ -200,32 +224,26 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void ApplyFilter()
     {
+        var spec = Spec;
+        var filtered = Photos.Where(t => PhotoQuery.Matches(t.Item, spec));
+        var ordered = SortDescending
+            ? filtered.OrderByDescending(t => PhotoQuery.SortValue(t.Item, Sort))
+            : filtered.OrderBy(t => PhotoQuery.SortValue(t.Item, Sort));
+
         VisiblePhotos.Clear();
-        foreach (var tile in Photos.Where(Matches))
+        foreach (var tile in ordered.ThenBy(t => t.Item.BaseName, StringComparer.OrdinalIgnoreCase))
             VisiblePhotos.Add(tile);
     }
 
     private void UpdateTileVisibility(PhotoTileViewModel tile)
     {
-        var shouldShow = Matches(tile);
+        var shouldShow = PhotoQuery.Matches(tile.Item, Spec);
         var isShown = VisiblePhotos.Contains(tile);
         if (shouldShow && !isShown)
             VisiblePhotos.Add(tile);
         else if (!shouldShow && isShown)
             VisiblePhotos.Remove(tile);
     }
-
-    private bool Matches(PhotoTileViewModel t) => Filter switch
-    {
-        PhotoFilter.All => true,
-        PhotoFilter.Pick => t.Item.IsPick,
-        PhotoFilter.Reject => t.Item.IsReject,
-        PhotoFilter.Unrated => t.Item.Stars == 0,
-        PhotoFilter.Star2 => t.Item.Stars >= 2,
-        PhotoFilter.Star3 => t.Item.Stars >= 3,
-        PhotoFilter.Star4 => t.Item.Stars >= 4,
-        _ => true,
-    };
 
     private static string FormatMetrics(PhotoItem item)
     {
@@ -264,6 +282,19 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         try { return new Bitmap(path); }
         catch { return null; }
+    }
+
+    /// <summary>Load a fresh detail-size preview for a tile (used by fullscreen, #6/#27).</summary>
+    public async Task<Bitmap?> GetDetailBitmapAsync(PhotoTileViewModel tile)
+    {
+        if (_cache is null)
+            return tile.Thumbnail;
+        try
+        {
+            var path = await _service.GetPreviewAsync(tile.Item, _cache, ShootService.DetailLongEdge);
+            return SafeLoadBitmap(path);
+        }
+        catch { return tile.Thumbnail; }
     }
 
     public void Cleanup()

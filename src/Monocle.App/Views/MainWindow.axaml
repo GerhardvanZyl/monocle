@@ -32,6 +32,23 @@
                     <Button Content="Rejects" Command="{Binding SetFilterCommand}" CommandParameter="Reject"/>
                     <Button Content="Unrated" Command="{Binding SetFilterCommand}" CommandParameter="Unrated"/>
                 </StackPanel>
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="Sort:" VerticalAlignment="Center" Margin="0,0,4,0"/>
+                    <ComboBox ItemsSource="{Binding SortKeys}" SelectedItem="{Binding Sort}" Width="130"/>
+                    <Button Content="▲ / ▼" Command="{Binding ToggleSortDirCommand}" ToolTip.Tip="Toggle ascending / descending"/>
+                    <Rectangle Width="1" Fill="#444" Margin="6,2"/>
+                    <TextBlock Text="Reason:" VerticalAlignment="Center"/>
+                    <Button Content="Any" Command="{Binding SetReasonCommand}" CommandParameter="None"/>
+                    <Button Content="Soft" Command="{Binding SetReasonCommand}" CommandParameter="Sharpness"/>
+                    <Button Content="Exposure" Command="{Binding SetReasonCommand}" CommandParameter="Exposure"/>
+                    <Button Content="Noise" Command="{Binding SetReasonCommand}" CommandParameter="Noise"/>
+                    <Button Content="Multiple" Command="{Binding SetReasonCommand}" CommandParameter="Multiple"/>
+                    <Rectangle Width="1" Fill="#444" Margin="6,2"/>
+                    <TextBlock Text="By:" VerticalAlignment="Center"/>
+                    <Button Content="Any" Command="{Binding SetRatedByCommand}" CommandParameter="Any"/>
+                    <Button Content="Heuristic" Command="{Binding SetRatedByCommand}" CommandParameter="Heuristic"/>
+                    <Button Content="Manual" Command="{Binding SetRatedByCommand}" CommandParameter="Manual"/>
+                </StackPanel>
                 <Grid ColumnDefinitions="*,Auto">
                     <ProgressBar Grid.Column="0" Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
                     <TextBlock Grid.Column="1" Margin="8,0,0,0" Text="{Binding StatusText}" VerticalAlignment="Center"/>
@@ -49,46 +66,46 @@
 
         <!-- Main area: grid + detail -->
         <Grid ColumnDefinitions="*,380">
-            <!-- Thumbnail grid -->
-            <ScrollViewer Grid.Column="0">
-                <ListBox ItemsSource="{Binding VisiblePhotos}"
-                         SelectedItem="{Binding SelectedPhoto}"
-                         Background="Transparent"
-                         Padding="6">
-                    <ListBox.ItemsPanel>
-                        <ItemsPanelTemplate>
-                            <WrapPanel/>
-                        </ItemsPanelTemplate>
-                    </ListBox.ItemsPanel>
-                    <ListBox.ItemTemplate>
-                        <DataTemplate x:DataType="vm:PhotoTileViewModel">
-                            <Border BorderBrush="{Binding StatusBorder}" BorderThickness="3"
-                                    CornerRadius="4" Margin="4" Padding="2" Width="190">
-                                <StackPanel>
-                                    <Panel Height="140">
-                                        <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
-                                        <Ellipse Width="12" Height="12" Fill="{Binding ReasonDot}"
-                                                 HorizontalAlignment="Right" VerticalAlignment="Top" Margin="3"/>
-                                        <Border IsVisible="{Binding IsPair}" Background="#AA000000"
-                                                CornerRadius="3" Padding="3,1"
-                                                HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3">
-                                            <TextBlock Text="RAW+JPG" FontSize="9" Foreground="White"/>
-                                        </Border>
-                                        <ProgressBar IsIndeterminate="True" IsVisible="{Binding Analyzing}"
-                                                     VerticalAlignment="Bottom" Height="3"/>
-                                    </Panel>
-                                    <TextBlock Text="{Binding Title}" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                                    <StackPanel Orientation="Horizontal" Spacing="8">
-                                        <TextBlock Text="{Binding StarText}" Foreground="Gold" FontSize="12"/>
-                                        <TextBlock Text="{Binding TechnicalText}" Foreground="#9CF" FontSize="11"/>
-                                        <TextBlock Text="{Binding AestheticText}" Foreground="#9F9" FontSize="11"/>
-                                    </StackPanel>
+            <!-- Thumbnail grid (ListBox + WrapPanel; native selection & keyboard nav) -->
+            <ListBox Grid.Column="0" Padding="6"
+                     ItemsSource="{Binding VisiblePhotos}"
+                     SelectedItem="{Binding SelectedPhoto}"
+                     Background="Transparent"
+                     ScrollViewer.HorizontalScrollBarVisibility="Disabled">
+                <ListBox.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel/>
+                    </ItemsPanelTemplate>
+                </ListBox.ItemsPanel>
+                <ListBox.ItemTemplate>
+                    <DataTemplate x:DataType="vm:PhotoTileViewModel">
+                        <Border BorderBrush="{Binding StatusBorder}" BorderThickness="3"
+                                CornerRadius="4" Padding="2" Width="186"
+                                DoubleTapped="OnTileDoubleTapped">
+                            <StackPanel>
+                                <Panel Height="140">
+                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
+                                    <Ellipse Width="12" Height="12" Fill="{Binding ReasonDot}"
+                                             HorizontalAlignment="Right" VerticalAlignment="Top" Margin="3"/>
+                                    <Border IsVisible="{Binding IsPair}" Background="#AA000000"
+                                            CornerRadius="3" Padding="3,1"
+                                            HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3">
+                                        <TextBlock Text="RAW+JPG" FontSize="9" Foreground="White"/>
+                                    </Border>
+                                    <ProgressBar IsIndeterminate="True" IsVisible="{Binding Analyzing}"
+                                                 VerticalAlignment="Bottom" Height="3"/>
+                                </Panel>
+                                <TextBlock Text="{Binding Title}" FontSize="11" TextTrimming="CharacterEllipsis"/>
+                                <StackPanel Orientation="Horizontal" Spacing="8">
+                                    <TextBlock Text="{Binding StarText}" Foreground="Gold" FontSize="12"/>
+                                    <TextBlock Text="{Binding TechnicalText}" Foreground="#9CF" FontSize="11"/>
+                                    <TextBlock Text="{Binding AestheticText}" Foreground="#9F9" FontSize="11"/>
                                 </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
-            </ScrollViewer>
+                            </StackPanel>
+                        </Border>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
 
             <!-- Detail pane -->
             <Border Grid.Column="1" Background="#202020" Padding="10">
