@@ -7,11 +7,15 @@ XMP sidecars so the same shoot is fully usable from **On1 Photo RAW** (and Light
 See [`FEATURES.md`](FEATURES.md) for the product vision and
 [`docs/models.md`](docs/models.md) for the AI/critique model catalog.
 
-> **Status: Phase 1 (Core backbone + thin UI).** Scan a folder, get a thumbnail grid with
-> instant heuristic ratings and technical metrics, view full-screen with zoom/pan, rate with
-> the keyboard, capture your own notes, and have everything written to On1-readable sidecars.
+> **Status: Phase 2 in progress (viewer/organizer).** Scan a folder, get a thumbnail grid
+> with instant heuristic ratings and technical metrics; multi-key **sort** and **facet
+> filters**; view full-screen with **zoom/pan**; **rotate** and **crop** non-destructively;
+> rate with the keyboard; capture your own notes — all written to On1-readable sidecars.
 > AI culling (Claude + HuggingFace models), the live architecture flowchart, visualizations
 > and the optional Python sidecar land in later phases. See the plan for the full roadmap.
+>
+> Known follow-up: the thumbnail grid is not yet virtualized (Avalonia 11 has no built-in
+> virtualizing wrap-panel); fine for shoots up to a few hundred frames.
 
 ## Architecture (current)
 
@@ -57,7 +61,7 @@ A self-contained single-file build (no runtime install needed) arrives in the pa
 ## Keyboard review
 
 `←`/`→` or `H`/`L` move · `1`–`4` set stars · `0` clears · `P` pick (4★) · `R`/`X` reject (1★)
-· `F` fullscreen · `Esc` closes fullscreen.
+· `F` fullscreen · `[` / `]` rotate left/right · `C` crop · `Esc` closes fullscreen.
 
 ## Sidecars & On1
 
