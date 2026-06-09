@@ -1,0 +1,19 @@
+[project]
+name = "monocle-sidecar"
+version = "0.1.0"
+description = "Optional Monocle sidecar exposing PyTorch-only HuggingFace photo models over a local HTTP API."
+requires-python = ">=3.11"
+dependencies = [
+    "pillow>=10.0",
+    "torch>=2.3",
+    "transformers>=4.45",
+    "accelerate>=0.34",
+    "qwen-vl-utils>=0.0.8",
+    "einops>=0.8",
+]
+
+# Notes:
+# - The server itself (server.py) uses only the standard library, so /health and /models work
+#   before these are installed; torch/transformers load lazily on the first /score call.
+# - For your AMD 7900 XTX on Linux, install a ROCm torch build; on Windows use DirectML-torch
+#   (torch-directml) or run under WSL with ROCm.

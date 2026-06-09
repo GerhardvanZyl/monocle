@@ -35,11 +35,11 @@ public class OnnxPreprocessTests
     }
 
     [Fact]
-    public void CatalogRunnersAreUnavailableWithoutWeights()
+    public async Task CatalogRunnersAreUnavailableWithoutWeights()
     {
         var runners = OnnxModelCatalog.BuildRunners(Path.Combine(Path.GetTempPath(), "no_such_models_" + Guid.NewGuid().ToString("N")));
         Assert.NotEmpty(runners);
         foreach (var r in runners)
-            Assert.False(r.IsAvailableAsync().Result);
+            Assert.False(await r.IsAvailableAsync());
     }
 }

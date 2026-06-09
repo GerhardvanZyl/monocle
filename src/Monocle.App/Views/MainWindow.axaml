@@ -146,6 +146,10 @@
                         <StackPanel>
                             <TextBlock Text="Tick models, then Scan to apply. Hover for tradeoffs."
                                        Foreground="#888" FontSize="10" Margin="0,0,0,4"/>
+                            <Button Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
+                                    IsEnabled="{Binding !SidecarStarting}" HorizontalAlignment="Left"
+                                    Margin="0,0,0,6" FontSize="11"
+                                    ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
                             <ItemsControl ItemsSource="{Binding Models}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ModelOptionViewModel">

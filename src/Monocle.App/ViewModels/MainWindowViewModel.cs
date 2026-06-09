@@ -14,6 +14,7 @@ using Monocle.Models.Claude;
 using Monocle.Models.Aesthetic;
 using Monocle.Models.Heuristic;
 using Monocle.Models.Onnx;
+using Monocle.Models.Sidecar;
 using Monocle.Pipeline;
 
 namespace Monocle.App.ViewModels;
@@ -21,27 +22,51 @@ namespace Monocle.App.ViewModels;
 public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ShootService _service = new();
+    private readonly SidecarManager _sidecar = new();
     private readonly ModelRegistry _registry;
     private ShootCache? _cache;
     private CancellationTokenSource? _scanCts;
 
     public MainWindowViewModel()
     {
-        _registry = BuildRegistry();
+        _registry = BuildRegistry(_sidecar);
         Photos = new ObservableCollection<PhotoTileViewModel>();
         VisiblePhotos = new ObservableCollection<PhotoTileViewModel>();
         Models = new ObservableCollection<ModelOptionViewModel>();
         _ = InitModelsAsync();
     }
 
-    private static ModelRegistry BuildRegistry()
+    private static ModelRegistry BuildRegistry(SidecarManager sidecar)
     {
         var registry = new ModelRegistry()
             .Register(new HeuristicRunner())
             .Register(new AestheticRunner());
         foreach (var onnx in OnnxModelCatalog.BuildRunners(OnnxModelCatalog.DefaultModelsDir()))
             registry.Register(onnx);
+        foreach (var runner in SidecarModelCatalog.BuildRunners(sidecar))
+            registry.Register(runner);
         return registry;
+    }
+
+    [ObservableProperty] private bool _sidecarStarting;
+
+    [RelayCommand]
+    private async Task StartSidecarAsync()
+    {
+        if (!SidecarLauncher.ServerExists())
+        {
+            StatusText = "Python sidecar script not found next to the app.";
+            return;
+        }
+        SidecarStarting = true;
+        StatusText = "Starting Python sidecar…";
+        var ok = await _sidecar.StartAsync(SidecarLauncher.ResolvePython(),
+            SidecarLauncher.ServerScript(), SidecarLauncher.Port);
+        StatusText = ok
+            ? "Python sidecar running — its models are now available."
+            : "Sidecar failed to start (is Python installed?).";
+        await InitModelsAsync();   // refresh availability now the sidecar (may be) up
+        SidecarStarting = false;
     }
 
     /// <summary>Selectable scorer models (everything except the always-on heuristic rater).</summary>
@@ -49,13 +74,17 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private async Task InitModelsAsync()
     {
+        var previouslyEnabled = Models.ToDictionary(m => m.Runner.Descriptor.Id, m => m.IsEnabled);
+        Models.Clear();
         foreach (var runner in _registry.All)
         {
             if (runner.Descriptor.Category == ModelCategory.Heuristic)
                 continue;
             var available = await runner.IsAvailableAsync();
-            Models.Add(new ModelOptionViewModel(runner, available,
-                enabled: runner.Descriptor.Id == AestheticRunner.ModelId));
+            var enabled = previouslyEnabled.TryGetValue(runner.Descriptor.Id, out var e)
+                ? e
+                : runner.Descriptor.Id == AestheticRunner.ModelId;
+            Models.Add(new ModelOptionViewModel(runner, available, enabled));
         }
     }
 
@@ -506,5 +535,6 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         _scanCts?.Cancel();
         _cache?.Dispose();
+        _sidecar.Dispose();
     }
 }
