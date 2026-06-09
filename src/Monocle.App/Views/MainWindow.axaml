@@ -119,6 +119,7 @@
                             <Button Content="Fullscreen" Click="OnFullscreenClick"/>
                             <Button Content="⟲" Command="{Binding RotateLeftCommand}" ToolTip.Tip="Rotate left ( [ )"/>
                             <Button Content="⟳" Command="{Binding RotateRightCommand}" ToolTip.Tip="Rotate right ( ] )"/>
+                            <Button Content="Crop" Click="OnCropClick" ToolTip.Tip="Crop ( C )"/>
                             <Button Content="Switch RAW/JPG" Command="{Binding ToggleVariantCommand}"/>
                         </StackPanel>
 

@@ -38,6 +38,18 @@ public partial class MainWindow : Window
         }
     }
 
+    private void OnCropClick(object? sender, RoutedEventArgs e) => OpenCrop();
+
+    private async void OpenCrop()
+    {
+        if (Vm?.SelectedPhoto is { } tile)
+        {
+            var bmp = await Vm.GetUncroppedBitmapAsync(tile);
+            if (bmp is not null)
+                new CropWindow(bmp, tile.Item.Crop, crop => _ = Vm.ApplyCropAsync(tile, crop)).Show(this);
+        }
+    }
+
     private void OnKeyDown(object? sender, KeyEventArgs e)
     {
         if (Vm is null)
@@ -57,6 +69,7 @@ public partial class MainWindow : Window
             case Key.P: Vm.SetStarsCommand.Execute("4"); e.Handled = true; break;          // pick
             case Key.R or Key.X: Vm.SetStarsCommand.Execute("1"); e.Handled = true; break;  // reject
             case Key.F: OpenFullscreen(); e.Handled = true; break;
+            case Key.C: OpenCrop(); e.Handled = true; break;
             case Key.OemOpenBrackets: Vm.RotateLeftCommand.Execute(null); e.Handled = true; break;
             case Key.OemCloseBrackets: Vm.RotateRightCommand.Execute(null); e.Handled = true; break;
             case Key.Left or Key.H: MoveSelection(-1); e.Handled = true; break;

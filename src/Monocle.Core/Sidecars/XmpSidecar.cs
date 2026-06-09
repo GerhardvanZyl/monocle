@@ -1,4 +1,6 @@
+using System.Globalization;
 using System.Xml;
+using Monocle.Core.Model;
 
 namespace Monocle.Core.Sidecars;
 
@@ -15,6 +17,7 @@ public static class XmpSidecar
     private const string NsDc = "http://purl.org/dc/elements/1.1/";
     private const string NsXmp = "http://ns.adobe.com/xap/1.0/";
     private const string NsTiff = "http://ns.adobe.com/tiff/1.0/";
+    private const string NsCrs = "http://ns.adobe.com/camera-raw-settings/1.0/";
 
     /// <summary>The sidecar path for a given image file: replaces the extension with .xmp.</summary>
     public static string PathFor(string imagePath) =>
@@ -42,6 +45,7 @@ public static class XmpSidecar
         data.Label = SelectText(desc, "xmp:Label", ns);
         if (int.TryParse(SelectText(desc, "tiff:Orientation", ns), out var orientation))
             data.Orientation = orientation;
+        data.Crop = ReadCrop(desc, ns);
         data.Description = SelectLangAlt(desc, "dc:description", ns);
         foreach (XmlNode li in desc.SelectNodes("dc:subject/rdf:Bag/rdf:li", ns) ?? Empty())
             if (!string.IsNullOrWhiteSpace(li.InnerText))
@@ -71,6 +75,8 @@ public static class XmpSidecar
 
         if (data.Orientation is { } orientation)
             SetSimple(doc, desc, NsTiff, "tiff", "Orientation", orientation.ToString());
+
+        WriteCrop(doc, desc, ns, data.Crop);
 
         if (data.Keywords.Count > 0)
             SetBag(doc, desc, ns, data.Keywords);
@@ -113,6 +119,7 @@ public static class XmpSidecar
         ns.AddNamespace("dc", NsDc);
         ns.AddNamespace("xmp", NsXmp);
         ns.AddNamespace("tiff", NsTiff);
+        ns.AddNamespace("crs", NsCrs);
         return ns;
     }
 
@@ -172,6 +179,35 @@ public static class XmpSidecar
         if (desc.SelectSingleNode(xpath, ns) is XmlNode node)
             desc.RemoveChild(node);
     }
+
+    private static CropRect? ReadCrop(XmlNode desc, XmlNamespaceManager ns)
+    {
+        if (!bool.TryParse(SelectText(desc, "crs:HasCrop", ns), out var hasCrop) || !hasCrop)
+            return null;
+        var okL = TryD(SelectText(desc, "crs:CropLeft", ns), out var l);
+        var okT = TryD(SelectText(desc, "crs:CropTop", ns), out var t);
+        var okR = TryD(SelectText(desc, "crs:CropRight", ns), out var r);
+        var okB = TryD(SelectText(desc, "crs:CropBottom", ns), out var b);
+        return okL && okT && okR && okB ? CropRect.FromEdges(l, t, r, b) : null;
+    }
+
+    private static void WriteCrop(XmlDocument doc, XmlElement desc, XmlNamespaceManager ns, CropRect? crop)
+    {
+        foreach (var field in new[] { "crs:HasCrop", "crs:CropLeft", "crs:CropTop", "crs:CropRight", "crs:CropBottom" })
+            RemoveChild(desc, field, ns);
+        if (crop is not { } c)
+            return;
+        SetSimple(doc, desc, NsCrs, "crs", "HasCrop", "True");
+        SetSimple(doc, desc, NsCrs, "crs", "CropLeft", D(c.Left));
+        SetSimple(doc, desc, NsCrs, "crs", "CropTop", D(c.Top));
+        SetSimple(doc, desc, NsCrs, "crs", "CropRight", D(c.Right));
+        SetSimple(doc, desc, NsCrs, "crs", "CropBottom", D(c.Bottom));
+    }
+
+    private static string D(double v) => v.ToString("0.######", CultureInfo.InvariantCulture);
+
+    private static bool TryD(string? s, out double v) =>
+        double.TryParse(s, NumberStyles.Float, CultureInfo.InvariantCulture, out v);
 
     private static string? SelectText(XmlNode desc, string xpath, XmlNamespaceManager ns) =>
         desc.SelectSingleNode(xpath, ns)?.InnerText;

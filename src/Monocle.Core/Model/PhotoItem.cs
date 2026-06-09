@@ -64,6 +64,9 @@ public sealed class PhotoItem
     /// the EXIF-upright preview. Persisted as a composed XMP orientation so On1 matches (#25).</summary>
     public int RotationQuarters { get; set; }
 
+    /// <summary>Non-destructive crop (normalised to the upright+rotated image), or null (#25).</summary>
+    public CropRect? Crop { get; set; }
+
     /// <summary>The file currently chosen for display.</summary>
     public PhotoFile? ActiveFile =>
         ActiveVariant == PhotoVariant.Raw

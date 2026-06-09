@@ -15,15 +15,16 @@ public sealed class SkiaImageDecoder : IImageDecoder
 
     public bool CanDecode(string extension) => SupportedFormats.IsSupported(extension);
 
-    public Task<DecodeResult> DecodeAsync(PhotoItem item, int maxLongEdge, int rotationQuarters = 0, CancellationToken ct = default)
+    public Task<DecodeResult> DecodeAsync(PhotoItem item, int maxLongEdge, int rotationQuarters = 0,
+        CropRect? crop = null, CancellationToken ct = default)
     {
         var file = item.PreviewSourceFile
                    ?? throw new InvalidOperationException("PhotoItem has no files to decode.");
-        return Task.Run(() => Decode(file.Path, maxLongEdge, rotationQuarters), ct);
+        return Task.Run(() => Decode(file.Path, maxLongEdge, rotationQuarters, crop), ct);
     }
 
     /// <summary>Decode a single file path; public so callers can decode previews directly.</summary>
-    public static DecodeResult Decode(string path, int maxLongEdge, int rotationQuarters = 0)
+    public static DecodeResult Decode(string path, int maxLongEdge, int rotationQuarters = 0, CropRect? crop = null)
     {
         var encoded = GetEncodedBytes(path);
         using var codec = SKCodec.Create(new MemoryStream(encoded, writable: false))
@@ -34,14 +35,15 @@ public sealed class SkiaImageDecoder : IImageDecoder
             ?? throw new InvalidDataException($"Could not decode pixels: {path}");
         using var oriented = Orient(raw, origin);
         using var upright = RotateQuarters(oriented, rotationQuarters);
+        using var view = crop is { } cr ? CropBitmap(upright, cr) : upright.Copy();
 
-        var srcW = upright.Width;
-        var srcH = upright.Height;
+        var srcW = view.Width;
+        var srcH = view.Height;
 
-        using var preview = ResizeLongEdge(upright, maxLongEdge);
+        using var preview = ResizeLongEdge(view, maxLongEdge);
         var previewJpeg = Encode(preview, quality: 85);
 
-        using var small = ResizeLongEdge(upright, MetricsLongEdge);
+        using var small = ResizeLongEdge(view, MetricsLongEdge);
         var gray = ToGray(small);
 
         return new DecodeResult
@@ -63,6 +65,21 @@ public sealed class SkiaImageDecoder : IImageDecoder
                        $"No embedded JPEG preview found in RAW: {Path.GetFileName(path)}");
         }
         return File.ReadAllBytes(path);
+    }
+
+    /// <summary>Extract the normalised crop rectangle from a bitmap.</summary>
+    private static SKBitmap CropBitmap(SKBitmap src, CropRect crop)
+    {
+        var c = crop.Normalized();
+        var x = (int)Math.Round(c.X * src.Width);
+        var y = (int)Math.Round(c.Y * src.Height);
+        var w = Math.Min((int)Math.Round(c.W * src.Width), src.Width - x);
+        var h = Math.Min((int)Math.Round(c.H * src.Height), src.Height - y);
+        if (w < 1 || h < 1)
+            return src.Copy();
+
+        var dst = new SKBitmap(w, h, src.ColorType, src.AlphaType);
+        return src.ExtractSubset(dst, new SKRectI(x, y, x + w, y + h)) ? dst : src.Copy();
     }
 
     /// <summary>Rotate a bitmap clockwise by <paramref name="quarters"/> 90° turns.</summary>

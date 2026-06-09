@@ -57,6 +57,8 @@ public static class SidecarService
                 OrientationMath.QuartersFromOrientation(composed) -
                 OrientationMath.QuartersFromOrientation(baseOrientation));
         }
+
+        item.Crop = xmp.Crop;
     }
 
     private static XmpData BuildXmp(PhotoItem item)
@@ -77,6 +79,7 @@ public static class SidecarService
             Keywords = keywords,
             Description = NotesFormat.Compose(headline, item.UserNotes),
             Orientation = OrientationFor(item),
+            Crop = item.Crop,
         };
     }
 

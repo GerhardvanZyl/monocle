@@ -1,3 +1,5 @@
+using Monocle.Core.Model;
+
 namespace Monocle.Core.Sidecars;
 
 /// <summary>
@@ -26,4 +28,7 @@ public sealed class XmpData
 
     /// <summary>tiff:Orientation — the composed display orientation (rotation), 1/3/6/8.</summary>
     public int? Orientation { get; set; }
+
+    /// <summary>Non-destructive crop, stored in the Camera Raw (crs) namespace On1/LR understand.</summary>
+    public CropRect? Crop { get; set; }
 }

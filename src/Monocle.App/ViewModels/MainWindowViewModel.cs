@@ -314,6 +314,32 @@ public partial class MainWindowViewModel : ViewModelBase
         catch { return tile.Thumbnail; }
     }
 
+    /// <summary>Load the full (uncropped) rotated preview for the crop editor (#25).</summary>
+    public async Task<Bitmap?> GetUncroppedBitmapAsync(PhotoTileViewModel tile)
+    {
+        if (_cache is null)
+            return tile.Thumbnail;
+        try
+        {
+            var path = await _service.GetUncroppedPreviewAsync(tile.Item, _cache, ShootService.DetailLongEdge);
+            return SafeLoadBitmap(path);
+        }
+        catch { return tile.Thumbnail; }
+    }
+
+    /// <summary>Apply (or clear, when null) a crop on a tile: persists to sidecars and refreshes (#25).</summary>
+    public async Task ApplyCropAsync(PhotoTileViewModel tile, Monocle.Core.Model.CropRect? crop)
+    {
+        if (_cache is null)
+            return;
+        tile.Item.Crop = crop;
+        _service.Save(tile.Item);
+        var thumb = await _service.GetPreviewAsync(tile.Item, _cache, ShootService.ThumbLongEdge);
+        tile.Thumbnail = SafeLoadBitmap(thumb);
+        await LoadDetailAsync(tile);
+        StatusText = crop is null ? $"Cleared crop for {tile.Title}." : $"Cropped {tile.Title}.";
+    }
+
     public void Cleanup()
     {
         _scanCts?.Cancel();

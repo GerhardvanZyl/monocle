@@ -56,11 +56,11 @@ public sealed class ShootService
             var exif = source is not null ? _exif.Read(source.Path) : new ExifInfo();
             ApplyExif(item, exif);
 
-            var decoded = await _decoder.DecodeAsync(item, ThumbLongEdge, item.RotationQuarters, ct).ConfigureAwait(false);
+            var decoded = await _decoder.DecodeAsync(item, ThumbLongEdge, item.RotationQuarters, item.Crop, ct).ConfigureAwait(false);
             item.Metrics = TechnicalMetricsCalculator.Compute(decoded.Gray, item.Iso);
 
             cache.PutAnalysis(item.Id, fp, item.Metrics, exif);
-            cache.PutPreview(item.Id, fp, ThumbLongEdge, item.RotationQuarters, decoded.PreviewJpeg);
+            cache.PutPreview(item.Id, fp, ThumbLongEdge, item.RotationQuarters, decoded.PreviewJpeg, CropTag(item.Crop));
         }
 
         if (rateIfUnrated && item.Stars == 0)
@@ -72,13 +72,31 @@ public sealed class ShootService
     {
         var fp = item.Fingerprint;
         var rot = item.RotationQuarters;
-        var cached = cache.GetPreviewPath(item.Id, fp, longEdge, rot);
+        var cropTag = CropTag(item.Crop);
+        var cached = cache.GetPreviewPath(item.Id, fp, longEdge, rot, cropTag);
         if (cached is not null)
             return cached;
 
-        var decoded = await _decoder.DecodeAsync(item, longEdge, rot, ct).ConfigureAwait(false);
-        return cache.PutPreview(item.Id, fp, longEdge, rot, decoded.PreviewJpeg);
+        var decoded = await _decoder.DecodeAsync(item, longEdge, rot, item.Crop, ct).ConfigureAwait(false);
+        return cache.PutPreview(item.Id, fp, longEdge, rot, decoded.PreviewJpeg, cropTag);
     }
+
+    /// <summary>The full (uncropped) rotated preview, used by the crop editor (#25).</summary>
+    public async Task<string> GetUncroppedPreviewAsync(PhotoItem item, ShootCache cache, int longEdge, CancellationToken ct = default)
+    {
+        var fp = item.Fingerprint;
+        var rot = item.RotationQuarters;
+        var cached = cache.GetPreviewPath(item.Id, fp, longEdge, rot, "uncropped");
+        if (cached is not null)
+            return cached;
+
+        var decoded = await _decoder.DecodeAsync(item, longEdge, rot, null, ct).ConfigureAwait(false);
+        return cache.PutPreview(item.Id, fp, longEdge, rot, decoded.PreviewJpeg, "uncropped");
+    }
+
+    /// <summary>Stable cache tag for a crop rectangle.</summary>
+    private static string CropTag(CropRect? crop) =>
+        crop is { } c ? $"{c.X:F3}_{c.Y:F3}_{c.W:F3}_{c.H:F3}" : "";
 
     /// <summary>Persist the item's rating, keywords, notes and rationale to its sidecars.</summary>
     public void Save(PhotoItem item) => SidecarService.Save(item);
