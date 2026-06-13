@@ -71,10 +71,10 @@ public static class SidecarService
         var keywords = new List<string>(item.Keywords);
 
         // Pick/reject keyword travels in the sidecar because On1 flags don't (FEATURES §2).
-        if (item.IsPick && !keywords.Contains("Pick", StringComparer.OrdinalIgnoreCase))
-            keywords.Add("Pick");
-        if (item.IsReject && !keywords.Contains("reject", StringComparer.OrdinalIgnoreCase))
-            keywords.Add("reject");
+        if (item.IsPick && !keywords.Contains(MonocleKeywords.Pick, StringComparer.OrdinalIgnoreCase))
+            keywords.Add(MonocleKeywords.Pick);
+        if (item.IsReject && !keywords.Contains(MonocleKeywords.Reject, StringComparer.OrdinalIgnoreCase))
+            keywords.Add(MonocleKeywords.Reject);
 
         var headline = BuildHeadline(item);
         return new XmpData

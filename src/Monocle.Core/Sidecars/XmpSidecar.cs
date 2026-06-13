@@ -224,9 +224,9 @@ public static class XmpSidecar
 
     /// <summary>
     /// Union the keywords already on disk with Monocle's managed set. Existing keywords are
-    /// preserved (On1/LR data), except the Monocle-managed Pick/reject flags, which are dropped
-    /// from the existing set so the current rating's flags (carried in <paramref name="managed"/>)
-    /// win rather than accumulating.
+    /// preserved (On1/LR data), except the Monocle-managed flags (Pick/reject and the technical-reason
+    /// tags — see <see cref="MonocleKeywords"/>), which are dropped from the existing set so the
+    /// current rating's flags (carried in <paramref name="managed"/>) win rather than accumulating.
     /// </summary>
     private static List<string> MergeKeywords(List<string> existing, IEnumerable<string> managed)
     {
@@ -234,7 +234,7 @@ public static class XmpSidecar
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
         foreach (var k in existing)
-            if (!IsManagedFlag(k) && seen.Add(k))
+            if (!MonocleKeywords.IsManaged(k) && seen.Add(k))
                 result.Add(k);
         foreach (var k in managed)
             if (!string.IsNullOrWhiteSpace(k) && seen.Add(k))
@@ -257,10 +257,6 @@ public static class XmpSidecar
 
     private static bool IsLegalXmlChar(char c) =>
         c is '\t' or '\n' or '\r' || (c >= ' ' && c != '￾' && c != '￿');
-
-    private static bool IsManagedFlag(string keyword) =>
-        keyword.Equals("Pick", StringComparison.OrdinalIgnoreCase) ||
-        keyword.Equals("reject", StringComparison.OrdinalIgnoreCase);
 
     private static CropRect? ReadCrop(XmlNode desc, XmlNamespaceManager ns)
     {
@@ -330,13 +326,7 @@ public static class XmpSidecar
         {
             using (var writer = XmlWriter.Create(tmp, settings))
                 doc.Save(writer);
-
-            // File.Replace is atomic on NTFS (single rename, never a delete-then-rename gap), so a
-            // crash can't leave the sidecar missing. Fall back to Move for the first-write case.
-            if (File.Exists(path))
-                File.Replace(tmp, path, destinationBackupFileName: null);
-            else
-                File.Move(tmp, path);
+            AtomicFile.Replace(tmp, path);
         }
         finally
         {

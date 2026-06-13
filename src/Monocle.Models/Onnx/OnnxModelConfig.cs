@@ -22,6 +22,17 @@ public sealed class OnnxModelConfig
     public float[] Std { get; init; } = { 0.229f, 0.224f, 0.225f };
     public double ScaleMax { get; init; } = 10;
 
+    /// <summary>Direct-download URL for the <c>.onnx</c> weights, enabling in-app install. Null when
+    /// no trustworthy single-file source exists (the model must then be dropped in manually).</summary>
+    public string? DownloadUrl { get; init; }
+
+    /// <summary>Expected SHA-256 (hex) of the downloaded file. Required whenever <see cref="DownloadUrl"/>
+    /// is set: a download that doesn't match is rejected rather than silently scoring garbage.</summary>
+    public string? Sha256 { get; init; }
+
+    /// <summary>Link to the model's source/card, shown in the picker.</summary>
+    public string? InfoUrl { get; init; }
+
     /// <summary>Maps the model's raw output vector to a single score on the model's native scale.</summary>
     public required Func<float[], double> PostProcess { get; init; }
 

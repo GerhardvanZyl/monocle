@@ -52,9 +52,13 @@
                     <Button Content="Heuristic" Command="{Binding SetRatedByCommand}" CommandParameter="Heuristic"/>
                     <Button Content="Manual" Command="{Binding SetRatedByCommand}" CommandParameter="Manual"/>
                 </StackPanel>
-                <Grid ColumnDefinitions="*,Auto">
-                    <ProgressBar Grid.Column="0" Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
-                    <TextBlock Grid.Column="1" Margin="8,0,0,0" Text="{Binding StatusText}" VerticalAlignment="Center"/>
+                <Grid ColumnDefinitions="*,Auto,Auto">
+                    <ProgressBar Grid.Column="0" Minimum="0" Maximum="1" Value="{Binding ProgressFraction}"
+                                 Height="14" ShowProgressText="False"/>
+                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding ProgressText}"
+                               Foreground="#9CF" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <TextBlock Grid.Column="2" Margin="12,0,0,0" Text="{Binding StatusText}"
+                               Foreground="#CCC" VerticalAlignment="Center"/>
                 </Grid>
             </StackPanel>
         </Border>
@@ -64,12 +68,14 @@
             <StackPanel Orientation="Horizontal" Spacing="14">
                 <TextBlock Text="Green border = pick · Orange = reject" Foreground="#AAA"/>
                 <TextBlock Text="Dot: Red sharpness · Blue exposure · Purple noise · Gold multiple" Foreground="#AAA"/>
+                <TextBlock Text="Left strip = pipeline stage (grey pending → amber → blue → teal → green rated)" Foreground="#AAA"/>
                 <TextBlock Text="RAW+JPG badge = folded pair (V switches the shown file)" Foreground="#AAA"/>
                 <TextBlock Text="Keys: ←→↑↓ move · 1-4 rate · P/R pick/reject · F full · C crop · [ ] rotate" Foreground="#777"/>
             </StackPanel>
         </Border>
 
-        <!-- Main area: grid + detail -->
+        <!-- Main area: grid + detail, with the in-app enlarge overlay layered on top -->
+        <Panel>
         <Grid ColumnDefinitions="*,380">
             <!-- Center: Library grid + Pipeline flowchart -->
             <TabControl Grid.Column="0">
@@ -98,6 +104,12 @@
                                                     PointerPressed="OnTilePressed" DoubleTapped="OnTileDoubleTapped">
                                                 <Border BorderBrush="{Binding StatusBorder}" BorderThickness="3"
                                                         CornerRadius="4" Padding="2" Width="186">
+                                                    <DockPanel>
+                                                        <!-- Pipeline-stage strip: grey pending → green rated -->
+                                                        <Rectangle DockPanel.Dock="Left" Width="4" Margin="0,0,3,0"
+                                                                   RadiusX="2" RadiusY="2"
+                                                                   Fill="{Binding PipelineStrip}"
+                                                                   ToolTip.Tip="{Binding PipelineTip}"/>
                                                     <StackPanel>
                                                         <Panel Height="140">
                                                             <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
@@ -118,6 +130,7 @@
                                                             <TextBlock Text="{Binding AestheticText}" Foreground="#9F9" FontSize="11"/>
                                                         </StackPanel>
                                                     </StackPanel>
+                                                    </DockPanel>
                                                 </Border>
                                             </Border>
                                         </DataTemplate>
@@ -130,6 +143,8 @@
                 <TabItem Header="Pipeline">
                     <Grid RowDefinitions="Auto,*,Auto">
                         <StackPanel Grid.Row="0" Margin="8,8,8,0" Spacing="4">
+                            <TextBlock Text="This flowchart is the analysis pipeline every photo flows through, top to bottom. Node colour = stage status (grey pending · blue running · green done · dark skipped); the bottom legend keys the resource each stage uses (CPU / GPU / Claude tokens)."
+                                       Foreground="#888" FontSize="11" TextWrapping="Wrap"/>
                             <TextBlock Text="Overall progress" Foreground="#AAA" FontSize="11"/>
                             <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="8"/>
                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -155,7 +170,12 @@
                     </Grid>
                 </TabItem>
                 <TabItem Header="Visualizations">
-                    <ctl:ChartsControl Stats="{Binding Stats}" Margin="8"/>
+                    <DockPanel Margin="8">
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" Foreground="#888" FontSize="11"
+                                   TextWrapping="Wrap"
+                                   Text="Shoot-wide summaries of this scan. Left: how your ratings are distributed. Right: every photo plotted by technical quality (x) against aesthetic score (y), so the top-right corner is your strongest frames."/>
+                        <ctl:ChartsControl Stats="{Binding Stats}"/>
+                    </DockPanel>
                 </TabItem>
             </TabControl>
 
@@ -181,6 +201,22 @@
                                                 <TextBlock Text="{Binding Header}" FontSize="12"/>
                                                 <TextBlock Text="{Binding Description}" FontSize="10"
                                                            Foreground="#999" TextWrapping="Wrap"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                                    <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
+                                                            IsVisible="{Binding ShowInstall}"
+                                                            IsEnabled="{Binding CanInstall}"
+                                                            ToolTip.Tip="{Binding InstallTip}"
+                                                            Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                    <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
+                                                               FontSize="10" Foreground="#9CF" VerticalAlignment="Center"
+                                                               IsVisible="{Binding Installing}"/>
+                                                    <Button Content="model card ↗" FontSize="10" Padding="6,1"
+                                                            IsVisible="{Binding HasInfoUrl}"
+                                                            ToolTip.Tip="{Binding InfoUrl}"
+                                                            Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
+                                                            CommandParameter="{Binding InfoUrl}"/>
+                                                </StackPanel>
                                             </StackPanel>
                                             <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
                                                        Foreground="#7CF" VerticalAlignment="Top" Margin="4,0,0,0"/>
@@ -197,7 +233,8 @@
                                    DoubleTapped="OnPreviewDoubleTapped"/>
                         </Border>
                         <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Button Content="Fullscreen" Click="OnFullscreenClick"/>
+                            <Button Content="Enlarge" Click="OnFullscreenClick"
+                                    ToolTip.Tip="Enlarge in-app ( F ) — scroll to zoom, drag to pan, Esc to close"/>
                             <Button Content="⟲" Command="{Binding RotateLeftCommand}" ToolTip.Tip="Rotate left ( [ )"/>
                             <Button Content="⟳" Command="{Binding RotateRightCommand}" ToolTip.Tip="Rotate right ( ] )"/>
                             <Button Content="Crop" Click="OnCropClick" ToolTip.Tip="Crop ( C )"/>
@@ -238,5 +275,20 @@
                 </DockPanel>
             </Border>
         </Grid>
+
+            <!-- In-app enlarged, centered photo (keeps toolbar + legend visible) -->
+            <Border IsVisible="{Binding IsEnlarged}" Background="#E6101010">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="#202020" Padding="8,5">
+                        <StackPanel Orientation="Horizontal" Spacing="10">
+                            <Button Content="Close (Esc)" Click="OnCloseEnlargedClick"/>
+                            <TextBlock Text="Scroll to zoom · drag to pan" Foreground="#999"
+                                       VerticalAlignment="Center" FontSize="11"/>
+                        </StackPanel>
+                    </Border>
+                    <ctl:ZoomImage Source="{Binding EnlargedImage}"/>
+                </DockPanel>
+            </Border>
+        </Panel>
     </DockPanel>
 </Window>

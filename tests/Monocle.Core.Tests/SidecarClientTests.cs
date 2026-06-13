@@ -58,4 +58,26 @@ public class SidecarClientTests
         var client = new SidecarClient("http://127.0.0.1:18832");
         Assert.Null(await client.HealthAsync());
     }
+
+    [Fact]
+    public void DisposingDoesNotDisposeAnInjectedHttpClient()
+    {
+        // The manager replaces its client on restart; an injected HttpClient is the caller's to own,
+        // so SidecarClient.Dispose must leave it usable rather than tearing it down.
+        using var http = new HttpClient();
+        var client = new SidecarClient("http://127.0.0.1:18833", http);
+        client.Dispose();
+
+        // If the injected client had been disposed, setting a property would throw ObjectDisposedException.
+        var ex = Record.Exception(() => http.Timeout = TimeSpan.FromSeconds(10));
+        Assert.Null(ex);
+    }
+
+    [Fact]
+    public void DisposingOwnedHttpClientIsSafeAndIdempotent()
+    {
+        var client = new SidecarClient("http://127.0.0.1:18834");
+        client.Dispose();
+        client.Dispose();   // double-dispose must not throw
+    }
 }

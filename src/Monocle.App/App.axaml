@@ -2,8 +2,11 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Monocle.App.App"
              xmlns:local="using:Monocle.App"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+             <!-- The whole UI chrome is hardcoded dark (toolbar #1E1E1E, panels #161616/#202020, light
+                  #AAA/#888 text). "Default" follows the OS, so on a light-mode OS FluentTheme painted
+                  controls (the folder TextBox, checkboxes) with dark text on the dark chrome — unreadable.
+                  Pin to Dark so the controls match the design. "Light"/"Default" are the other options. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>

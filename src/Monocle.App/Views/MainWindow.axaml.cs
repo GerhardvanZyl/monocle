@@ -2,6 +2,7 @@ using System;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Monocle.App.Diagnostics;
 using Monocle.App.ViewModels;
 
 namespace Monocle.App.Views;
@@ -46,23 +47,26 @@ public partial class MainWindow : Window
 
     private void OnFullscreenClick(object? sender, RoutedEventArgs e) => OpenFullscreen();
 
+    private void OnCloseEnlargedClick(object? sender, RoutedEventArgs e) => Vm?.CloseEnlarged();
+
     private async void OpenFullscreen()
     {
-        // async void event handler: an unguarded throw (preview decode or window construction)
-        // would escape to the sync context as an unhandled exception and crash the app.
+        // async void event handler: an unguarded throw (preview decode) would escape to the sync
+        // context as an unhandled exception and crash the app.
         try
         {
             if (Vm?.SelectedPhoto is { } tile)
             {
                 var bmp = await Vm.GetDetailBitmapAsync(tile);
                 if (bmp is not null)
-                    new FullscreenWindow(bmp).Show();
+                    Vm.OpenEnlarged(bmp);   // in-app overlay; keeps toolbar + grid visible
             }
         }
         catch (Exception ex)
         {
+            Log.Error("Couldn't enlarge photo", ex);
             if (Vm is not null)
-                Vm.StatusText = $"Couldn't open fullscreen: {ex.Message}";
+                Vm.StatusText = $"Couldn't enlarge photo: {ex.Message}";
         }
     }
 
@@ -81,6 +85,7 @@ public partial class MainWindow : Window
         }
         catch (Exception ex)
         {
+            Log.Error("Couldn't open crop editor", ex);
             if (Vm is not null)
                 Vm.StatusText = $"Couldn't open crop editor: {ex.Message}";
         }
@@ -104,7 +109,11 @@ public partial class MainWindow : Window
             case Key.D0 or Key.NumPad0: Vm.SetStarsCommand.Execute("0"); e.Handled = true; break;
             case Key.P: Vm.SetStarsCommand.Execute("4"); e.Handled = true; break;          // pick
             case Key.R or Key.X: Vm.SetStarsCommand.Execute("1"); e.Handled = true; break;  // reject
-            case Key.F: OpenFullscreen(); e.Handled = true; break;
+            case Key.Escape when Vm.IsEnlarged: Vm.CloseEnlarged(); e.Handled = true; break;
+            case Key.F:
+                if (Vm.IsEnlarged) Vm.CloseEnlarged(); else OpenFullscreen();
+                e.Handled = true;
+                break;
             case Key.C: OpenCrop(); e.Handled = true; break;
             case Key.V: Vm.ToggleVariantCommand.Execute(null); e.Handled = true; break;
             case Key.OemOpenBrackets: Vm.RotateLeftCommand.Execute(null); e.Handled = true; break;

@@ -45,10 +45,7 @@ public static class PlainTextSidecar
         try
         {
             File.WriteAllText(tmp, sb.ToString(), new UTF8Encoding(false));
-            if (File.Exists(path))
-                File.Replace(tmp, path, destinationBackupFileName: null);
-            else
-                File.Move(tmp, path);
+            AtomicFile.Replace(tmp, path);
         }
         finally
         {

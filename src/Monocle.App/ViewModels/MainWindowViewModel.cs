@@ -95,6 +95,61 @@ public partial class MainWindowViewModel : ViewModelBase
     private IReadOnlyList<IModelRunner> SelectedScorers() =>
         Models.Where(m => m.IsEnabled && m.Available).Select(m => m.Runner).ToList();
 
+    /// <summary>Install a not-yet-available model from the app (#5): download + verify ONNX weights,
+    /// or pip-install the Python sidecar's deps. Refreshes availability when done.</summary>
+    [RelayCommand]
+    private async Task InstallModelAsync(ModelOptionViewModel? model)
+    {
+        if (model is null || model.Installing)
+            return;
+        model.Installing = true;
+        try
+        {
+            if (model.Runner is OnnxScoreRunner { DownloadUrl: not null } onnx)
+            {
+                StatusText = $"Downloading {model.Name}…";
+                var progress = new Progress<double>(f =>
+                {
+                    model.InstallProgress = f;
+                    StatusText = $"Downloading {model.Name}… {f:P0}";
+                });
+                await onnx.InstallAsync(progress);
+                StatusText = $"{model.Name} installed.";
+            }
+            else if (model.Runner.Descriptor.RequiresSidecar)
+            {
+                StatusText = $"Installing Python deps for {model.Name}…";
+                void Append(string line) => Dispatcher.UIThread.Post(() =>
+                {
+                    CullLog.Add(line);
+                    StatusText = line;
+                });
+                var ok = await SidecarInstaller.InstallDepsAsync(Append);
+                StatusText = ok
+                    ? "Python deps installed — Start the Python sidecar to use these models."
+                    : "Python deps install failed (see the Pipeline log).";
+            }
+            else
+            {
+                StatusText = $"{model.Name} can't be installed from the app — see docs/models.md.";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusText = $"Install failed: {ex.Message}";
+        }
+        finally
+        {
+            model.Installing = false;
+            model.InstallProgress = 0;
+            await InitModelsAsync();   // re-probe availability so the checkbox enables
+        }
+    }
+
+    /// <summary>Open a model's source/card link in the browser (#6).</summary>
+    [RelayCommand]
+    private void OpenUrl(string? url) => UrlLauncher.Open(url);
+
     // ---- Inputs ----
     [ObservableProperty] private string _folderPath = "";
     [ObservableProperty] private bool _foldPairs = true;
@@ -153,11 +208,41 @@ public partial class MainWindowViewModel : ViewModelBase
     private void RefreshStats() => Stats = StatsCalculator.Compute(Photos.Select(p => p.Item));
 
     // ---- Progress (auto-refreshing, #3, #16) ----
-    [ObservableProperty] private int _total;
-    [ObservableProperty] private int _analyzed;
-    [ObservableProperty] private double _progressFraction;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
+    private int _total;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
+    private int _analyzed;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ProgressText))]
+    private double _progressFraction;
     [ObservableProperty] private string _statusText = "Pick a folder and Scan.";
     [ObservableProperty] private bool _isBusy;
+
+    /// <summary>Compact "X / Y analyzed · NN%" shown on the prominent toolbar progress bar (#4).</summary>
+    public string ProgressText => Total == 0 ? "" : $"{Analyzed} / {Total} analyzed · {ProgressFraction:P0}";
+
+    // ---- In-app enlarged photo overlay (#6) ----
+    [ObservableProperty] private bool _isEnlarged;
+    [ObservableProperty] private Bitmap? _enlargedImage;
+
+    // Owns and disposes its bitmap (a full-size decode), like DetailPreview.
+    partial void OnEnlargedImageChanged(Bitmap? oldValue, Bitmap? newValue) => oldValue?.Dispose();
+
+    /// <summary>Show the given bitmap in the centered in-app enlarge overlay.</summary>
+    public void OpenEnlarged(Bitmap bitmap)
+    {
+        EnlargedImage = bitmap;
+        IsEnlarged = true;
+    }
+
+    /// <summary>Hide the enlarge overlay and release its bitmap.</summary>
+    public void CloseEnlarged()
+    {
+        IsEnlarged = false;
+        EnlargedImage = null;
+    }
 
     // ---- Detail pane ----
     [ObservableProperty] private Bitmap? _detailPreview;
@@ -294,8 +379,9 @@ public partial class MainWindowViewModel : ViewModelBase
                     });
                 }
                 catch (OperationCanceledException) { }
-                catch
+                catch (Exception ex)
                 {
+                    Diagnostics.Log.Error($"Analyze failed for {tile.Title}", ex);
                     await Dispatcher.UIThread.InvokeAsync(() =>
                     {
                         if (token.IsCancellationRequested) return;
@@ -382,6 +468,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch (Exception ex)
         {
+            Diagnostics.Log.Error("Cull failed", ex);
             CullLog.Add($"Cull failed: {ex.Message}");
             StatusText = "Cull failed — is Claude Code installed and signed in?";
         }
@@ -565,7 +652,7 @@ public partial class MainWindowViewModel : ViewModelBase
         if (item.Metrics is not { } m)
             return "(analyzing…)";
         return $"Technical {m.CompositeScore:0.00}\n" +
-               $"Sharpness {m.SharpnessBestTile:0.00} (best tile)\n" +
+               $"Sharpness {m.SharpnessBestTile:0.00} best tile / {m.SharpnessWhole:0.00} overall\n" +
                $"Exposure mean {m.MeanBrightness:0.00}, contrast {m.Contrast:0.00}\n" +
                $"Highlight clip {m.HighlightClip:P1}, shadow clip {m.ShadowClip:P1}\n" +
                $"ISO {(m.Iso?.ToString() ?? "—")}";

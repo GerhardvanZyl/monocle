@@ -32,10 +32,22 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
         Resource = ResourceKind.Gpu,
         OutputKind = _config.OutputKind,
         ScaleMax = _config.ScaleMax,
+        InfoUrl = _config.InfoUrl,
     };
 
     public Task<bool> IsAvailableAsync(CancellationToken ct = default) =>
         Task.FromResult(File.Exists(_modelPath));
+
+    /// <summary>A direct-download URL for this model's weights, or null if it must be installed manually.</summary>
+    public string? DownloadUrl => _config.DownloadUrl;
+
+    /// <summary>Download and verify this model's weights into the models directory (#5). Throws if no
+    /// <see cref="DownloadUrl"/> is configured or the checksum doesn't match.</summary>
+    public Task InstallAsync(IProgress<double>? progress = null, CancellationToken ct = default) =>
+        OnnxModelInstaller.InstallAsync(
+            _config.DownloadUrl ?? throw new InvalidOperationException(
+                $"No download source configured for {_config.DisplayName} — drop {_config.FileName} into the models folder manually."),
+            _config.Sha256, _modelPath, progress, ct);
 
     public Task<ModelScore> ScoreAsync(ScoringContext context, CancellationToken ct = default)
     {
@@ -59,9 +71,7 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
             ScaleMax = _config.ScaleMax,
             Resource = ResourceKind.Gpu,
         };
-        context.Item.Scores.RemoveAll(s => s.ModelId == _config.Id);
-        context.Item.Scores.Add(score);
-        return Task.FromResult(score);
+        return Task.FromResult(score);   // ShootService attaches + caches the returned score
     }
 
     private InferenceSession GetSession()

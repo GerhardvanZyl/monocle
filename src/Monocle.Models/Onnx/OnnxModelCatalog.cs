@@ -25,6 +25,9 @@ public static class OnnxModelCatalog
             InputSize = 224,
             ScaleMax = 10,
             PostProcess = OnnxModelConfig.NimaExpectedScore,
+            // No DownloadUrl/Sha256: there is no canonical single-file NIMA ONNX matching this
+            // 224px / 10-bin-softmax runner. Drop nima.onnx into the models dir manually for now.
+            InfoUrl = "https://github.com/idealo/image-quality-assessment",
         },
         new OnnxModelConfig
         {
@@ -41,6 +44,10 @@ public static class OnnxModelCatalog
             Std = new[] { 0.5f, 0.5f, 0.5f },
             ScaleMax = 10,
             PostProcess = OnnxModelConfig.SingleRegression,
+            // No DownloadUrl/Sha256: aesthetic-predictor-v2.5 ships as a SigLIP backbone + separate
+            // MLP head (PyTorch/safetensors); only the backbone has community ONNX exports, so no
+            // single file produces this score. Drop a fused aesthetic-v2-5.onnx in manually for now.
+            InfoUrl = "https://huggingface.co/spaces/discus0434/aesthetic-predictor-v2-5",
         },
     };
 

@@ -3,8 +3,11 @@ namespace Monocle.App.Services;
 /// <summary>Locates the Python interpreter and the sidecar script to start the optional sidecar.</summary>
 public static class SidecarLauncher
 {
+    public static string PythonDir() =>
+        Path.Combine(AppContext.BaseDirectory, "python");
+
     public static string ServerScript() =>
-        Path.Combine(AppContext.BaseDirectory, "python", "server.py");
+        Path.Combine(PythonDir(), "server.py");
 
     public static bool ServerExists() => File.Exists(ServerScript());
 

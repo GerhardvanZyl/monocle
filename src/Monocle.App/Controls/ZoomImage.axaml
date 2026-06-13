@@ -1,0 +1,11 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             x:Class="Monocle.App.Controls.ZoomImage">
+    <!-- Viewport must be hit-testable (Background set) to receive wheel/drag. The image is pinned
+         top-left so the pan/zoom matrix translation centers it deterministically. -->
+    <Border Name="Viewport" ClipToBounds="True" Background="#00000000">
+        <Image Name="Img" Stretch="None"
+               HorizontalAlignment="Left" VerticalAlignment="Top"
+               RenderTransformOrigin="0,0"/>
+    </Border>
+</UserControl>

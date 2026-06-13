@@ -5,7 +5,7 @@ namespace Monocle.Models.Sidecar;
 /// <summary>Static description of a sidecar-hosted model (shown in the picker before it starts).</summary>
 public sealed record SidecarModelInfo(
     string Id, string Name, string Kind, ScoreKind OutputKind, ModelCategory Category,
-    string Description, string Tradeoffs);
+    string Description, string Tradeoffs, string? InfoUrl = null);
 
 /// <summary>
 /// Exposes a Python-sidecar model through the model seam (#1, #28). Available only while the
@@ -34,6 +34,7 @@ public sealed class SidecarRunner : IModelRunner
         OutputKind = _info.OutputKind,
         RequiresSidecar = true,
         ScaleMax = _info.OutputKind == ScoreKind.Quality ? 5 : null,
+        InfoUrl = _info.InfoUrl,
     };
 
     public async Task<bool> IsAvailableAsync(CancellationToken ct = default)
@@ -62,9 +63,7 @@ public sealed class SidecarRunner : IModelRunner
             Text = result.Text,
             Resource = ResourceKind.Gpu,
         };
-        context.Item.Scores.RemoveAll(s => s.ModelId == _info.Id);
-        context.Item.Scores.Add(score);
-        return score;
+        return score;   // ShootService attaches + caches the returned score
     }
 }
 
@@ -74,10 +73,12 @@ public static class SidecarModelCatalog
     {
         new SidecarModelInfo("q-align", "Q-Align / OneAlign", "quality", ScoreKind.Quality, ModelCategory.MllmCritique,
             "Multimodal LLM scorer — state-of-the-art image quality + aesthetic scoring (1-5) that can explain itself.",
-            "Best-in-class scoring with rationale. Large VRAM (~16GB+), slower; needs the Python sidecar."),
+            "Best-in-class scoring with rationale. Large VRAM (~16GB+), slower; needs the Python sidecar.",
+            "https://huggingface.co/q-future/one-align"),
         new SidecarModelInfo("qwen2-vl", "Qwen2-VL critique", "critique", ScoreKind.Aesthetic, ModelCategory.MllmCritique,
             "Vision-language model that writes a natural-language critique — good training data for your notes.",
-            "Rich, flexible critique; not a calibrated numeric score. Heavy; sidecar only."),
+            "Rich, flexible critique; not a calibrated numeric score. Heavy; sidecar only.",
+            "https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct"),
     };
 
     public static IReadOnlyList<SidecarRunner> BuildRunners(SidecarManager manager) =>

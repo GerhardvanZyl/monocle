@@ -2,6 +2,7 @@ using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Monocle.Core.Model;
+using Monocle.Models;
 
 namespace Monocle.App.ViewModels;
 
@@ -36,7 +37,12 @@ public partial class PhotoTileViewModel : ViewModelBase
     [ObservableProperty] private string _modelsText = "";
     [ObservableProperty] private IBrush _statusBorder = Brushes.Transparent;
     [ObservableProperty] private IBrush _reasonDot = Brushes.Transparent;
+    [ObservableProperty] private IBrush _pipelineStrip = Brushes.Transparent;
+    [ObservableProperty] private string _pipelineTip = "";
     [ObservableProperty] private bool _analyzing = true;
+
+    // The pipeline strip reflects how far this frame has progressed, which depends on Analyzing.
+    partial void OnAnalyzingChanged(bool value) => RefreshPipelineStrip();
 
     // Selection highlight (the virtualized grid selects rows, so tiles track their own state).
     private static readonly IBrush SelectedBrush = new SolidColorBrush(Color.FromArgb(140, 30, 144, 255));
@@ -66,7 +72,25 @@ public partial class PhotoTileViewModel : ViewModelBase
                      : Item.IsReject ? Brushes.OrangeRed
                      : Brushes.Transparent;
         ReasonDot = ReasonToBrush(Item.Reason);
+        RefreshPipelineStrip();
     }
+
+    private void RefreshPipelineStrip()
+    {
+        var stage = PipelineStatus.Of(Item, Analyzing);
+        PipelineStrip = StageToBrush(stage);
+        PipelineTip = PipelineStatus.Label(stage);
+    }
+
+    private static IBrush StageToBrush(PhotoStage stage) => stage switch
+    {
+        PhotoStage.Pending => new SolidColorBrush(Color.FromRgb(0x55, 0x55, 0x55)),  // grey
+        PhotoStage.Analyzing => new SolidColorBrush(Color.FromRgb(0xE0, 0xA2, 0x4D)),// amber
+        PhotoStage.Metrics => new SolidColorBrush(Color.FromRgb(0x4D, 0xA3, 0xFF)),  // blue
+        PhotoStage.Scored => new SolidColorBrush(Color.FromRgb(0x35, 0xC4, 0xB5)),   // teal
+        PhotoStage.Rated => new SolidColorBrush(Color.FromRgb(0x4C, 0xAF, 0x50)),    // green
+        _ => Brushes.Transparent,
+    };
 
     private static string StarsToText(int stars) =>
         stars <= 0 ? "—" : new string('★', stars) + new string('·', Math.Max(0, 4 - stars));

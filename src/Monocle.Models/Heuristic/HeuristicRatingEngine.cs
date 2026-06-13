@@ -1,4 +1,5 @@
 using Monocle.Core.Model;
+using Monocle.Core.Sidecars;
 
 namespace Monocle.Models.Heuristic;
 
@@ -57,7 +58,7 @@ public sealed class HeuristicRatingEngine
                     : faults.Count == 1 ? faults[0].reason
                     : TechnicalReason.None;
 
-        item.Keywords.RemoveAll(k => k is "soft" or "underexposed" or "overexposed" or "noisy");
+        item.Keywords.RemoveAll(MonocleKeywords.Reasons.Contains);
         foreach (var f in faults)
             if (!item.Keywords.Contains(f.keyword))
                 item.Keywords.Add(f.keyword);

@@ -93,6 +93,10 @@ public sealed class ShootService
                         if (!await runner.IsAvailableAsync(ct).ConfigureAwait(false))
                             continue;
                         var score = await runner.ScoreAsync(context, ct).ConfigureAwait(false);
+                        // Attach centrally so a runner's score appears on the item in this same pass
+                        // (not only after a reload) without each runner having to mutate item.Scores.
+                        item.Scores.RemoveAll(s => s.ModelId == score.ModelId);
+                        item.Scores.Add(score);
                         cache.PutScore(item.Id, fp, score);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)

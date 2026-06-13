@@ -42,8 +42,17 @@ public sealed class ChartsControl : Control
 
         var top = 44.0;
         var halfW = Bounds.Width / 2;
-        DrawStarHistogram(ctx, new Rect(16, top, halfW - 32, Bounds.Height - top - 16), s);
-        DrawScatter(ctx, new Rect(halfW + 8, top, halfW - 24, Bounds.Height - top - 16), s);
+        // Reserve a strip at the bottom for a one-line caption under each chart.
+        var chartH = Bounds.Height - top - 40;
+        var histArea = new Rect(16, top, halfW - 32, chartH);
+        var scatterArea = new Rect(halfW + 8, top, halfW - 24, chartH);
+        DrawStarHistogram(ctx, histArea, s);
+        DrawScatter(ctx, scatterArea, s);
+
+        ctx.DrawText(Text("How many photos got each star rating (— = unrated).", 11, Color.Parse("#888")),
+            new Point(histArea.X, histArea.Bottom + 20));
+        ctx.DrawText(Text("Each dot is a photo — right = better technical (sharp/clean), up = more aesthetic.", 11, Color.Parse("#888")),
+            new Point(scatterArea.X, scatterArea.Bottom + 20));
     }
 
     private void DrawStarHistogram(DrawingContext ctx, Rect area, ShootStats s)

@@ -43,8 +43,6 @@ public sealed class AestheticRunner : IModelRunner
             Resource = ResourceKind.Cpu,
         };
 
-        context.Item.Scores.RemoveAll(s => s.ModelId == ModelId);
-        context.Item.Scores.Add(score);
-        return Task.FromResult(score);
+        return Task.FromResult(score);   // ShootService attaches + caches the returned score
     }
 }

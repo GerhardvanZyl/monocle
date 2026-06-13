@@ -4,15 +4,25 @@ using Avalonia.Input;
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 
-namespace Monocle.App.Views;
+namespace Monocle.App.Controls;
 
 /// <summary>
-/// Borderless fullscreen image viewer with mouse-wheel zoom (around the cursor) and
-/// drag-to-pan (#6, #27). Esc, F or double-click closes it.
+/// Reusable image viewer with fit-to-centre, mouse-wheel zoom (around the cursor) and drag-to-pan
+/// (#6, #27). Used by the in-app enlarged pane. The image is pinned top-left and positioned purely
+/// by a render-transform matrix, so <see cref="Fit"/> centres it reliably regardless of viewport
+/// size — fixing the off-centre enlarge.
 /// </summary>
-public partial class FullscreenWindow : Window
+public partial class ZoomImage : UserControl
 {
-    private readonly Bitmap? _bitmap;
+    public static readonly StyledProperty<Bitmap?> SourceProperty =
+        AvaloniaProperty.Register<ZoomImage, Bitmap?>(nameof(Source));
+
+    public Bitmap? Source
+    {
+        get => GetValue(SourceProperty);
+        set => SetValue(SourceProperty, value);
+    }
+
     private double _scale = 1;
     private double _offsetX;
     private double _offsetY;
@@ -20,20 +30,10 @@ public partial class FullscreenWindow : Window
     private Point _lastPointer;
     private bool _fitted;
 
-    public FullscreenWindow() : this(null) { }
-
-    public FullscreenWindow(Bitmap? bitmap)
+    public ZoomImage()
     {
         InitializeComponent();
-        _bitmap = bitmap;
-        if (_bitmap is not null)
-            Img.Source = _bitmap;
 
-        Img.Width = _bitmap?.Size.Width ?? 0;
-        Img.Height = _bitmap?.Size.Height ?? 0;
-
-        KeyDown += OnKeyDown;
-        DoubleTapped += (_, _) => Close();
         Viewport.PointerWheelChanged += OnWheel;
         Viewport.PointerPressed += OnPressed;
         Viewport.PointerMoved += OnMoved;
@@ -41,21 +41,37 @@ public partial class FullscreenWindow : Window
         Viewport.LayoutUpdated += (_, _) => FitOnce();
     }
 
+    static ZoomImage()
+    {
+        SourceProperty.Changed.AddClassHandler<ZoomImage>((c, _) => c.OnSourceChanged());
+    }
+
+    private void OnSourceChanged()
+    {
+        Img.Source = Source;
+        Img.Width = Source?.Size.Width ?? 0;
+        Img.Height = Source?.Size.Height ?? 0;
+        _fitted = false;          // re-centre the new image on the next layout pass
+        FitOnce();
+    }
+
     private void FitOnce()
     {
-        if (_fitted || _bitmap is null || Viewport.Bounds.Width <= 0)
+        if (_fitted || Source is null || Viewport.Bounds.Width <= 0 || Viewport.Bounds.Height <= 0)
             return;
         _fitted = true;
-        var sx = Viewport.Bounds.Width / _bitmap.Size.Width;
-        var sy = Viewport.Bounds.Height / _bitmap.Size.Height;
+        var sx = Viewport.Bounds.Width / Source.Size.Width;
+        var sy = Viewport.Bounds.Height / Source.Size.Height;
         _scale = System.Math.Min(sx, sy);
-        _offsetX = (Viewport.Bounds.Width - _bitmap.Size.Width * _scale) / 2;
-        _offsetY = (Viewport.Bounds.Height - _bitmap.Size.Height * _scale) / 2;
+        _offsetX = (Viewport.Bounds.Width - Source.Size.Width * _scale) / 2;
+        _offsetY = (Viewport.Bounds.Height - Source.Size.Height * _scale) / 2;
         Apply();
     }
 
     private void OnWheel(object? sender, PointerWheelEventArgs e)
     {
+        if (Source is null)
+            return;
         var cursor = e.GetPosition(Viewport);
         var factor = e.Delta.Y > 0 ? 1.15 : 1 / 1.15;
         var newScale = System.Math.Clamp(_scale * factor, 0.05, 40);
@@ -67,6 +83,7 @@ public partial class FullscreenWindow : Window
         _offsetY = cursor.Y - worldY * newScale;
         _scale = newScale;
         Apply();
+        e.Handled = true;
     }
 
     private void OnPressed(object? sender, PointerPressedEventArgs e)
@@ -88,10 +105,4 @@ public partial class FullscreenWindow : Window
 
     private void Apply() =>
         Img.RenderTransform = new MatrixTransform(new Matrix(_scale, 0, 0, _scale, _offsetX, _offsetY));
-
-    private void OnKeyDown(object? sender, KeyEventArgs e)
-    {
-        if (e.Key is Key.Escape or Key.F)
-            Close();
-    }
 }

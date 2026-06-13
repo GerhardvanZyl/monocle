@@ -37,4 +37,8 @@ public sealed class ModelDescriptor
 
     /// <summary>True when the model needs the optional Python sidecar.</summary>
     public bool RequiresSidecar { get; init; }
+
+    /// <summary>Link to the model's source/card (Hugging Face, project page), or null for
+    /// purely local algorithms that have no external page.</summary>
+    public string? InfoUrl { get; init; }
 }
