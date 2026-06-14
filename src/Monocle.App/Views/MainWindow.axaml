@@ -2,12 +2,15 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Monocle.App.ViewModels"
         xmlns:ctl="using:Monocle.App.Controls"
+        xmlns:conv="using:Monocle.App.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="Monocle.App.Views.MainWindow"
         x:DataType="vm:MainWindowViewModel"
         Width="1280" Height="800"
+        Background="{StaticResource Bg}"
+        FontFamily="{StaticResource FontSans}"
         Title="Monocle">
 
     <Design.DataContext>
@@ -15,73 +18,181 @@
     </Design.DataContext>
 
     <DockPanel>
-        <!-- Toolbar -->
-        <Border DockPanel.Dock="Top" Padding="8" Background="#1E1E1E">
-            <StackPanel Spacing="6">
-                <StackPanel Orientation="Horizontal" Spacing="6">
-                    <TextBox Width="640" Watermark="Paste a folder path…" Text="{Binding FolderPath}" />
-                    <CheckBox Content="Fold RAW+JPG" IsChecked="{Binding FoldPairs}" VerticalAlignment="Center"/>
-                    <Button Content="Scan" Command="{Binding ScanCommand}" IsEnabled="{Binding !IsBusy}"/>
-                    <Button Content="Export CSV/JSON" Command="{Binding ExportCommand}"
-                            ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder."/>
+        <!-- ===== TITLEBAR ===== -->
+        <Border DockPanel.Dock="Top" Height="40" Background="{StaticResource Surface1}"
+                BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="Auto,Auto,*" Margin="14,0,8,0">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                    <Border Width="22" Height="22" CornerRadius="7" Background="{StaticResource Accent}">
+                        <TextBlock Text="◎" FontSize="14" Foreground="{StaticResource AccentFg}"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                    <TextBlock Text="Monocle" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="Filter:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <Button Content="All" Command="{Binding SetFilterCommand}" CommandParameter="All"/>
-                    <Button Content="★2+" Command="{Binding SetFilterCommand}" CommandParameter="Star2"/>
-                    <Button Content="★3+" Command="{Binding SetFilterCommand}" CommandParameter="Star3"/>
-                    <Button Content="★4" Command="{Binding SetFilterCommand}" CommandParameter="Star4"/>
-                    <Button Content="Picks" Command="{Binding SetFilterCommand}" CommandParameter="Pick"/>
-                    <Button Content="Rejects" Command="{Binding SetFilterCommand}" CommandParameter="Reject"/>
-                    <Button Content="Unrated" Command="{Binding SetFilterCommand}" CommandParameter="Unrated"/>
+                <Rectangle Grid.Column="1" Width="1" Height="18" Fill="{StaticResource BorderSoft}" Margin="12,0"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                    <TextBlock Text="📁" FontSize="12" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding FolderPath}" Foreground="{StaticResource Text2}"
+                               FontFamily="{StaticResource FontMono}" FontSize="11.5"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                 </StackPanel>
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="Sort:" VerticalAlignment="Center" Margin="0,0,4,0"/>
-                    <ComboBox ItemsSource="{Binding SortKeys}" SelectedItem="{Binding Sort}" Width="130"/>
-                    <Button Content="▲ / ▼" Command="{Binding ToggleSortDirCommand}" ToolTip.Tip="Toggle ascending / descending"/>
-                    <Rectangle Width="1" Fill="#444" Margin="6,2"/>
-                    <TextBlock Text="Reason:" VerticalAlignment="Center"/>
-                    <Button Content="Any" Command="{Binding SetReasonCommand}" CommandParameter="None"/>
-                    <Button Content="Soft" Command="{Binding SetReasonCommand}" CommandParameter="Sharpness"/>
-                    <Button Content="Exposure" Command="{Binding SetReasonCommand}" CommandParameter="Exposure"/>
-                    <Button Content="Noise" Command="{Binding SetReasonCommand}" CommandParameter="Noise"/>
-                    <Button Content="Multiple" Command="{Binding SetReasonCommand}" CommandParameter="Multiple"/>
-                    <Rectangle Width="1" Fill="#444" Margin="6,2"/>
-                    <TextBlock Text="By:" VerticalAlignment="Center"/>
-                    <Button Content="Any" Command="{Binding SetRatedByCommand}" CommandParameter="Any"/>
-                    <Button Content="Heuristic" Command="{Binding SetRatedByCommand}" CommandParameter="Heuristic"/>
-                    <Button Content="Manual" Command="{Binding SetRatedByCommand}" CommandParameter="Manual"/>
-                </StackPanel>
-                <Grid ColumnDefinitions="*,Auto,Auto">
-                    <ProgressBar Grid.Column="0" Minimum="0" Maximum="1" Value="{Binding ProgressFraction}"
-                                 Height="14" ShowProgressText="False"/>
-                    <TextBlock Grid.Column="1" Margin="10,0,0,0" Text="{Binding ProgressText}"
-                               Foreground="#9CF" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                    <TextBlock Grid.Column="2" Margin="12,0,0,0" Text="{Binding StatusText}"
-                               Foreground="#CCC" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+
+        <!-- ===== TOOLBAR ===== -->
+        <Border DockPanel.Dock="Top" Background="{StaticResource Surface1}"
+                BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1" Padding="16,9">
+            <StackPanel Spacing="9">
+                <!-- Folder field + primary actions -->
+                <Grid ColumnDefinitions="Auto,*,Auto">
+                    <Border Grid.Column="0" Background="{StaticResource Surface2}"
+                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                            CornerRadius="6" Padding="10,0,4,0" Width="560" Height="32">
+                        <Grid ColumnDefinitions="Auto,*,Auto">
+                            <TextBlock Grid.Column="0" Text="📁" FontSize="12" Foreground="{StaticResource Text3}"
+                                       VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <TextBox Grid.Column="1" Watermark="Paste a folder path…" Text="{Binding FolderPath}"
+                                     BorderThickness="0" Background="Transparent" VerticalAlignment="Center"/>
+                            <Button Grid.Column="2" Classes="primary" Content="Scan" Height="24" Padding="14,0"
+                                    VerticalAlignment="Center"
+                                    Command="{Binding ScanCommand}" IsEnabled="{Binding !IsBusy}"/>
+                        </Grid>
+                    </Border>
+                    <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <CheckBox Content="Fold RAW+JPG" IsChecked="{Binding FoldPairs}" VerticalAlignment="Center"/>
+                        <Button Classes="ghost" Content="Export CSV/JSON" Command="{Binding ExportCommand}"
+                                ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder."/>
+                    </StackPanel>
                 </Grid>
+
+                <!-- Filter pill chips -->
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=All}"
+                            Command="{Binding SetFilterCommand}" CommandParameter="All">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="All"/>
+                            <TextBlock Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star2}"
+                            Content="★ 2+" Command="{Binding SetFilterCommand}" CommandParameter="Star2"/>
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star3}"
+                            Content="★ 3+" Command="{Binding SetFilterCommand}" CommandParameter="Star3"/>
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star4}"
+                            Content="★ 4" Command="{Binding SetFilterCommand}" CommandParameter="Star4"/>
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Pick}"
+                            Command="{Binding SetFilterCommand}" CommandParameter="Pick">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Picks"/>
+                            <TextBlock Text="{Binding PickCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Reject}"
+                            Command="{Binding SetFilterCommand}" CommandParameter="Reject">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Rejects"/>
+                            <TextBlock Text="{Binding RejectCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Unrated}"
+                            Command="{Binding SetFilterCommand}" CommandParameter="Unrated">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="Unrated"/>
+                            <TextBlock Text="{Binding UnratedCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+
+                <!-- Sort + technical-reason + rated-by facets -->
+                <StackPanel Orientation="Horizontal" Spacing="6">
+                    <TextBlock Text="Sort" VerticalAlignment="Center" Foreground="{StaticResource Text3}" Margin="0,0,2,0"/>
+                    <ComboBox ItemsSource="{Binding SortKeys}" SelectedItem="{Binding Sort}" Width="130" Height="28"/>
+                    <Button Classes="ghost" Content="▲ ▼" Command="{Binding ToggleSortDirCommand}"
+                            ToolTip.Tip="Toggle ascending / descending"/>
+                    <Rectangle Width="1" Height="18" Fill="{StaticResource BorderSoft}" Margin="6,0"/>
+                    <TextBlock Text="Reason" VerticalAlignment="Center" Foreground="{StaticResource Text3}"/>
+                    <Button Classes="chip" Classes.on="{Binding ReasonFacet, Converter={StaticResource IsEqual}, ConverterParameter=None}"
+                            Content="Any" Command="{Binding SetReasonCommand}" CommandParameter="None"/>
+                    <Button Classes="chip" Classes.on="{Binding ReasonFacet, Converter={StaticResource IsEqual}, ConverterParameter=Sharpness}"
+                            Content="Soft" Command="{Binding SetReasonCommand}" CommandParameter="Sharpness"/>
+                    <Button Classes="chip" Classes.on="{Binding ReasonFacet, Converter={StaticResource IsEqual}, ConverterParameter=Exposure}"
+                            Content="Exposure" Command="{Binding SetReasonCommand}" CommandParameter="Exposure"/>
+                    <Button Classes="chip" Classes.on="{Binding ReasonFacet, Converter={StaticResource IsEqual}, ConverterParameter=Noise}"
+                            Content="Noise" Command="{Binding SetReasonCommand}" CommandParameter="Noise"/>
+                    <Button Classes="chip" Classes.on="{Binding ReasonFacet, Converter={StaticResource IsEqual}, ConverterParameter=Multiple}"
+                            Content="Multiple" Command="{Binding SetReasonCommand}" CommandParameter="Multiple"/>
+                    <Rectangle Width="1" Height="18" Fill="{StaticResource BorderSoft}" Margin="6,0"/>
+                    <TextBlock Text="By" VerticalAlignment="Center" Foreground="{StaticResource Text3}"/>
+                    <Button Classes="chip" Classes.on="{Binding RatedByFacet, Converter={StaticResource IsEqual}, ConverterParameter=Any}"
+                            Content="Any" Command="{Binding SetRatedByCommand}" CommandParameter="Any"/>
+                    <Button Classes="chip" Classes.on="{Binding RatedByFacet, Converter={StaticResource IsEqual}, ConverterParameter=Heuristic}"
+                            Content="Heuristic" Command="{Binding SetRatedByCommand}" CommandParameter="Heuristic"/>
+                    <Button Classes="chip" Classes.on="{Binding RatedByFacet, Converter={StaticResource IsEqual}, ConverterParameter=Manual}"
+                            Content="Manual" Command="{Binding SetRatedByCommand}" CommandParameter="Manual"/>
+                </StackPanel>
             </StackPanel>
         </Border>
 
-        <!-- Legend -->
-        <Border DockPanel.Dock="Bottom" Padding="8,4" Background="#161616">
-            <StackPanel Orientation="Horizontal" Spacing="14">
-                <TextBlock Text="Green border = pick · Orange = reject" Foreground="#AAA"/>
-                <TextBlock Text="Dot: Red sharpness · Blue exposure · Purple noise · Gold multiple" Foreground="#AAA"/>
-                <TextBlock Text="Left strip = pipeline stage (grey pending → amber → blue → teal → green rated)" Foreground="#AAA"/>
-                <TextBlock Text="RAW+JPG badge = folded pair (V switches the shown file)" Foreground="#AAA"/>
-                <TextBlock Text="Keys: ←→↑↓ move · 1-4 rate · P/R pick/reject · F full · C crop · [ ] rotate" Foreground="#777"/>
+        <!-- ===== STATUS BAR ===== -->
+        <Border DockPanel.Dock="Bottom" Height="34" Background="{StaticResource Surface1}"
+                BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,1,0,0" Padding="16,0">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
+                    <TextBlock Text="Review" Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center"/>
+                    <ProgressBar Width="140" Height="6" Minimum="0" Maximum="1"
+                                 Value="{Binding ReviewFraction}" ShowProgressText="False" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ReviewText}" FontFamily="{StaticResource FontMono}" FontSize="11.5"
+                               Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                </StackPanel>
+                <Rectangle Grid.Column="1" Width="1" Height="14" Fill="{StaticResource BorderSoft}" Margin="14,0"/>
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource Pick}"/>
+                    <TextBlock Text="{Binding PickCount, StringFormat='{}{0} picks'}" FontSize="11.5"
+                               Foreground="{StaticResource Text2}"/>
+                </StackPanel>
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="6" VerticalAlignment="Center" Margin="14,0,0,0">
+                    <Ellipse Width="8" Height="8" Fill="{StaticResource Reject}"/>
+                    <TextBlock Text="{Binding RejectCount, StringFormat='{}{0} rejects'}" FontSize="11.5"
+                               Foreground="{StaticResource Text2}"/>
+                </StackPanel>
+                <TextBlock Grid.Column="4" Text="{Binding UnratedCount, StringFormat='{}{0} unrated'}"
+                           Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                <TextBlock Grid.Column="6" Text="{Binding StatusText}" Foreground="{StaticResource Text2}"
+                           FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+            </Grid>
+        </Border>
+
+        <!-- ===== LEGEND STRIP ===== -->
+        <Border DockPanel.Dock="Bottom" Background="{StaticResource Surface1}"
+                BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,1,0,0" Padding="16,6">
+            <StackPanel Orientation="Horizontal" Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
+                    <Border Width="18" Height="13" CornerRadius="3" BorderBrush="{StaticResource Pick}" BorderThickness="2"/>
+                    <TextBlock Text="Pick" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                    <Border Width="18" Height="13" CornerRadius="3" BorderBrush="{StaticResource Reject}" BorderThickness="2" Margin="6,0,0,0"/>
+                    <TextBlock Text="Reject" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                </StackPanel>
+                <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
+                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                    <Ellipse Width="9" Height="9" Fill="{StaticResource LabRed}"/><TextBlock Text="Soft" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                    <Ellipse Width="9" Height="9" Fill="{StaticResource LabBlue}" Margin="6,0,0,0"/><TextBlock Text="Exposure" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                    <Ellipse Width="9" Height="9" Fill="{StaticResource LabPurple}" Margin="6,0,0,0"/><TextBlock Text="Noise" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                    <Ellipse Width="9" Height="9" Fill="{StaticResource LabYellow}" Margin="6,0,0,0"/><TextBlock Text="2+ problems" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                </StackPanel>
+                <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
+                <TextBlock Text="←→↑↓ move · 1-4 rate · P/R pick/reject · F full · C crop · [ ] rotate · V switch RAW/JPG"
+                           Foreground="{StaticResource Text3}" FontSize="11" VerticalAlignment="Center"/>
             </StackPanel>
         </Border>
 
-        <!-- Main area: grid + detail, with the in-app enlarge overlay layered on top -->
+        <!-- ===== BODY: center tabs + detail pane, with the enlarge overlay on top ===== -->
         <Panel>
-        <Grid ColumnDefinitions="*,380">
-            <!-- Center: Library grid + Pipeline flowchart -->
-            <TabControl Grid.Column="0">
+        <Grid ColumnDefinitions="*,392">
+            <!-- Center: Library grid + Pipeline flowchart + Visualizations -->
+            <TabControl Grid.Column="0" Margin="0">
                 <TabItem Header="Library">
                     <!-- Virtualized grid: outer ListBox virtualizes rows; each row lays tiles horizontally. -->
-                    <ListBox x:Name="PhotoGrid" Padding="6"
+                    <ListBox x:Name="PhotoGrid" Padding="12"
                              ItemsSource="{Binding PhotoRows}"
                              Background="Transparent"
                              SizeChanged="OnGridSizeChanged"
@@ -100,37 +211,61 @@
                                     </ItemsControl.ItemsPanel>
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:PhotoTileViewModel">
-                                            <Border Background="{Binding SelectionBrush}" CornerRadius="5" Padding="2"
+                                            <!-- Selection outline (accent when selected, invisible otherwise) -->
+                                            <Border BorderBrush="{Binding SelectionBrush}" BorderThickness="2"
+                                                    CornerRadius="11" Margin="4" Padding="0"
                                                     PointerPressed="OnTilePressed" DoubleTapped="OnTileDoubleTapped">
-                                                <Border BorderBrush="{Binding StatusBorder}" BorderThickness="3"
-                                                        CornerRadius="4" Padding="2" Width="186">
-                                                    <DockPanel>
-                                                        <!-- Pipeline-stage strip: grey pending → green rated -->
-                                                        <Rectangle DockPanel.Dock="Left" Width="4" Margin="0,0,3,0"
-                                                                   RadiusX="2" RadiusY="2"
-                                                                   Fill="{Binding PipelineStrip}"
-                                                                   ToolTip.Tip="{Binding PipelineTip}"/>
+                                                <!-- Card -->
+                                                <Border Background="{StaticResource Surface2}"
+                                                        BorderBrush="{Binding StatusBorder}" BorderThickness="2"
+                                                        CornerRadius="9" Width="184" ClipToBounds="True">
                                                     <StackPanel>
-                                                        <Panel Height="140">
-                                                            <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
-                                                            <Ellipse Width="12" Height="12" Fill="{Binding ReasonDot}"
-                                                                     HorizontalAlignment="Right" VerticalAlignment="Top" Margin="3"/>
-                                                            <Border IsVisible="{Binding IsPair}" Background="#AA000000"
-                                                                    CornerRadius="3" Padding="3,1"
-                                                                    HorizontalAlignment="Left" VerticalAlignment="Top" Margin="3">
-                                                                <TextBlock Text="RAW+JPG" FontSize="9" Foreground="White"/>
+                                                        <!-- Image area -->
+                                                        <Panel Height="128" Background="{StaticResource Surface3}" ClipToBounds="True">
+                                                            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+                                                            <!-- technical-reason dot (transparent brush = no reason) -->
+                                                            <Border Width="11" Height="11" CornerRadius="6"
+                                                                    Background="{Binding ReasonDot}"
+                                                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="8"/>
+                                                            <Border IsVisible="{Binding IsPair}" Background="#9E000000"
+                                                                    CornerRadius="4" Padding="6,3"
+                                                                    HorizontalAlignment="Left" VerticalAlignment="Top" Margin="8">
+                                                                <TextBlock Text="RAW+JPG" FontSize="9" FontWeight="SemiBold"
+                                                                           FontFamily="{StaticResource FontMono}" Foreground="White"/>
                                                             </Border>
                                                             <ProgressBar IsIndeterminate="True" IsVisible="{Binding Analyzing}"
-                                                                         VerticalAlignment="Bottom" Height="3"/>
+                                                                         VerticalAlignment="Bottom" Height="3" MinHeight="3"/>
                                                         </Panel>
-                                                        <TextBlock Text="{Binding Title}" FontSize="11" TextTrimming="CharacterEllipsis"/>
-                                                        <StackPanel Orientation="Horizontal" Spacing="8">
-                                                            <TextBlock Text="{Binding StarText}" Foreground="Gold" FontSize="12"/>
-                                                            <TextBlock Text="{Binding TechnicalText}" Foreground="#9CF" FontSize="11"/>
-                                                            <TextBlock Text="{Binding AestheticText}" Foreground="#9F9" FontSize="11"/>
+                                                        <!-- Footer -->
+                                                        <StackPanel Margin="9,8,9,10" Spacing="7">
+                                                            <Grid ColumnDefinitions="*,Auto">
+                                                                <TextBlock Grid.Column="0" Text="{Binding Title}"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="11.5"
+                                                                           FontWeight="Medium" TextTrimming="CharacterEllipsis"/>
+                                                                <StackPanel Grid.Column="1" Orientation="Horizontal">
+                                                                    <TextBlock Text="{Binding StarsFilled}" Foreground="{StaticResource Star}" FontSize="12"/>
+                                                                    <TextBlock Text="{Binding StarsEmpty}" Foreground="{StaticResource Text3}" FontSize="12"/>
+                                                                </StackPanel>
+                                                            </Grid>
+                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
+                                                                <TextBlock Grid.Column="0" Text="TQ" FontFamily="{StaticResource FontMono}"
+                                                                           FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                <ProgressBar Grid.Column="1" Height="4" MinHeight="4" Margin="8,0"
+                                                                             Minimum="0" Maximum="1" Value="{Binding TechnicalFraction}"
+                                                                             Foreground="{Binding TechnicalColor}" Background="{StaticResource SurfaceHi}"
+                                                                             ShowProgressText="False" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Column="2" Text="{Binding TechnicalScoreText}"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                                                                           Foreground="{StaticResource Text2}" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                                <Rectangle Grid.Column="3" Width="1" Height="11" Fill="{StaticResource BorderSoft}" Margin="0,0,8,0"/>
+                                                                <TextBlock Grid.Column="4" Text="AES" FontFamily="{StaticResource FontMono}"
+                                                                           FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center" Margin="0,0,5,0"/>
+                                                                <TextBlock Grid.Column="5" Text="{Binding AestheticScoreText}"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                                                                           Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                                                            </Grid>
                                                         </StackPanel>
                                                     </StackPanel>
-                                                    </DockPanel>
                                                 </Border>
                                             </Border>
                                         </DataTemplate>
@@ -142,26 +277,28 @@
                 </TabItem>
                 <TabItem Header="Pipeline">
                     <Grid RowDefinitions="Auto,*,Auto">
-                        <StackPanel Grid.Row="0" Margin="8,8,8,0" Spacing="4">
+                        <StackPanel Grid.Row="0" Margin="12,12,12,0" Spacing="6">
                             <TextBlock Text="This flowchart is the analysis pipeline every photo flows through, top to bottom. Node colour = stage status (grey pending · blue running · green done · dark skipped); the bottom legend keys the resource each stage uses (CPU / GPU / Claude tokens)."
-                                       Foreground="#888" FontSize="11" TextWrapping="Wrap"/>
-                            <TextBlock Text="Overall progress" Foreground="#AAA" FontSize="11"/>
+                                       Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
+                            <TextBlock Text="Overall progress" Foreground="{StaticResource Text2}" FontSize="11"/>
                             <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="8"/>
-                            <StackPanel Orientation="Horizontal" Spacing="6">
-                                <TextBlock Text="Claude cull:" VerticalAlignment="Center"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <TextBlock Text="Claude cull:" VerticalAlignment="Center" Foreground="{StaticResource Text2}"/>
                                 <ComboBox ItemsSource="{Binding ClaudeModels}" SelectedItem="{Binding ClaudeModel}" Width="170"/>
-                                <Button Content="Cull with Claude" Command="{Binding CullWithClaudeCommand}" IsEnabled="{Binding !CullRunning}"/>
-                                <TextBlock Text="(uses your Claude Code; no API keys)" Foreground="#888" FontSize="10" VerticalAlignment="Center"/>
+                                <Button Classes="primary" Content="Cull with Claude" Command="{Binding CullWithClaudeCommand}" IsEnabled="{Binding !CullRunning}"/>
+                                <TextBlock Text="(uses your Claude Code; no API keys)" Foreground="{StaticResource Text3}" FontSize="10" VerticalAlignment="Center"/>
                             </StackPanel>
                         </StackPanel>
-                        <ctl:FlowchartControl Grid.Row="1" Run="{Binding Pipeline}" Margin="8"/>
-                        <Border Grid.Row="2" Height="150" Background="#161616" Margin="8,0,8,8">
-                            <ScrollViewer>
+                        <ctl:FlowchartControl Grid.Row="1" Run="{Binding Pipeline}" Margin="12"/>
+                        <Border Grid.Row="2" Height="150" Background="{StaticResource Surface1}"
+                                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                                CornerRadius="6" Margin="12,0,12,12">
+                            <ScrollViewer Padding="10,8">
                                 <ItemsControl ItemsSource="{Binding CullLog}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <TextBlock Text="{Binding}" Foreground="#BBB" FontSize="11"
-                                                       TextWrapping="Wrap" FontFamily="Cascadia Mono,Consolas,monospace"/>
+                                            <TextBlock Text="{Binding}" Foreground="{StaticResource Text2}" FontSize="11"
+                                                       TextWrapping="Wrap" FontFamily="{StaticResource FontMono}"/>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
@@ -170,8 +307,8 @@
                     </Grid>
                 </TabItem>
                 <TabItem Header="Visualizations">
-                    <DockPanel Margin="8">
-                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,6" Foreground="#888" FontSize="11"
+                    <DockPanel Margin="12">
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,8" Foreground="{StaticResource Text3}" FontSize="11"
                                    TextWrapping="Wrap"
                                    Text="Shoot-wide summaries of this scan. Left: how your ratings are distributed. Right: every photo plotted by technical quality (x) against aesthetic score (y), so the top-right corner is your strongest frames."/>
                         <ctl:ChartsControl Stats="{Binding Stats}"/>
@@ -179,14 +316,15 @@
                 </TabItem>
             </TabControl>
 
-            <!-- Detail pane -->
-            <Border Grid.Column="1" Background="#202020" Padding="10">
+            <!-- ===== DETAIL PANE ===== -->
+            <Border Grid.Column="1" Background="{StaticResource Surface1}"
+                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="1,0,0,0" Padding="14">
                 <DockPanel>
-                    <Expander DockPanel.Dock="Top" Header="Models" IsExpanded="True" Margin="0,0,0,8">
+                    <Expander DockPanel.Dock="Top" Header="Models" IsExpanded="True" Margin="0,0,0,10">
                         <StackPanel>
                             <TextBlock Text="Tick models, then Scan to apply. Hover for tradeoffs."
-                                       Foreground="#888" FontSize="10" Margin="0,0,0,4"/>
-                            <Button Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
+                                       Foreground="{StaticResource Text3}" FontSize="10" Margin="0,0,0,6"/>
+                            <Button Classes="ghost" Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
                                     IsEnabled="{Binding !SidecarStarting}" HorizontalAlignment="Left"
                                     Margin="0,0,0,6" FontSize="11"
                                     ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
@@ -200,7 +338,7 @@
                                             <StackPanel Grid.Column="1">
                                                 <TextBlock Text="{Binding Header}" FontSize="12"/>
                                                 <TextBlock Text="{Binding Description}" FontSize="10"
-                                                           Foreground="#999" TextWrapping="Wrap"/>
+                                                           Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
                                                 <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
                                                     <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
                                                             IsVisible="{Binding ShowInstall}"
@@ -209,7 +347,7 @@
                                                             Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
                                                             CommandParameter="{Binding}"/>
                                                     <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
-                                                               FontSize="10" Foreground="#9CF" VerticalAlignment="Center"
+                                                               FontSize="10" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
                                                                IsVisible="{Binding Installing}"/>
                                                     <Button Content="model card ↗" FontSize="10" Padding="6,1"
                                                             IsVisible="{Binding HasInfoUrl}"
@@ -219,7 +357,7 @@
                                                 </StackPanel>
                                             </StackPanel>
                                             <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
-                                                       Foreground="#7CF" VerticalAlignment="Top" Margin="4,0,0,0"/>
+                                                       Foreground="{StaticResource Accent}" VerticalAlignment="Top" Margin="4,0,0,0"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -227,49 +365,64 @@
                         </StackPanel>
                     </Expander>
                     <ScrollViewer>
-                        <StackPanel Spacing="8" IsVisible="{Binding HasSelection}">
-                        <Border Height="280" Background="#111">
-                            <Image Source="{Binding DetailPreview}" Stretch="Uniform"
-                                   DoubleTapped="OnPreviewDoubleTapped"/>
+                        <StackPanel Spacing="12" IsVisible="{Binding HasSelection}">
+                        <Border CornerRadius="9" ClipToBounds="True" Background="{StaticResource Surface3}">
+                            <Panel Height="260">
+                                <Image Source="{Binding DetailPreview}" Stretch="Uniform"
+                                       DoubleTapped="OnPreviewDoubleTapped"/>
+                            </Panel>
                         </Border>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Button Content="Enlarge" Click="OnFullscreenClick"
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <Button Classes="ghost" Content="Enlarge" Click="OnFullscreenClick"
                                     ToolTip.Tip="Enlarge in-app ( F ) — scroll to zoom, drag to pan, Esc to close"/>
-                            <Button Content="⟲" Command="{Binding RotateLeftCommand}" ToolTip.Tip="Rotate left ( [ )"/>
-                            <Button Content="⟳" Command="{Binding RotateRightCommand}" ToolTip.Tip="Rotate right ( ] )"/>
-                            <Button Content="Crop" Click="OnCropClick" ToolTip.Tip="Crop ( C )"/>
-                            <Button Content="Switch RAW/JPG" Command="{Binding ToggleVariantCommand}"/>
+                            <Button Classes="ghost" Content="⟲" Command="{Binding RotateLeftCommand}" ToolTip.Tip="Rotate left ( [ )"/>
+                            <Button Classes="ghost" Content="⟳" Command="{Binding RotateRightCommand}" ToolTip.Tip="Rotate right ( ] )"/>
+                            <Button Classes="ghost" Content="Crop" Click="OnCropClick" ToolTip.Tip="Crop ( C )"/>
+                            <Button Classes="ghost" Content="Switch RAW/JPG" Command="{Binding ToggleVariantCommand}"/>
                         </StackPanel>
 
-                        <TextBlock Text="Rating" FontWeight="Bold"/>
-                        <StackPanel Orientation="Horizontal" Spacing="4">
-                            <Button Content="1★" Command="{Binding SetStarsCommand}" CommandParameter="1"/>
-                            <Button Content="2★" Command="{Binding SetStarsCommand}" CommandParameter="2"/>
-                            <Button Content="3★" Command="{Binding SetStarsCommand}" CommandParameter="3"/>
-                            <Button Content="4★" Command="{Binding SetStarsCommand}" CommandParameter="4"/>
-                            <Button Content="Clear" Command="{Binding SetStarsCommand}" CommandParameter="0"/>
-                        </StackPanel>
-                        <TextBlock Text="{Binding DetailRating}" Foreground="#DDD" TextWrapping="Wrap" FontSize="11"/>
+                        <!-- Rating: Pick / Reject + star buttons -->
+                        <Grid ColumnDefinitions="*,*,Auto">
+                            <Button Grid.Column="0" Content="Pick" Command="{Binding SetStarsCommand}" CommandParameter="4"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,4,0"/>
+                            <Button Grid.Column="1" Content="Reject" Command="{Binding SetStarsCommand}" CommandParameter="1"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Margin="0,0,8,0"/>
+                            <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="2" VerticalAlignment="Center">
+                                <Button Classes="ghost" Content="1★" Command="{Binding SetStarsCommand}" CommandParameter="1" Padding="6,4"/>
+                                <Button Classes="ghost" Content="2★" Command="{Binding SetStarsCommand}" CommandParameter="2" Padding="6,4"/>
+                                <Button Classes="ghost" Content="3★" Command="{Binding SetStarsCommand}" CommandParameter="3" Padding="6,4"/>
+                                <Button Classes="ghost" Content="4★" Command="{Binding SetStarsCommand}" CommandParameter="4" Padding="6,4"/>
+                                <Button Classes="ghost" Content="✕" Command="{Binding SetStarsCommand}" CommandParameter="0" Padding="6,4"
+                                        ToolTip.Tip="Clear rating"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Text="{Binding DetailRating}" Foreground="{StaticResource Text2}" TextWrapping="Wrap" FontSize="11"/>
 
-                        <TextBlock Text="{Binding DetailExif}" Foreground="#AAA" TextWrapping="Wrap" FontSize="11"/>
+                        <TextBlock Text="{Binding DetailExif}" Foreground="{StaticResource Text3}" TextWrapping="Wrap" FontSize="11"/>
 
-                        <TextBlock Text="Metrics" FontWeight="Bold"/>
-                        <TextBlock Text="{Binding DetailMetrics}" FontFamily="Cascadia Mono,Consolas,monospace"
-                                   FontSize="11" TextWrapping="Wrap"/>
+                        <TextBlock Text="METRICS" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
+                        <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="6" Padding="11">
+                            <TextBlock Text="{Binding DetailMetrics}" FontFamily="{StaticResource FontMono}"
+                                       FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource Text1}"/>
+                        </Border>
 
-                        <TextBlock Text="Scores (by model)" FontWeight="Bold"/>
+                        <TextBlock Text="SCORES (BY MODEL)" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
                         <ItemsControl ItemsSource="{Binding DetailScores}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11" Margin="0,1"/>
+                                    <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11" Margin="0,1"
+                                               Foreground="{StaticResource Text2}"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
 
-                        <TextBlock Text="My notes (saved to On1 description + .txt)" FontWeight="Bold"/>
+                        <TextBlock Text="MY NOTES (saved to On1 description + .txt)" FontWeight="SemiBold"
+                                   FontSize="11" Foreground="{StaticResource Text3}"/>
                         <TextBox Text="{Binding NotesText}" AcceptsReturn="True" Height="90"
+                                 FontFamily="{StaticResource FontSans}"
                                  TextWrapping="Wrap" Watermark="Your own thoughts on this image…"/>
-                        <Button Content="Save notes" Command="{Binding SaveNotesCommand}" HorizontalAlignment="Right"/>
+                        <Button Classes="ghost" Content="Save notes" Command="{Binding SaveNotesCommand}" HorizontalAlignment="Right"/>
                         </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
@@ -277,12 +430,13 @@
         </Grid>
 
             <!-- In-app enlarged, centered photo (keeps toolbar + legend visible) -->
-            <Border IsVisible="{Binding IsEnlarged}" Background="#E6101010">
+            <Border IsVisible="{Binding IsEnlarged}" Background="#E61C1B18">
                 <DockPanel>
-                    <Border DockPanel.Dock="Top" Background="#202020" Padding="8,5">
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Surface1}"
+                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1" Padding="10,6">
                         <StackPanel Orientation="Horizontal" Spacing="10">
-                            <Button Content="Close (Esc)" Click="OnCloseEnlargedClick"/>
-                            <TextBlock Text="Scroll to zoom · drag to pan" Foreground="#999"
+                            <Button Classes="ghost" Content="Close (Esc)" Click="OnCloseEnlargedClick"/>
+                            <TextBlock Text="Scroll to zoom · drag to pan" Foreground="{StaticResource Text3}"
                                        VerticalAlignment="Center" FontSize="11"/>
                         </StackPanel>
                     </Border>

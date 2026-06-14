@@ -2,17 +2,191 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              x:Class="Monocle.App.App"
              xmlns:local="using:Monocle.App"
+             xmlns:conv="using:Monocle.App.Converters"
              RequestedThemeVariant="Dark">
-             <!-- The whole UI chrome is hardcoded dark (toolbar #1E1E1E, panels #161616/#202020, light
-                  #AAA/#888 text). "Default" follows the OS, so on a light-mode OS FluentTheme painted
-                  controls (the folder TextBox, checkboxes) with dark text on the dark chrome — unreadable.
-                  Pin to Dark so the controls match the design. "Light"/"Default" are the other options. -->
+             <!-- The whole UI chrome is the warm-graphite "Photo Critic" design (see _design_extract).
+                  Tokens below mirror the design's CSS variables; controls are pinned to Dark so the
+                  FluentTheme-painted bits (TextBox, CheckBox, ComboBox) match the dark chrome. -->
 
     <Application.DataTemplates>
         <local:ViewLocator/>
     </Application.DataTemplates>
-  
+
+    <Application.Resources>
+        <!-- ===== Design tokens (mirror the Photo Critic CSS variables) ===== -->
+        <!-- Surfaces -->
+        <SolidColorBrush x:Key="Bg"          Color="#1C1B18"/>
+        <SolidColorBrush x:Key="Surface1"    Color="#232220"/>
+        <SolidColorBrush x:Key="Surface2"    Color="#2B2926"/>
+        <SolidColorBrush x:Key="Surface3"    Color="#34322E"/>
+        <SolidColorBrush x:Key="SurfaceHi"   Color="#3D3A35"/>
+        <SolidColorBrush x:Key="BorderSoft"  Color="#36332E"/>
+        <SolidColorBrush x:Key="BorderStrong" Color="#46423B"/>
+        <!-- Text -->
+        <SolidColorBrush x:Key="Text1" Color="#F1EEE8"/>
+        <SolidColorBrush x:Key="Text2" Color="#AAA49A"/>
+        <SolidColorBrush x:Key="Text3" Color="#7A736A"/>
+        <!-- Accent + semantic -->
+        <SolidColorBrush x:Key="Accent"     Color="#1EB5A6"/>
+        <SolidColorBrush x:Key="AccentFg"   Color="#04211E"/>
+        <SolidColorBrush x:Key="AccentSoft" Color="#2E1EB5A6"/>
+        <SolidColorBrush x:Key="AccentLine" Color="#731EB5A6"/>
+        <SolidColorBrush x:Key="Pick"   Color="#46C97E"/>
+        <SolidColorBrush x:Key="Reject" Color="#EF6A4C"/>
+        <SolidColorBrush x:Key="Star"   Color="#F2B53F"/>
+        <SolidColorBrush x:Key="LabRed"    Color="#EF6A4C"/>
+        <SolidColorBrush x:Key="LabBlue"   Color="#5D97F6"/>
+        <SolidColorBrush x:Key="LabPurple" Color="#B483F2"/>
+        <SolidColorBrush x:Key="LabYellow" Color="#E8C34A"/>
+
+        <!-- Type stacks: IBM Plex if the user has it, otherwise embedded Inter / system. -->
+        <FontFamily x:Key="FontSans">IBM Plex Sans,Inter,Segoe UI,sans-serif</FontFamily>
+        <FontFamily x:Key="FontMono">IBM Plex Mono,Cascadia Mono,Consolas,monospace</FontFamily>
+
+        <conv:EqualityConverter x:Key="IsEqual"/>
+    </Application.Resources>
+
     <Application.Styles>
         <FluentTheme />
+
+        <!-- ===== Baseline text ===== -->
+        <Style Selector="TextBlock">
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+        </Style>
+
+        <!-- ===== Buttons ===== -->
+        <!-- Default = secondary (surface chip). Add Classes="primary" / "ghost" to vary. -->
+        <Style Selector="Button">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Padding" Value="11,5"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+            <Setter Property="FontSize" Value="12.5"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+        </Style>
+        <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderStrong}"/>
+        </Style>
+        <Style Selector="Button:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SurfaceHi}"/>
+        </Style>
+        <Style Selector="Button:disabled">
+            <Setter Property="Opacity" Value="0.45"/>
+        </Style>
+
+        <!-- Primary accent button -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentFg}"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="Foreground" Value="{StaticResource AccentFg}"/>
+            <Setter Property="Opacity" Value="0.9"/>
+        </Style>
+
+        <!-- Ghost / icon button -->
+        <Style Selector="Button.ghost">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+        </Style>
+        <Style Selector="Button.ghost:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+        </Style>
+
+        <!-- Pill filter chip (rounded). Use Classes.on to mark the active filter. -->
+        <Style Selector="Button.chip">
+            <Setter Property="CornerRadius" Value="99"/>
+            <Setter Property="Padding" Value="11,4"/>
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="Button.chip.on">
+            <Setter Property="Background" Value="{StaticResource AccentSoft}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource AccentLine}"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+        <Style Selector="Button.chip.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <!-- ===== Inputs ===== -->
+        <Style Selector="TextBox">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="TextBox:focus /template/ Border#PART_BorderElement">
+            <Setter Property="BorderBrush" Value="{StaticResource AccentLine}"/>
+        </Style>
+
+        <Style Selector="ComboBox">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+
+        <Style Selector="CheckBox">
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+            <Setter Property="FontSize" Value="12"/>
+        </Style>
+        <Style Selector="CheckBox:checked /template/ Border#NormalRectangle">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <!-- ===== Tabs ===== -->
+        <Style Selector="TabControl">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="TabItem">
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="MinHeight" Value="0"/>
+        </Style>
+        <Style Selector="TabItem:selected">
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+        </Style>
+        <Style Selector="TabItem:selected /template/ Border#PART_SelectedPipe">
+            <Setter Property="Background" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <!-- ===== Progress bars ===== -->
+        <Style Selector="ProgressBar">
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+            <Setter Property="CornerRadius" Value="3"/>
+        </Style>
+
+        <!-- ===== Expander ===== -->
+        <Style Selector="Expander">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="Expander /template/ Border#ExpanderHeader">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+        </Style>
+
+        <!-- ===== Scrollbars ===== -->
+        <Style Selector="ScrollBar:vertical">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
     </Application.Styles>
 </Application>
