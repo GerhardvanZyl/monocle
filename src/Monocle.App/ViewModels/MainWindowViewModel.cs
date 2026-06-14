@@ -28,6 +28,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ModelRegistry _registry;
     private ShootCache? _cache;
     private CancellationTokenSource? _scanCts;
+    private Task? _scanRun;   // the in-flight scan; awaited before a new scan disposes its cache
     private CancellationTokenSource? _cullCts;
 
     public MainWindowViewModel()
@@ -76,19 +77,37 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Selectable scorer models (everything except the always-on heuristic rater).</summary>
     public ObservableCollection<ModelOptionViewModel> Models { get; }
 
+    // InitModelsAsync runs from the constructor, StartSidecarAsync and InstallModelAsync's finally,
+    // and `await`s availability probes mid-rebuild. Serialize it so two invocations can't interleave
+    // their Clear()/Add() and corrupt the bound Models collection.
+    private readonly SemaphoreSlim _modelsInitGate = new(1, 1);
+
     private async Task InitModelsAsync()
     {
-        var previouslyEnabled = Models.ToDictionary(m => m.Runner.Descriptor.Id, m => m.IsEnabled);
-        Models.Clear();
-        foreach (var runner in _registry.All)
+        await _modelsInitGate.WaitAsync().ConfigureAwait(true);
+        try
         {
-            if (runner.Descriptor.Category == ModelCategory.Heuristic)
-                continue;
-            var available = await runner.IsAvailableAsync();
-            var enabled = previouslyEnabled.TryGetValue(runner.Descriptor.Id, out var e)
-                ? e
-                : runner.Descriptor.Id == AestheticRunner.ModelId;
-            Models.Add(new ModelOptionViewModel(runner, available, enabled));
+            var previouslyEnabled = Models.ToDictionary(m => m.Runner.Descriptor.Id, m => m.IsEnabled);
+            // Probe availability into a local list (this awaits), then swap the observable collection
+            // in one synchronous pass so no caller ever sees a half-rebuilt Models collection.
+            var rebuilt = new List<ModelOptionViewModel>();
+            foreach (var runner in _registry.All)
+            {
+                if (runner.Descriptor.Category == ModelCategory.Heuristic)
+                    continue;
+                var available = await runner.IsAvailableAsync();
+                var enabled = previouslyEnabled.TryGetValue(runner.Descriptor.Id, out var e)
+                    ? e
+                    : runner.Descriptor.Id == AestheticRunner.ModelId;
+                rebuilt.Add(new ModelOptionViewModel(runner, available, enabled));
+            }
+            Models.Clear();
+            foreach (var m in rebuilt)
+                Models.Add(m);
+        }
+        finally
+        {
+            _modelsInitGate.Release();
         }
     }
 
@@ -205,7 +224,11 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Visualizations (#24) ----
     [ObservableProperty] private ShootStats? _stats;
 
-    private void RefreshStats() => Stats = StatsCalculator.Compute(Photos.Select(p => p.Item));
+    private void RefreshStats()
+    {
+        Stats = StatsCalculator.Compute(Photos.Select(p => p.Item));
+        RefreshCounts();
+    }
 
     // ---- Progress (auto-refreshing, #3, #16) ----
     [ObservableProperty]
@@ -222,6 +245,27 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Compact "X / Y analyzed · NN%" shown on the prominent toolbar progress bar (#4).</summary>
     public string ProgressText => Total == 0 ? "" : $"{Analyzed} / {Total} analyzed · {ProgressFraction:P0}";
+
+    // ---- Status-bar aggregates (review progress + pick/reject/unrated tallies, design footer) ----
+    [ObservableProperty] private int _pickCount;
+    [ObservableProperty] private int _rejectCount;
+    [ObservableProperty] private int _unratedCount;
+    [ObservableProperty] private int _ratedCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ReviewText))]
+    private double _reviewFraction;
+
+    public string ReviewText => Total == 0 ? "0/0" : $"{RatedCount}/{Total}";
+
+    /// <summary>Recompute the footer tallies from the current photo set.</summary>
+    private void RefreshCounts()
+    {
+        PickCount = Photos.Count(p => p.Item.IsPick);
+        RejectCount = Photos.Count(p => p.Item.IsReject);
+        UnratedCount = Photos.Count(p => p.Item.Stars <= 0);
+        RatedCount = Photos.Count(p => p.Item.Stars > 0);
+        ReviewFraction = Total == 0 ? 0 : (double)RatedCount / Total;
+    }
 
     // ---- In-app enlarged photo overlay (#6) ----
     [ObservableProperty] private bool _isEnlarged;
@@ -279,43 +323,72 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        // Cancel any in-flight scan and wait for its analysis tasks to fully drain before the new
+        // run disposes the old ShootCache — otherwise the previous run's worker threads keep using
+        // a disposed cache (SQLite connection + blob writes).
         _scanCts?.Cancel();
+        if (_scanRun is { } previous)
+            try { await previous; } catch { /* the previous run owns its own cancellation/errors */ }
+
         _scanCts = new CancellationTokenSource();
-        var ct = _scanCts.Token;
+        var run = RunScanAsync(folder, _scanCts.Token);
+        _scanRun = run;
+        await run;
+    }
 
+    /// <summary>The scan body. Wrapped so <see cref="IsBusy"/> always resets (a throw or a
+    /// cancellation by a superseding scan must not leave the Scan button permanently disabled).</summary>
+    private async Task RunScanAsync(string folder, CancellationToken ct)
+    {
         IsBusy = true;
-        // Release the previous shoot's thumbnails (the dominant resident cost) before dropping the
-        // tiles; setting Thumbnail = null disposes the old bitmap via OnThumbnailChanged.
-        foreach (var tile in Photos)
-            tile.Thumbnail = null;
-        Photos.Clear();
-        VisiblePhotos.Clear();
-        SelectedPhoto = null;
-        _cache?.Dispose();
-        _cache = new ShootCache(folder);
+        try
+        {
+            // Release the previous shoot's thumbnails (the dominant resident cost) before dropping
+            // the tiles; setting Thumbnail = null disposes the old bitmap via OnThumbnailChanged.
+            foreach (var tile in Photos)
+                tile.Thumbnail = null;
+            Photos.Clear();
+            VisiblePhotos.Clear();
+            SelectedPhoto = null;
+            _cache?.Dispose();   // safe: the previous scan has drained (awaited in ScanAsync)
+            _cache = new ShootCache(folder);
 
-        var scorers = SelectedScorers();
-        SetupPipeline(scorers);
+            var scorers = SelectedScorers();
+            SetupPipeline(scorers);
 
-        var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
-        foreach (var item in items)
-            Photos.Add(new PhotoTileViewModel(item));
-        ApplyFilter();
-        Pipeline?.SetStatus("scan", StageStatus.Done);
+            var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
+            foreach (var item in items)
+                Photos.Add(new PhotoTileViewModel(item));
+            ApplyFilter();
+            Pipeline?.SetStatus("scan", StageStatus.Done);
 
-        Total = Photos.Count;
-        Analyzed = 0;
-        ProgressFraction = 0;
-        StatusText = $"Analyzing {Total} photos…";
+            Total = Photos.Count;
+            Analyzed = 0;
+            ProgressFraction = 0;
+            RefreshCounts();
+            StatusText = $"Analyzing {Total} photos…";
 
-        await AnalyzeAllAsync(scorers, ct);
-        CompletePipeline();
-        RefreshStats();
+            await AnalyzeAllAsync(scorers, ct);
+            CompletePipeline();
+            RefreshStats();
 
-        ApplyFilter();   // apply the chosen sort now that every frame is analysed
-        IsBusy = false;
-        StatusText = $"Done. {Total} photos, {Photos.Count(p => p.Item.IsPick)} picks, " +
-                     $"{Photos.Count(p => p.Item.IsReject)} rejects.";
+            ApplyFilter();   // apply the chosen sort now that every frame is analysed
+            StatusText = $"Done. {Total} photos, {Photos.Count(p => p.Item.IsPick)} picks, " +
+                         $"{Photos.Count(p => p.Item.IsReject)} rejects.";
+        }
+        catch (OperationCanceledException)
+        {
+            // A newer scan superseded this one; leave the UI state for the new run to populate.
+        }
+        catch (Exception ex)
+        {
+            Diagnostics.Log.Error("Scan failed", ex);
+            StatusText = $"Scan failed: {ex.Message}";
+        }
+        finally
+        {
+            IsBusy = false;
+        }
     }
 
     private void SetupPipeline(IReadOnlyList<IModelRunner> scorers)
@@ -332,6 +405,7 @@ public partial class MainWindowViewModel : ViewModelBase
         else
             run.Skip("aesthetic");
 
+        run.SkipUnreachableFrom("write");   // safety net: skip dead side-branches (e.g. claude here)
         Pipeline = run;
     }
 
@@ -371,6 +445,7 @@ public partial class MainWindowViewModel : ViewModelBase
                         Analyzed++;
                         var frac = Total == 0 ? 0 : (double)Analyzed / Total;
                         ProgressFraction = frac;
+                        RefreshCounts();   // heuristic auto-rating lands here; keep the footer live
                         if (Pipeline is { } run)
                             foreach (var id in _activeStages)
                                 run.SetProgress(id, frac);
@@ -524,11 +599,14 @@ public partial class MainWindowViewModel : ViewModelBase
     /// mirrors across the pair, and refreshes the cached previews.</summary>
     private async Task RotateAsync(int delta)
     {
-        if (SelectedPhoto is not { } tile || _cache is null)
+        if (SelectedPhoto is not { } tile || _cache is not { } cache)
             return;
         tile.Item.RotationQuarters = (((tile.Item.RotationQuarters + delta) % 4) + 4) % 4;
-        _service.Save(tile.Item);
-        var thumbPath = await _service.GetPreviewAsync(tile.Item, _cache, ShootService.ThumbLongEdge);
+        await Task.Run(() => _service.Save(tile.Item));   // sidecar write + .bak off the UI thread
+        var thumbPath = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge);
+        // A re-scan during the await disposes/replaces _cache; don't push a stale thumbnail then.
+        if (_cache != cache)
+            return;
         tile.Thumbnail = SafeLoadBitmap(thumbPath);
         await LoadDetailAsync(tile);
         StatusText = $"Rotated {tile.Title}.";
@@ -715,11 +793,13 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Apply (or clear, when null) a crop on a tile: persists to sidecars and refreshes (#25).</summary>
     public async Task ApplyCropAsync(PhotoTileViewModel tile, Monocle.Core.Model.CropRect? crop)
     {
-        if (_cache is null)
+        if (_cache is not { } cache)
             return;
         tile.Item.Crop = crop;
-        _service.Save(tile.Item);
-        var thumb = await _service.GetPreviewAsync(tile.Item, _cache, ShootService.ThumbLongEdge);
+        await Task.Run(() => _service.Save(tile.Item));   // sidecar write + .bak off the UI thread
+        var thumb = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge);
+        if (_cache != cache)   // a re-scan replaced the cache during the await
+            return;
         tile.Thumbnail = SafeLoadBitmap(thumb);
         await LoadDetailAsync(tile);
         StatusText = crop is null ? $"Cleared crop for {tile.Title}." : $"Cropped {tile.Title}.";

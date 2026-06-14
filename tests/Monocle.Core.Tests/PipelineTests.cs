@@ -46,6 +46,34 @@ public class PipelineTests
     }
 
     [Fact]
+    public void SkipUnreachableSkipsClaudeWhenRateBypassesIt()
+    {
+        // useClaude:false → rate depends on aesthetic, so the claude node is dead. SkipUnreachable
+        // must skip it (and only it) so a forgotten Skip can't stall OverallProgress below 1.0.
+        var run = new PipelineRun(PipelineGraph.BuildAnalysis(useGpuModels: false, useClaude: false));
+        run.SkipUnreachableFrom("write");
+
+        Assert.Equal(StageStatus.Skipped, run.State("claude").Status);
+        foreach (var s in run.Graph.Stages)
+            if (s.Id != "claude")
+                Assert.NotEqual(StageStatus.Skipped, run.State(s.Id).Status);
+
+        foreach (var s in run.Graph.Stages)
+            if (s.Id != "claude")
+                run.SetStatus(s.Id, StageStatus.Done);
+        Assert.Equal(1.0, run.OverallProgress, 6);
+    }
+
+    [Fact]
+    public void SkipUnreachableKeepsClaudeWhenUsed()
+    {
+        var run = new PipelineRun(PipelineGraph.BuildAnalysis(useGpuModels: true, useClaude: true));
+        run.SkipUnreachableFrom("write");
+        foreach (var s in run.Graph.Stages)
+            Assert.NotEqual(StageStatus.Skipped, run.State(s.Id).Status);
+    }
+
+    [Fact]
     public void AllDoneGivesFullOverall()
     {
         var run = new PipelineRun(PipelineGraph.BuildAnalysis(false, false));

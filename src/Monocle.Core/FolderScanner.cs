@@ -19,7 +19,9 @@ public static class FolderScanner
 
         var files = Directory.EnumerateFiles(folderPath)
             .Where(p => SupportedFormats.IsSupported(Path.GetExtension(p)))
-            .Select(ToPhotoFile)
+            .Select(TryToPhotoFile)
+            .Where(f => f is not null)
+            .Select(f => f!)
             .ToList();
 
         // Group by basename when folding; otherwise each file is its own group.
@@ -51,15 +53,24 @@ public static class FolderScanner
             .ToList();
     }
 
-    private static PhotoFile ToPhotoFile(string path)
+    // A file can be deleted/moved between enumeration and stat (e.g. a card still copying in), which
+    // would throw and abort the whole scan; skip the one file instead.
+    private static PhotoFile? TryToPhotoFile(string path)
     {
-        var info = new FileInfo(path);
-        return new PhotoFile
+        try
         {
-            Path = path,
-            Role = SupportedFormats.RoleFor(Path.GetExtension(path)),
-            SizeBytes = info.Length,
-            ModifiedUtc = info.LastWriteTimeUtc,
-        };
+            var info = new FileInfo(path);
+            return new PhotoFile
+            {
+                Path = path,
+                Role = SupportedFormats.RoleFor(Path.GetExtension(path)),
+                SizeBytes = info.Length,
+                ModifiedUtc = info.LastWriteTimeUtc,
+            };
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 }

@@ -11,7 +11,7 @@ public sealed class SidecarManager : IDisposable
     private Process? _process;
     private readonly SemaphoreSlim _healthGate = new(1, 1);
     private SidecarHealth? _cachedHealth;
-    private DateTime _healthAt;
+    private DateTime _healthAt = DateTime.MinValue;   // last *probe* time (not last non-null result)
     private static readonly TimeSpan HealthTtl = TimeSpan.FromSeconds(2);
 
     public string BaseUrl { get; private set; } = "http://127.0.0.1:8765";
@@ -27,13 +27,16 @@ public sealed class SidecarManager : IDisposable
     /// </summary>
     public async Task<SidecarHealth?> HealthAsync(CancellationToken ct = default)
     {
-        if (_cachedHealth is not null && DateTime.UtcNow - _healthAt < HealthTtl)
+        // Gate on time-since-last-probe, not on whether we have a value, so a *down* sidecar (the
+        // common "never started" case) is rate-limited too — otherwise every frame across every
+        // thread fires a fresh GET /health that just fails.
+        if (DateTime.UtcNow - _healthAt < HealthTtl)
             return _cachedHealth;
 
         await _healthGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            if (_cachedHealth is not null && DateTime.UtcNow - _healthAt < HealthTtl)
+            if (DateTime.UtcNow - _healthAt < HealthTtl)
                 return _cachedHealth;
             _cachedHealth = await Client.HealthAsync(ct).ConfigureAwait(false);
             _healthAt = DateTime.UtcNow;
@@ -55,6 +58,7 @@ public sealed class SidecarManager : IDisposable
         Client.Dispose();                  // release the previous client's HttpClient before replacing it
         Client = new SidecarClient(BaseUrl);
         _cachedHealth = null;              // a new endpoint invalidates any cached health
+        _healthAt = DateTime.MinValue;     // force a re-probe on the next HealthAsync
 
         var psi = new ProcessStartInfo(pythonExe)
         {

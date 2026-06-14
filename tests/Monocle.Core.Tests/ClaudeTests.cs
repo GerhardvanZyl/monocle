@@ -25,6 +25,20 @@ public class ClaudeTests
     }
 
     [Fact]
+    public void EmitsBothTextAndToolUseFromOneAssistantMessage()
+    {
+        // Claude commonly streams commentary text followed by the tool call in a single message;
+        // both must surface or the cull UI under-counts ratings.
+        var line = """{"type":"assistant","message":{"content":[{"type":"text","text":"This one is sharp."},{"type":"tool_use","name":"mcp__monocle__set_rating","input":{"id":"x","stars":4}}]}}""";
+        var events = ClaudeStreamParser.ParseEvents(line);
+        Assert.Equal(2, events.Count);
+        Assert.Equal(ClaudeEventKind.AssistantText, events[0].Kind);
+        Assert.Equal("This one is sharp.", events[0].Text);
+        Assert.Equal(ClaudeEventKind.ToolUse, events[1].Kind);
+        Assert.Equal("mcp__monocle__set_rating", events[1].ToolName);
+    }
+
+    [Fact]
     public void ParsesResultWithCostAndTurns()
     {
         var line = """{"type":"result","subtype":"success","is_error":false,"duration_ms":4200,"num_turns":7,"total_cost_usd":0.0123,"result":"Done."}""";

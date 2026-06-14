@@ -81,19 +81,29 @@ public sealed class ClaudeCullService
         // buffer while we're blocked reading stdout, the child blocks on write and the cull hangs.
         var stderrTask = process.StandardError.ReadToEndAsync(ct);
 
-        string? line;
-        while ((line = await process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
+        try
         {
-            var ev = ClaudeStreamParser.ParseLine(line);
-            if (ev.Kind == ClaudeEventKind.Unknown)
-                continue;
-            if (ev.Kind == ClaudeEventKind.Result)
-                result = ev;
-            onEvent(ev);
-        }
+            string? line;
+            while ((line = await process.StandardOutput.ReadLineAsync(ct).ConfigureAwait(false)) is not null)
+            {
+                // A single assistant line can carry both commentary and a tool_use call; emit each
+                // so the UI's per-tool progress counter doesn't miss ratings hidden behind text.
+                foreach (var ev in ClaudeStreamParser.ParseEvents(line))
+                {
+                    if (ev.Kind == ClaudeEventKind.Result)
+                        result = ev;
+                    onEvent(ev);
+                }
+            }
 
-        await process.WaitForExitAsync(ct).ConfigureAwait(false);
-        try { await stderrTask.ConfigureAwait(false); } catch { /* stderr is diagnostic only */ }
+            await process.WaitForExitAsync(ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Always observe the stderr task — even on cancellation — so it isn't abandoned as an
+            // unobserved faulted task when ReadLineAsync/WaitForExitAsync throw on cancel.
+            try { await stderrTask.ConfigureAwait(false); } catch { /* stderr is diagnostic only */ }
+        }
         return result;
     }
 }

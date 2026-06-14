@@ -12,7 +12,9 @@ public static class OnnxSessionFactory
 {
     public static InferenceSession Create(string modelPath)
     {
-        var options = new SessionOptions
+        // SessionOptions holds a native handle and is NOT owned by the session — the session copies
+        // what it needs at construction, so dispose the options once it's built to avoid leaking it.
+        using var options = new SessionOptions
         {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
         };

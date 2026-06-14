@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Text;
 using System.Xml;
 using Monocle.Core.Model;
 
@@ -246,13 +247,50 @@ public static class XmpSidecar
     /// <summary>
     /// Strip characters that are illegal in XML 1.0 (NUL and most C0 controls) so a control char
     /// pasted into a note doesn't make <see cref="XmlWriter"/> throw and abort the entire save.
-    /// Tab/LF/CR and all printable text (including emoji/surrogate pairs) are preserved.
+    /// Tab/LF/CR and all printable text are preserved; valid surrogate pairs (emoji, astral-plane
+    /// characters) are kept intact, but an *unpaired* surrogate — which would itself make XmlWriter
+    /// throw, the very abort this guards against — is dropped.
     /// </summary>
     private static string SanitizeXmlText(string s)
     {
-        if (string.IsNullOrEmpty(s) || s.All(IsLegalXmlChar))
+        if (string.IsNullOrEmpty(s) || IsClean(s))
             return s;
-        return new string(s.Where(IsLegalXmlChar).ToArray());
+
+        var sb = new StringBuilder(s.Length);
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (char.IsHighSurrogate(c))
+            {
+                if (i + 1 < s.Length && char.IsLowSurrogate(s[i + 1]))
+                {
+                    sb.Append(c).Append(s[i + 1]);
+                    i++;            // consumed the pair
+                }
+                // else: lone high surrogate — drop it
+            }
+            else if (!char.IsLowSurrogate(c) && IsLegalXmlChar(c))
+            {
+                sb.Append(c);       // a lone low surrogate falls through and is dropped
+            }
+        }
+        return sb.ToString();
+    }
+
+    private static bool IsClean(string s)
+    {
+        for (int i = 0; i < s.Length; i++)
+        {
+            char c = s[i];
+            if (char.IsHighSurrogate(c))
+            {
+                if (i + 1 < s.Length && char.IsLowSurrogate(s[i + 1])) { i++; continue; }
+                return false;       // lone high surrogate
+            }
+            if (char.IsLowSurrogate(c) || !IsLegalXmlChar(c))
+                return false;       // lone low surrogate or illegal char
+        }
+        return true;
     }
 
     private static bool IsLegalXmlChar(char c) =>

@@ -27,6 +27,13 @@ public sealed class ChartsControl : Control
     private static readonly Color Dot = Color.Parse("#4DA3FF");
     private static readonly Color Axis = Color.Parse("#555");
 
+    // Cache brushes by colour so each redraw doesn't allocate one per bar / label / dot.
+    private static readonly Dictionary<Color, IBrush> BrushCache = new();
+    private static IBrush Br(Color c) =>
+        BrushCache.TryGetValue(c, out var b) ? b : BrushCache[c] = new SolidColorBrush(c);
+    private static readonly IBrush DotBrush = new SolidColorBrush(Dot, 0.7);
+    private static readonly IPen AxisPen = new Pen(Br(Axis));
+
     public override void Render(DrawingContext ctx)
     {
         var s = Stats;
@@ -58,7 +65,7 @@ public sealed class ChartsControl : Control
     private void DrawStarHistogram(DrawingContext ctx, Rect area, ShootStats s)
     {
         ctx.DrawText(Text("Star ratings", 12, Color.Parse("#AAA")), new Point(area.X, area.Y - 18));
-        ctx.DrawLine(new Pen(new SolidColorBrush(Axis)), area.BottomLeft, area.BottomRight);
+        ctx.DrawLine(AxisPen, area.BottomLeft, area.BottomRight);
 
         var labels = new[] { "—", "1★", "2★", "3★", "4★" };
         var max = Math.Max(1, s.MaxStarCount);
@@ -69,7 +76,7 @@ public sealed class ChartsControl : Control
             var x = area.X + i * slot + slot * 0.2;
             var w = slot * 0.6;
             var rect = new Rect(x, area.Bottom - h, w, h);
-            ctx.DrawRectangle(new SolidColorBrush(Bar), null, rect, 2, 2);
+            ctx.DrawRectangle(Br(Bar), null, rect, 2, 2);
             ctx.DrawText(Text(labels[i], 11, Color.Parse("#CCC")), new Point(x, area.Bottom + 2));
             if (s.StarCounts[i] > 0)
                 ctx.DrawText(Text(s.StarCounts[i].ToString(), 10, Colors.White), new Point(x, area.Bottom - h - 14));
@@ -79,19 +86,16 @@ public sealed class ChartsControl : Control
     private void DrawScatter(DrawingContext ctx, Rect area, ShootStats s)
     {
         ctx.DrawText(Text("Technical (x) vs Aesthetic (y)", 12, Color.Parse("#AAA")), new Point(area.X, area.Y - 18));
-        var pen = new Pen(new SolidColorBrush(Axis));
-        ctx.DrawRectangle(null, pen, area);
+        ctx.DrawRectangle(null, AxisPen, area);
 
-        var brush = new SolidColorBrush(Dot, 0.7);
         foreach (var (tech, aesthetic) in s.TechAesthetic)
         {
             var px = area.X + Math.Clamp(tech, 0, 1) * area.Width;
             var py = area.Bottom - Math.Clamp(aesthetic, 0, 1) * area.Height;
-            ctx.DrawEllipse(brush, null, new Point(px, py), 3, 3);
+            ctx.DrawEllipse(DotBrush, null, new Point(px, py), 3, 3);
         }
     }
 
     private static FormattedText Text(string text, double size, Color color) =>
-        new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, size,
-            new SolidColorBrush(color));
+        new(text, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, size, Br(color));
 }

@@ -145,7 +145,21 @@ public sealed class ShootCache : IDisposable
     public string PutPreview(string id, string fingerprint, int longEdge, int rotation, byte[] jpeg, string cropTag = "")
     {
         var path = PreviewPath(id, fingerprint, longEdge, rotation, cropTag);
-        File.WriteAllBytes(path, jpeg);
+        // Write to a unique temp then atomically swap in: the 8-way analysis loop (and the UI) can
+        // request the same preview key concurrently, and a half-written blob would decode as garbage
+        // for a reader that sees the file mid-write. The temp is unique so concurrent writers of the
+        // same key don't clobber each other's temp; the final Replace is the only contended step.
+        var tmp = Path.Combine(_previewDir, $".{Guid.NewGuid():N}.tmp");
+        try
+        {
+            File.WriteAllBytes(tmp, jpeg);
+            Sidecars.AtomicFile.Replace(tmp, path);
+        }
+        finally
+        {
+            if (File.Exists(tmp))
+                try { File.Delete(tmp); } catch { /* best-effort temp cleanup */ }
+        }
 
         lock (_gate)
         {

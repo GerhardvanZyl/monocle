@@ -70,6 +70,34 @@ public sealed class PipelineRun
         Raise();
     }
 
+    /// <summary>
+    /// Mark stages that don't feed <paramref name="terminalId"/> (transitively, via DependsOn) as
+    /// Skipped — e.g. the <c>claude</c> node when the run rates from <c>aesthetic</c>, leaving claude
+    /// a dangling side-branch. A safety net so a caller that forgets to <see cref="Skip"/> an unused
+    /// stage can't leave <see cref="OverallProgress"/> stalled below 100% on a stage that never runs.
+    /// The terminal is passed explicitly because a bypassed stage is itself a leaf (nothing depends
+    /// on it), so "stages nothing depends on" can't tell the real sink from a dead branch.
+    /// Already-skipped stages are left as-is.
+    /// </summary>
+    public void SkipUnreachableFrom(string terminalId)
+    {
+        var reachable = new HashSet<string>();
+        var stack = new Stack<string>();
+        stack.Push(terminalId);
+        while (stack.Count > 0)
+        {
+            var id = stack.Pop();
+            if (!reachable.Add(id))
+                continue;
+            foreach (var d in Graph[id].DependsOn)
+                stack.Push(d);
+        }
+
+        foreach (var s in Graph.Stages)
+            if (!reachable.Contains(s.Id) && _states[s.Id].Status != StageStatus.Skipped)
+                Skip(s.Id);
+    }
+
     /// <summary>True once a stage and all its dependencies are done — used to draw a green edge (#15).</summary>
     public bool EdgeComplete(string fromId, string toId) =>
         _states[fromId].Status == StageStatus.Done &&

@@ -70,7 +70,9 @@ public static class ShootExporter
         var list = items.ToList();
         var csvPath = Path.Combine(folder, CsvFileName);
         var jsonPath = Path.Combine(folder, JsonFileName);
-        File.WriteAllText(csvPath, ToCsv(list), new UTF8Encoding(false));
+        // CSV gets a UTF-8 BOM so Excel detects the encoding (otherwise it opens as the system ANSI
+        // codepage and mojibakes accented notes / model text); JSON stays BOM-less per convention.
+        File.WriteAllText(csvPath, ToCsv(list), new UTF8Encoding(true));
         File.WriteAllText(jsonPath, ToJson(list), new UTF8Encoding(false));
         return (csvPath, jsonPath);
     }

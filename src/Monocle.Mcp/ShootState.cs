@@ -37,12 +37,35 @@ public sealed class ShootState : IDisposable
         return items;
     }
 
-    public PhotoItem? Get(string id) => _items.TryGetValue(id, out var v) ? v : null;
+    /// <summary>All loaded frames (for tools that operate over the whole shoot, e.g. burst grouping).</summary>
+    public IReadOnlyCollection<PhotoItem> Items => _items.Values;
 
-    public async Task<string> PreviewPathAsync(PhotoItem item, int longEdge, CancellationToken ct = default) =>
-        await _service.GetPreviewAsync(item, _cache!, longEdge, ct);
+    public PhotoItem? Get(string id) =>
+        _items.TryGetValue(id, out var v) && WithinRoot(v) ? v : null;
 
-    public void Save(PhotoItem item) => _service.Save(item);
+    public async Task<string> PreviewPathAsync(PhotoItem item, int longEdge, CancellationToken ct = default)
+    {
+        EnsureWithinRoot(item);
+        return await _service.GetPreviewAsync(item, _cache!, longEdge, ct);
+    }
+
+    public void Save(PhotoItem item)
+    {
+        EnsureWithinRoot(item);
+        _service.Save(item);
+    }
+
+    // Defense in depth: ScanAsync guards the folder, but re-check every file at read/write time so a
+    // frame whose path resolves outside the root (a pairing mate, a future symlink) can never have a
+    // preview read or a sidecar written outside the shoot (#11 lockdown).
+    private bool WithinRoot(PhotoItem item) =>
+        item.Files.All(f => PathGuard.IsWithinRoot(_root, f.Path));
+
+    private void EnsureWithinRoot(PhotoItem item)
+    {
+        if (!WithinRoot(item))
+            throw new UnauthorizedAccessException($"frame '{item.Id}' is outside the shoot folder.");
+    }
 
     public void Dispose() => _cache?.Dispose();
 }

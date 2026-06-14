@@ -30,6 +30,17 @@ public sealed class FlowchartControl : Control
     private static readonly Color Green = Color.Parse("#4CAF50");
     private static readonly Color Blue = Color.Parse("#4DA3FF");
 
+    // Render runs on the UI thread and re-fires on every SetProgress during analysis; cache brushes
+    // and pens by colour/thickness so each redraw doesn't churn a fresh allocation per draw call.
+    private static readonly Dictionary<Color, IBrush> BrushCache = new();
+    private static readonly Dictionary<(Color, double), IPen> PenCache = new();
+    private static IBrush Br(Color c) =>
+        BrushCache.TryGetValue(c, out var b) ? b : BrushCache[c] = new SolidColorBrush(c);
+    private static IPen PenOf(Color c, double thickness) =>
+        PenCache.TryGetValue((c, thickness), out var p) ? p : PenCache[(c, thickness)] = new Pen(Br(c), thickness);
+
+    private static readonly Color EdgeGrey = Color.Parse("#555");
+
     static FlowchartControl()
     {
         AffectsRender<FlowchartControl>(RunProperty);
@@ -95,7 +106,7 @@ public sealed class FlowchartControl : Control
                     if (!positions.TryGetValue(dep, out var from))
                         continue;
                     var complete = run.EdgeComplete(dep, stage.Id);
-                    var pen = new Pen(new SolidColorBrush(complete ? Green : Color.Parse("#555")), complete ? 3 : 1.5);
+                    var pen = complete ? PenOf(Green, 3) : PenOf(EdgeGrey, 1.5);
                     var p1 = new Point(from.Center.X, from.Bottom);
                     var p2 = new Point(to.Center.X, to.Top);
                     context.DrawLine(pen, p1, p2);
@@ -118,7 +129,7 @@ public sealed class FlowchartControl : Control
             _ => (Color.Parse("#262626"), Color.Parse("#555"), Color.Parse("#AAAAAA")),
         };
 
-        ctx.DrawRectangle(new SolidColorBrush(fill), new Pen(new SolidColorBrush(border), 2), box, 6, 6);
+        ctx.DrawRectangle(Br(fill), PenOf(border, 2), box, 6, 6);
 
         // Title.
         ctx.DrawText(Text(stage.Title, 13, text), new Point(box.X + 12, box.Y + 7));
@@ -138,8 +149,8 @@ public sealed class FlowchartControl : Control
         {
             var barY = box.Bottom - 8;
             var trackW = box.Width - 24;
-            ctx.DrawRectangle(new SolidColorBrush(Color.Parse("#0A0A0A")), null, new Rect(box.X + 12, barY, trackW, 4), 2, 2);
-            ctx.DrawRectangle(new SolidColorBrush(Blue), null, new Rect(box.X + 12, barY, trackW * state.Progress, 4), 2, 2);
+            ctx.DrawRectangle(Br(Color.Parse("#0A0A0A")), null, new Rect(box.X + 12, barY, trackW, 4), 2, 2);
+            ctx.DrawRectangle(Br(Blue), null, new Rect(box.X + 12, barY, trackW * state.Progress, 4), 2, 2);
         }
     }
 
@@ -152,7 +163,7 @@ public sealed class FlowchartControl : Control
             ("CPU", Color.Parse("#8FB0C8")), ("GPU", Color.Parse("#E0A24D")), ("Claude tokens", Color.Parse("#C77DD6")),
         })
         {
-            ctx.DrawRectangle(new SolidColorBrush(color), null, new Rect(x, y + 2, 10, 10), 2, 2);
+            ctx.DrawRectangle(Br(color), null, new Rect(x, y + 2, 10, 10), 2, 2);
             var t = Text(label, 11, Color.Parse("#BBB"));
             ctx.DrawText(t, new Point(x + 14, y));
             x += 24 + t.Width + 14;
@@ -167,6 +178,5 @@ public sealed class FlowchartControl : Control
     }
 
     private static FormattedText Text(string s, double size, Color color) =>
-        new(s, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, size,
-            new SolidColorBrush(color));
+        new(s, CultureInfo.CurrentCulture, FlowDirection.LeftToRight, Typeface.Default, size, Br(color));
 }
