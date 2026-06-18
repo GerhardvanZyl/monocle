@@ -42,7 +42,12 @@ public sealed class SidecarRunner : IModelRunner
         if (!_manager.Running)
             return false;
         var health = await _manager.HealthAsync(ct).ConfigureAwait(false);  // cached per short TTL
-        return health?.Models.Contains(_info.Id) == true;
+        if (health is null)
+            return false;
+        // A model is only really available when its Python deps are installed (torch/transformers).
+        // The sidecar reports that in "ready"; older sidecars omit it, so fall back to "models".
+        var runnable = health.Ready ?? health.Models;
+        return runnable.Contains(_info.Id);
     }
 
     public async Task<ModelScore> ScoreAsync(ScoringContext context, CancellationToken ct = default)

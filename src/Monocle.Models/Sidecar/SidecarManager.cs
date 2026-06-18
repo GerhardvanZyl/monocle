@@ -17,6 +17,10 @@ public sealed class SidecarManager : IDisposable
     public string BaseUrl { get; private set; } = "http://127.0.0.1:8765";
     public SidecarClient Client { get; private set; }
 
+    /// <summary>Raised for each line the sidecar process writes to stdout/stderr, so the app can
+    /// surface it in its console/log. Fires on a thread-pool thread.</summary>
+    public event Action<string>? Output;
+
     public SidecarManager() => Client = new SidecarClient(BaseUrl);
 
     public bool Running => _process is { HasExited: false };
@@ -75,6 +79,13 @@ public sealed class SidecarManager : IDisposable
         _process = Process.Start(psi);
         if (_process is null)
             return false;
+
+        // Drain stdout/stderr to the Output event. Beyond surfacing the sidecar's log, this is
+        // required: an unread redirected pipe will fill and block the child once it logs enough.
+        _process.OutputDataReceived += (_, e) => { if (e.Data is not null) Output?.Invoke(e.Data); };
+        _process.ErrorDataReceived += (_, e) => { if (e.Data is not null) Output?.Invoke(e.Data); };
+        _process.BeginOutputReadLine();
+        _process.BeginErrorReadLine();
 
         for (int i = 0; i < 40 && !ct.IsCancellationRequested; i++)
         {

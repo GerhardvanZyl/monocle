@@ -26,6 +26,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ShootService _service = new();
     private readonly SidecarManager _sidecar = new();
     private readonly ModelRegistry _registry;
+    private readonly AppSettings _settings;
     private ShootCache? _cache;
     private CancellationTokenSource? _scanCts;
     private Task? _scanRun;   // the in-flight scan; awaited before a new scan disposes its cache
@@ -38,6 +39,32 @@ public partial class MainWindowViewModel : ViewModelBase
         VisiblePhotos = new ObservableCollection<PhotoTileViewModel>();
         PhotoRows = new ObservableCollection<PhotoRowViewModel>();
         Models = new ObservableCollection<ModelOptionViewModel>();
+        RejectList = new ObservableCollection<PhotoTileViewModel>();
+
+        // Restore persisted preferences (#2): last folder, theme + accent, grid density.
+        _settings = AppSettings.Load();
+        _theme = _settings.Theme;
+        _accent = _settings.Accent;
+        _density = _settings.Density;
+        _thumbSize = _settings.ThumbSize;
+        _foldPairs = _settings.FoldPairs;
+        _showConsole = _settings.ShowConsole;
+        _sidecarCompute = SidecarComputeChoices.Contains(_settings.SidecarCompute)
+            ? _settings.SidecarCompute : SidecarComputeChoices[0];
+        if (!string.IsNullOrWhiteSpace(_settings.LastFolder) && System.IO.Directory.Exists(_settings.LastFolder))
+            _folderPath = _settings.LastFolder;
+        ThemeManager.Apply(_theme, _accent);
+
+        // Mirror the diagnostic log into the in-app console panel: backfill what's already been
+        // logged this run, then append new lines live (marshaled to the UI thread).
+        foreach (var line in Diagnostics.Log.Snapshot())
+            ConsoleLog.Add(line);
+        Diagnostics.Log.LineWritten += OnLogLine;
+
+        // Surface the Python sidecar's own stdout/stderr in the console too, so crashes on the
+        // Python side are visible (it fires on a thread-pool thread; Log marshals it from there).
+        _sidecar.Output += OnSidecarOutput;
+
         _ = InitModelsAsync();
     }
 
@@ -67,9 +94,22 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusText = "Starting Python sidecar…";
         var ok = await _sidecar.StartAsync(SidecarLauncher.ResolvePython(),
             SidecarLauncher.ServerScript(), SidecarLauncher.Port);
-        StatusText = ok
-            ? "Python sidecar running — its models are now available."
-            : "Sidecar failed to start (is Python installed?).";
+        if (ok)
+        {
+            // "Running" only means the HTTP server is up; its models still need their Python deps.
+            // Report the honest state so it doesn't claim availability while Install is still needed.
+            var health = await _sidecar.HealthAsync();
+            var runnable = health?.Ready ?? health?.Models;
+            StatusText = runnable is { Length: > 0 }
+                ? "Python sidecar running — its models are now available."
+                : "Python sidecar running, but model deps aren't installed yet — use “Install Python deps” on a model below.";
+            Diagnostics.Log.Info(StatusText);
+        }
+        else
+        {
+            StatusText = "Sidecar failed to start (is Python installed?).";
+            Diagnostics.Log.Warn(StatusText);
+        }
         await InitModelsAsync();   // refresh availability now the sidecar (may be) up
         SidecarStarting = false;
     }
@@ -111,8 +151,13 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    // Set while "Heuristic baseline" runs so the scan rates with the heuristic only (no scorers).
+    private bool _heuristicOnly;
+
     private IReadOnlyList<IModelRunner> SelectedScorers() =>
-        Models.Where(m => m.IsEnabled && m.Available).Select(m => m.Runner).ToList();
+        _heuristicOnly
+            ? Array.Empty<IModelRunner>()
+            : Models.Where(m => m.IsEnabled && m.Available).Select(m => m.Runner).ToList();
 
     /// <summary>Install a not-yet-available model from the app (#5): download + verify ONNX weights,
     /// or pip-install the Python sidecar's deps. Refreshes availability when done.</summary>
@@ -143,10 +188,24 @@ public partial class MainWindowViewModel : ViewModelBase
                     CullLog.Add(line);
                     StatusText = line;
                 });
-                var ok = await SidecarInstaller.InstallDepsAsync(Append);
+                var ok = await SidecarInstaller.InstallDepsAsync(Append, SidecarInstaller.ParseTarget(SidecarCompute));
+                // Don't tell the user to start a sidecar they already started: a running sidecar
+                // re-probes its deps per /health (and invalidates importlib's caches), so the newly
+                // installed models become available without a restart.
                 StatusText = ok
-                    ? "Python deps installed — Start the Python sidecar to use these models."
-                    : "Python deps install failed (see the Pipeline log).";
+                    ? (_sidecar.Running
+                        ? "Python deps installed — models are now available."
+                        : "Python deps installed — Start the Python sidecar to use these models.")
+                    : "Python deps install failed (see the Run log).";
+            }
+            else if (model.Runner is OnnxScoreRunner onnxManual)
+            {
+                // NIMA / aesthetic-predictor-v2.5 ship no canonical single-file ONNX, so there's nothing
+                // to auto-download — point the user at the exact folder + filename to drop in (#1).
+                var dir = System.IO.Path.GetDirectoryName(onnxManual.ModelPath);
+                var msg = $"{model.Name} has no auto-download — drop {onnxManual.FileName} into {dir}, then re-scan. See docs/models.md.";
+                CullLog.Add(msg);
+                StatusText = msg;
             }
             else
             {
@@ -172,6 +231,112 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Inputs ----
     [ObservableProperty] private string _folderPath = "";
     [ObservableProperty] private bool _foldPairs = true;
+
+    partial void OnFoldPairsChanged(bool value) { _settings.FoldPairs = value; _settings.Save(); }
+
+    // ---- Navigation: left-rail center view + right-panel tab (Photo Critic layout, #8) ----
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsBrowse), nameof(IsOverview), nameof(IsRejectsView),
+                              nameof(IsSettings), nameof(IsDesign), nameof(ViewTitle))]
+    private CenterView _view = CenterView.Browse;
+
+    public bool IsBrowse => View == CenterView.Browse;
+    public bool IsOverview => View == CenterView.Overview;
+    public bool IsRejectsView => View == CenterView.Rejects;
+    public bool IsSettings => View == CenterView.Settings;
+    public bool IsDesign => View == CenterView.Design;
+
+    public string ViewTitle => View switch
+    {
+        CenterView.Overview => "Folder overview",
+        CenterView.Rejects => "Reject management",
+        CenterView.Settings => "Settings",
+        CenterView.Design => "Design system",
+        _ => "Browse",
+    };
+
+    partial void OnViewChanged(CenterView value)
+    {
+        if (value == CenterView.Rejects) RefreshRejectList();
+    }
+
+    [RelayCommand] private void GoView(string view)
+    {
+        if (Enum.TryParse<CenterView>(view, out var v)) View = v;
+    }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDetailTab), nameof(IsAiCullTab), nameof(IsPipelineTab), nameof(IsRunLogTab))]
+    private RightTab _rightTab = RightTab.Detail;
+
+    public bool IsDetailTab => RightTab == RightTab.Detail;
+    public bool IsAiCullTab => RightTab == RightTab.AiCull;
+    public bool IsPipelineTab => RightTab == RightTab.Pipeline;
+    public bool IsRunLogTab => RightTab == RightTab.RunLog;
+
+    [RelayCommand] private void SetRightTab(string tab)
+    {
+        if (Enum.TryParse<RightTab>(tab, out var t)) RightTab = t;
+    }
+
+    // ---- Theme + accent (#8): live-applied via ThemeManager and persisted ----
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDark), nameof(IsLight))]
+    private string _theme = "Dark";
+    [ObservableProperty] private string _accent = "teal";
+
+    public bool IsDark => !IsLight;
+    public bool IsLight => string.Equals(Theme, "Light", StringComparison.OrdinalIgnoreCase);
+
+    partial void OnThemeChanged(string value)
+    {
+        ThemeManager.ApplyTheme(value);
+        _settings.Theme = value; _settings.Save();
+    }
+
+    partial void OnAccentChanged(string value)
+    {
+        ThemeManager.ApplyAccent(value);
+        _settings.Accent = value; _settings.Save();
+    }
+
+    [RelayCommand] private void ToggleTheme() => Theme = IsLight ? "Dark" : "Light";
+    [RelayCommand] private void SetTheme(string theme) => Theme = theme;
+    [RelayCommand] private void SetAccent(string accent) => Accent = accent;
+
+    // ---- Grid density + thumbnail size (#8 toolbar) ----
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsComfortable), nameof(IsCompact), nameof(CardPadding))]
+    private string _density = "Comfortable";
+    public bool IsComfortable => !IsCompact;
+    public bool IsCompact => string.Equals(Density, "Compact", StringComparison.OrdinalIgnoreCase);
+    public Avalonia.Thickness CardPadding => IsCompact ? new(7, 5, 7, 6) : new(9, 8, 9, 10);
+
+    partial void OnDensityChanged(string value) { _settings.Density = value; _settings.Save(); OnPropertyChanged(nameof(CardPadding)); }
+
+    [RelayCommand] private void SetDensity(string density) => Density = density;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(TileWidth))]
+    private int _thumbSize = 200;
+
+    /// <summary>Outer tile width = image size + the card's border/margin chrome.</summary>
+    public double TileWidth => ThumbSize + 16;
+
+    partial void OnThumbSizeChanged(int value)
+    {
+        _settings.ThumbSize = value; _settings.Save();
+        RecomputeColumns();
+    }
+
+    /// <summary>Available width of the grid viewport, set by the view; drives the column count.</summary>
+    [ObservableProperty] private double _gridWidth;
+    partial void OnGridWidthChanged(double value) => RecomputeColumns();
+
+    private void RecomputeColumns() =>
+        Columns = Math.Max(1, (int)((GridWidth - 24) / Math.Max(80, TileWidth)));
+
+    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(MoveRejectsEnabled));
 
     // ---- Collections ----
     public ObservableCollection<PhotoTileViewModel> Photos { get; }
@@ -221,6 +386,43 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _claudeModel = "claude-haiku-4-5";
     [ObservableProperty] private bool _cullRunning;
 
+    // ---- In-app console / diagnostic log panel (toggled in Settings) ----
+    /// <summary>Live mirror of the app's diagnostic log (see Diagnostics.Log), shown in the bottom
+    /// console panel when <see cref="ShowConsole"/> is on.</summary>
+    public ObservableCollection<string> ConsoleLog { get; } = new();
+
+    [ObservableProperty] private bool _showConsole;
+
+    partial void OnShowConsoleChanged(bool value) { _settings.ShowConsole = value; _settings.Save(); }
+
+    [RelayCommand] private void ClearConsole() => ConsoleLog.Clear();
+    [RelayCommand] private void ToggleConsole() => ShowConsole = !ShowConsole;
+
+    // ---- Python sidecar compute target (which torch build "Install Python deps" fetches) ----
+    public string[] SidecarComputeChoices { get; } =
+    {
+        "Default (CPU / CUDA)",
+        "CPU only",
+        "DirectML — AMD/Intel GPU (Windows, experimental)",
+        "ROCm — AMD GPU (Linux)",
+    };
+
+    [ObservableProperty] private string _sidecarCompute = "Default (CPU / CUDA)";
+
+    partial void OnSidecarComputeChanged(string value) { _settings.SidecarCompute = value; _settings.Save(); }
+
+    // Cap the in-memory mirror so a long session can't grow it without bound; the file log keeps the
+    // full history. Marshaled to the UI thread because Log fires on whatever thread wrote the line.
+    private void OnLogLine(string line) => Dispatcher.UIThread.Post(() =>
+    {
+        ConsoleLog.Add(line);
+        const int max = 1000;
+        while (ConsoleLog.Count > max)
+            ConsoleLog.RemoveAt(0);
+    });
+
+    private static void OnSidecarOutput(string line) => Diagnostics.Log.Info($"[sidecar] {line}");
+
     // ---- Visualizations (#24) ----
     [ObservableProperty] private ShootStats? _stats;
 
@@ -228,6 +430,22 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Stats = StatsCalculator.Compute(Photos.Select(p => p.Item));
         RefreshCounts();
+        RefreshBurstStats();
+    }
+
+    // ---- Browse header summary (#8) ----
+    [ObservableProperty] private int _visibleCount;
+    [ObservableProperty] private int _burstGroupCount;
+    [ObservableProperty] private int _largestBurst;
+
+    private void RefreshBurstStats()
+    {
+        var groups = Photos
+            .Where(p => !string.IsNullOrEmpty(p.Item.BurstGroupId))
+            .GroupBy(p => p.Item.BurstGroupId)
+            .ToList();
+        BurstGroupCount = groups.Count;
+        LargestBurst = groups.Count == 0 ? 0 : groups.Max(g => g.Count());
     }
 
     // ---- Progress (auto-refreshing, #3, #16) ----
@@ -265,6 +483,9 @@ public partial class MainWindowViewModel : ViewModelBase
         UnratedCount = Photos.Count(p => p.Item.Stars <= 0);
         RatedCount = Photos.Count(p => p.Item.Stars > 0);
         ReviewFraction = Total == 0 ? 0 : (double)RatedCount / Total;
+        OnPropertyChanged(nameof(MoveRejectsEnabled));
+        if (IsRejectsView)
+            RefreshRejectList();
     }
 
     // ---- In-app enlarged photo overlay (#6) ----
@@ -353,12 +574,16 @@ public partial class MainWindowViewModel : ViewModelBase
             _cache?.Dispose();   // safe: the previous scan has drained (awaited in ScanAsync)
             _cache = new ShootCache(folder);
 
+            // Remember this folder so the next session reopens it (#2).
+            _settings.LastFolder = folder; _settings.Save();
+
             var scorers = SelectedScorers();
             SetupPipeline(scorers);
 
             var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
+            var expectsScoring = scorers.Count > 0;
             foreach (var item in items)
-                Photos.Add(new PhotoTileViewModel(item));
+                Photos.Add(new PhotoTileViewModel(item) { ExpectsScoring = expectsScoring });
             ApplyFilter();
             Pipeline?.SetStatus("scan", StageStatus.Done);
 
@@ -500,6 +725,10 @@ public partial class MainWindowViewModel : ViewModelBase
         CullLog.Clear();
         CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
         Pipeline?.SetStatus("claude", StageStatus.Running);
+        // Every frame is pending Claude's judgement: show the in-progress block on each tile now, and
+        // clear it per frame as Claude rates it (#3).
+        foreach (var tile in Photos)
+            tile.Culling = true;
         _cullCts?.Cancel();
         _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
 
@@ -528,6 +757,10 @@ public partial class MainWindowViewModel : ViewModelBase
                         {
                             rated++;
                             Pipeline?.SetProgress("claude", Total == 0 ? 0 : Math.Min(1.0, (double)rated / Total));
+                            // Stop the in-progress block on the frame Claude just rated (#3).
+                            if (TryGetToolId(ev.ToolInput) is { } id &&
+                                Photos.FirstOrDefault(p => string.Equals(p.Item.Id, id, StringComparison.OrdinalIgnoreCase)) is { } tile)
+                                tile.Culling = false;
                         }
                         break;
                     case ClaudeEventKind.Result:
@@ -550,8 +783,26 @@ public partial class MainWindowViewModel : ViewModelBase
         finally
         {
             CullRunning = false;
+            foreach (var tile in Photos)   // clear any frames Claude didn't reach (cancel/error) (#3)
+                tile.Culling = false;
             try { System.IO.File.Delete(options.McpConfigPath); } catch { /* best-effort temp cleanup */ }
         }
+    }
+
+    /// <summary>Pull the frame <c>id</c> out of a tool-use input JSON blob (e.g. set_rating), or null
+    /// if it's missing or not a string. Used to map a cull rating back to its grid tile (#3).</summary>
+    private static string? TryGetToolId(string? toolInput)
+    {
+        if (string.IsNullOrWhiteSpace(toolInput))
+            return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(toolInput);
+            return doc.RootElement.TryGetProperty("id", out var id) && id.ValueKind == System.Text.Json.JsonValueKind.String
+                ? id.GetString()
+                : null;
+        }
+        catch { return null; }
     }
 
     /// <summary>Re-read sidecars after a cull so the grid shows the ratings Claude wrote. The disk
@@ -679,6 +930,7 @@ public partial class MainWindowViewModel : ViewModelBase
         VisiblePhotos.Clear();
         foreach (var tile in ordered.ThenBy(t => t.Item.BaseName, StringComparer.OrdinalIgnoreCase))
             VisiblePhotos.Add(tile);
+        VisibleCount = VisiblePhotos.Count;
         RebuildRows();
     }
 
@@ -696,6 +948,7 @@ public partial class MainWindowViewModel : ViewModelBase
             VisiblePhotos.Remove(tile);
             ScheduleRebuildRows();
         }
+        VisibleCount = VisiblePhotos.Count;
     }
 
     private bool _rowsRebuildScheduled;
@@ -805,11 +1058,102 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusText = crop is null ? $"Cleared crop for {tile.Title}." : $"Cropped {tile.Title}.";
     }
 
+    // ---- Reject management page (#8) ----
+    public ObservableCollection<PhotoTileViewModel> RejectList { get; }
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MoveRejectsEnabled))]
+    private bool _moveRejectsConfirmed;
+
+    public bool MoveRejectsEnabled => MoveRejectsConfirmed && RejectCount > 0 && !IsBusy;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RejectSummary))]
+    private int _rejectSidecarCount;
+
+    public string RejectSummary =>
+        RejectCount == 0
+            ? "No rejects yet — culling rates weak frames 1★."
+            : $"Would move {RejectCount} files (+ {RejectSidecarCount} sidecars) into {RejectMover.SubfolderName}/. Nothing moves until you confirm.";
+
+    private void RefreshRejectList()
+    {
+        RejectList.Clear();
+        foreach (var tile in Photos.Where(p => p.Item.IsReject))
+            RejectList.Add(tile);
+        RejectSidecarCount = RejectMover.SidecarCount(RejectList.Select(t => t.Item));
+        OnPropertyChanged(nameof(RejectSummary));
+        OnPropertyChanged(nameof(MoveRejectsEnabled));
+    }
+
+    [RelayCommand]
+    private async Task MoveRejectsAsync()
+    {
+        if (!MoveRejectsEnabled || string.IsNullOrEmpty(FolderPath))
+            return;
+        var items = RejectList.ToList();
+        var moved = await Task.Run(() => RejectMover.Move(items.Select(t => t.Item).ToList(), FolderPath));
+        // Drop the moved frames from the in-memory shoot so the grid + counts reflect reality.
+        foreach (var tile in items)
+        {
+            tile.Thumbnail = null;
+            Photos.Remove(tile);
+            VisiblePhotos.Remove(tile);
+        }
+        if (SelectedPhoto is { } sel && !Photos.Contains(sel))
+            SelectedPhoto = null;
+        MoveRejectsConfirmed = false;
+        Total = Photos.Count;
+        RefreshCounts();
+        RefreshRejectList();
+        RebuildRows();
+        RefreshStats();
+        StatusText = $"Moved {moved} rejects into {RejectMover.SubfolderName}/.";
+    }
+
+    // ---- CULL rail actions (#8) ----
+    /// <summary>Re-rate the shoot with the heuristic only (no scorer models) — a fast baseline pass.</summary>
+    [RelayCommand]
+    private async Task RunHeuristicBaselineAsync()
+    {
+        View = CenterView.Browse;
+        _heuristicOnly = true;
+        try { await ScanAsync(); }
+        finally { _heuristicOnly = false; }
+    }
+
+    /// <summary>Manual culling: focus the grid + detail pane on the first unrated frame.</summary>
+    [RelayCommand]
+    private void InteractiveCull()
+    {
+        View = CenterView.Browse;
+        RightTab = RightTab.Detail;
+        var firstUnrated = VisiblePhotos.FirstOrDefault(t => t.Item.Stars <= 0) ?? VisiblePhotos.FirstOrDefault();
+        if (firstUnrated is not null)
+            SelectedPhoto = firstUnrated;
+    }
+
+    /// <summary>Unattended cull: open the AI Cull tab and start the Claude run.</summary>
+    [RelayCommand]
+    private async Task UnattendedRunAsync()
+    {
+        RightTab = RightTab.AiCull;
+        await CullWithClaudeAsync();
+    }
+
     public void Cleanup()
     {
+        Diagnostics.Log.LineWritten -= OnLogLine;
+        _sidecar.Output -= OnSidecarOutput;
         _scanCts?.Cancel();
         _cullCts?.Cancel();
         _cache?.Dispose();
         _sidecar.Dispose();
     }
 }
+
+/// <summary>The center pane's current page, chosen from the left navigation rail (#8).</summary>
+public enum CenterView { Browse, Overview, Rejects, Settings, Design }
+
+/// <summary>The right panel's current tab (#8).</summary>
+public enum RightTab { Detail, AiCull, Pipeline, RunLog }

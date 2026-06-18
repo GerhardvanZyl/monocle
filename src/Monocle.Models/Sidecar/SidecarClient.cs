@@ -8,7 +8,10 @@ namespace Monocle.Models.Sidecar;
 public sealed record SidecarHealth(
     [property: JsonPropertyName("status")] string Status,
     [property: JsonPropertyName("models")] string[] Models,
-    [property: JsonPropertyName("loaded")] string[] Loaded);
+    [property: JsonPropertyName("loaded")] string[] Loaded,
+    // Models whose Python deps are actually installed, so they can really score. Older sidecars
+    // don't send this; null there means "fall back to Models" (see SidecarRunner.IsAvailableAsync).
+    [property: JsonPropertyName("ready")] string[]? Ready = null);
 
 public sealed record SidecarScore(
     [property: JsonPropertyName("model")] string Model,

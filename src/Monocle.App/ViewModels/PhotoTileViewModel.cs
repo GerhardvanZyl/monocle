@@ -1,6 +1,7 @@
 using Avalonia.Media;
 using Avalonia.Media.Imaging;
 using CommunityToolkit.Mvvm.ComponentModel;
+using Monocle.App.Controls;
 using Monocle.Core.Model;
 using Monocle.Models;
 
@@ -48,8 +49,27 @@ public partial class PhotoTileViewModel : ViewModelBase
     [ObservableProperty] private string _pipelineTip = "";
     [ObservableProperty] private bool _analyzing = true;
 
-    // The pipeline strip reflects how far this frame has progressed, which depends on Analyzing.
-    partial void OnAnalyzingChanged(bool value) => RefreshPipelineStrip();
+    /// <summary>True while a scan with at least one scorer model selected is running, so the per-photo
+    /// "Score" pip is treated as an expected step rather than skipped (#7). Set by the VM per scan.</summary>
+    [ObservableProperty] private bool _expectsScoring;
+
+    /// <summary>True while a Claude cull is judging this frame (#3). Frames already carry a heuristic
+    /// rating before a cull, so the terminal "Rate" pip would otherwise read Done; this forces it to
+    /// show the in-progress block until Claude writes its own rating.</summary>
+    [ObservableProperty] private bool _culling;
+    partial void OnCullingChanged(bool value) => RefreshPipelineStates();
+
+    // The per-photo pipeline pips (#7): one square per stage, shown as an overlay on every tile.
+    // Stage order mirrors the pipeline flowchart, top → bottom: Decode, EXIF, Metrics, Score, Rate.
+    public static readonly string[] PipelineStageNames = { "Decode", "EXIF", "Metrics", "Score", "Rate" };
+    [ObservableProperty] private IReadOnlyList<PipState> _pipelineStates = DefaultPips();
+
+    private static PipState[] DefaultPips() =>
+        new[] { PipState.Pending, PipState.Pending, PipState.Pending, PipState.Pending, PipState.Pending };
+
+    // The pipeline strip + pips reflect how far this frame has progressed, which depends on Analyzing.
+    partial void OnAnalyzingChanged(bool value) { RefreshPipelineStrip(); RefreshPipelineStates(); }
+    partial void OnExpectsScoringChanged(bool value) => RefreshPipelineStates();
 
     // ---- Design palette (mirrors the Photo Critic tokens; kept here so brushes match App.axaml). ----
     private static readonly IBrush CardBorder = new SolidColorBrush(Color.FromRgb(0x36, 0x33, 0x2E));   // --border
@@ -111,6 +131,7 @@ public partial class PhotoTileViewModel : ViewModelBase
                      : CardBorder;
         ReasonDot = ReasonToBrush(Item.Reason);
         RefreshPipelineStrip();
+        RefreshPipelineStates();
     }
 
     private void RefreshPipelineStrip()
@@ -118,6 +139,47 @@ public partial class PhotoTileViewModel : ViewModelBase
         var stage = PipelineStatus.Of(Item, Analyzing);
         PipelineStrip = StageToBrush(stage);
         PipelineTip = PipelineStatus.Label(stage);
+    }
+
+    /// <summary>Recompute the five per-photo pipeline pips from the item's data and the live
+    /// <see cref="Analyzing"/> flag (#7). Each completed stage is Done; the frame's current stage is
+    /// Active (the growing, bottom-up-filling block); not-yet-reached stages are Pending; and the
+    /// Score stage is Skipped when no scorer model was selected for this scan.</summary>
+    private void RefreshPipelineStates()
+    {
+        var s = new PipState[5];
+        var hasMetrics = Item.Metrics is not null;
+        var hasScores = Item.Scores.Count > 0;
+        var isRated = Item.Stars > 0;
+
+        // Decode / EXIF / Metrics all land together (one decode pass computes metrics + reads EXIF).
+        var metricsDone = hasMetrics || hasScores || isRated;
+        s[0] = metricsDone ? PipState.Done : Analyzing ? PipState.Active : PipState.Pending; // Decode
+        s[1] = metricsDone ? PipState.Done : PipState.Pending;                               // EXIF
+        s[2] = metricsDone ? PipState.Done : PipState.Pending;                               // Metrics
+
+        // Score: only an expected step when a scorer model is enabled; otherwise it is skipped.
+        if (hasScores)
+            s[3] = PipState.Done;
+        else if (!ExpectsScoring)
+            s[3] = metricsDone ? PipState.Skipped : PipState.Pending;
+        else
+            s[3] = metricsDone && Analyzing ? PipState.Active : PipState.Pending;
+
+        // Rate: terminal stage; heuristic or manual rating completes the frame. A running Claude cull
+        // re-judges every frame, so it forces this pip Active even though a heuristic rating exists (#3).
+        if (Culling)
+            s[4] = PipState.Active;
+        else if (isRated)
+            s[4] = PipState.Done;
+        else if (metricsDone && Analyzing && (hasScores || !ExpectsScoring))
+            s[4] = PipState.Active;
+        else
+            s[4] = PipState.Pending;
+
+        // Keep at most one Active block (the spec's single growing step): if a later stage is Active,
+        // an earlier "would-be Active" Decode is already Done, so no conflict arises here.
+        PipelineStates = s;
     }
 
     private static IBrush StageToBrush(PhotoStage stage) => stage switch

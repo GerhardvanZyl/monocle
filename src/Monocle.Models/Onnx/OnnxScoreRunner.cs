@@ -41,6 +41,12 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
     /// <summary>A direct-download URL for this model's weights, or null if it must be installed manually.</summary>
     public string? DownloadUrl => _config.DownloadUrl;
 
+    /// <summary>The weights filename this runner looks for (e.g. <c>nima.onnx</c>).</summary>
+    public string FileName => _config.FileName;
+
+    /// <summary>Full path where this runner expects its weights file to live.</summary>
+    public string ModelPath => _modelPath;
+
     /// <summary>Download and verify this model's weights into the models directory (#5). Throws if no
     /// <see cref="DownloadUrl"/> is configured or the checksum doesn't match.</summary>
     public Task InstallAsync(IProgress<double>? progress = null, CancellationToken ct = default) =>

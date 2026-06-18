@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 
 namespace Monocle.App.Diagnostics;
@@ -13,8 +14,24 @@ internal static class Log
     private static readonly object Gate = new();
     private static string? _file;
 
+    // Last N lines kept in memory so the in-app console panel can backfill what was logged before
+    // it opened (and before the window/VM even existed).
+    private static readonly Queue<string> Buffer = new();
+    private const int MaxBuffer = 2000;
+
+    /// <summary>Raised for every line written, so an in-app console can mirror the log live.
+    /// Handlers run on the logging thread; marshal to the UI thread yourself.</summary>
+    public static event Action<string>? LineWritten;
+
     /// <summary>The path of the current run's log file, if one was created.</summary>
     public static string? FilePath => _file;
+
+    /// <summary>A snapshot of the buffered log lines (for backfilling a freshly-opened console).</summary>
+    public static IReadOnlyList<string> Snapshot()
+    {
+        lock (Gate)
+            return Buffer.ToArray();
+    }
 
     public static void Init()
     {
@@ -55,6 +72,14 @@ internal static class Log
 
             if (_file is not null)
                 try { File.AppendAllText(_file, line + Environment.NewLine); } catch { }
+
+            Buffer.Enqueue(line);
+            while (Buffer.Count > MaxBuffer)
+                Buffer.Dequeue();
         }
+
+        // Notify outside the lock: a subscriber marshals to the UI thread, and holding Gate across
+        // that hop could deadlock against another thread that logs while the UI work is queued.
+        try { LineWritten?.Invoke(line); } catch { /* a broken subscriber must not break logging */ }
     }
 }

@@ -43,6 +43,10 @@
         <FontFamily x:Key="FontSans">IBM Plex Sans,Inter,Segoe UI,sans-serif</FontFamily>
         <FontFamily x:Key="FontMono">IBM Plex Mono,Cascadia Mono,Consolas,monospace</FontFamily>
 
+        <!-- Tile dimensions, updated live from the toolbar thumbnail-size slider (#8). -->
+        <x:Double x:Key="TileCardWidth">200</x:Double>
+        <x:Double x:Key="TileImageHeight">144</x:Double>
+
         <conv:EqualityConverter x:Key="IsEqual"/>
     </Application.Resources>
 
@@ -67,6 +71,9 @@
             <Setter Property="FontFamily" Value="{StaticResource FontSans}"/>
             <Setter Property="FontSize" Value="12.5"/>
             <Setter Property="FontWeight" Value="Medium"/>
+            <!-- Center content so labels (e.g. the Scan button, #6) never top-align. -->
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
         <Style Selector="Button:pointerover /template/ ContentPresenter#PART_ContentPresenter">
             <Setter Property="Background" Value="{StaticResource Surface3}"/>
@@ -182,6 +189,68 @@
         </Style>
         <Style Selector="Expander /template/ Border#ExpanderHeader">
             <Setter Property="Background" Value="{StaticResource Surface2}"/>
+        </Style>
+
+        <!-- ===== Left-rail navigation buttons (#8) ===== -->
+        <Style Selector="Button.nav">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Padding" Value="9,8"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontSize" Value="13"/>
+            <Setter Property="FontWeight" Value="Medium"/>
+        </Style>
+        <Style Selector="Button.nav:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+        </Style>
+        <Style Selector="Button.nav.on">
+            <Setter Property="Background" Value="{StaticResource AccentSoft}"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+        <Style Selector="Button.nav.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <!-- ===== Right-panel tab buttons (#8) ===== -->
+        <Style Selector="Button.rtab">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Height" Value="28"/>
+        </Style>
+        <Style Selector="Button.rtab.on">
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+        </Style>
+        <Style Selector="Button.rtab.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+        </Style>
+
+        <!-- Accent swatch (round) — Classes.on rings the active accent. -->
+        <Style Selector="Button.swatch">
+            <Setter Property="Width" Value="15"/>
+            <Setter Property="Height" Value="15"/>
+            <Setter Property="CornerRadius" Value="99"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="BorderThickness" Value="0"/>
+        </Style>
+        <Style Selector="Button.swatch.on">
+            <Setter Property="BorderThickness" Value="2"/>
+            <Setter Property="BorderBrush" Value="{StaticResource Text1}"/>
+        </Style>
+
+        <!-- ===== Grid: never paint the row (ListBoxItem) selection; only the tile shows selection (#5) ===== -->
+        <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+        <Style Selector="ListBoxItem:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
         </Style>
 
         <!-- ===== Scrollbars ===== -->

@@ -6,6 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <BuiltInComInteropSupport>true</BuiltInComInteropSupport>
     <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\robot-neon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
   </PropertyGroup>
 
@@ -39,9 +40,14 @@
     <ProjectReference Include="..\Monocle.Mcp\Monocle.Mcp.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
-  <!-- Copy the Python sidecar next to the app so it can be started on demand. -->
+  <!-- Copy the Python sidecar next to the app so it can be started on demand. Copy the whole
+       project (not just *.py) so pyproject.toml ships too — the in-app "Install Python deps" runs
+       `pip install <python dir>` and needs it. Exclude any local virtual-env / bytecode caches so
+       a developer's multi-GB .venv never gets copied into bin/. -->
   <ItemGroup>
-    <None Include="..\..\python\**\*.py" Link="python\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\python\**\*.*"
+          Exclude="..\..\python\.venv\**;..\..\python\**\__pycache__\**;..\..\python\**\*.pyc"
+          Link="python\%(RecursiveDir)%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <!-- Copy the built MCP server next to the app so the cull can spawn it. -->

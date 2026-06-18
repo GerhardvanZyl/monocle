@@ -7,13 +7,18 @@ itself uses only the standard library, so /health and /models work even before t
 dependencies are installed; torch/transformers are imported lazily on the first /score call.
 
 Endpoints (JSON):
-  GET  /health  -> {"status":"ok","models":[ids],"loaded":[ids]}
+  GET  /health  -> {"status":"ok","models":[ids],"ready":[ids],"loaded":[ids]}
   GET  /models  -> {"models":[{id,name,kind,scale_max,description,tradeoffs}, ...]}
   POST /score   -> body {"model":id,"image_b64":...,"kind":"quality|aesthetic|critique"}
                    resp {"model":id,"value":float|null,"text":str|null,"kind":..,"scale_max":n}
+
+"models" is every model the sidecar knows about; "ready" is the subset whose Python deps
+(torch/transformers/Pillow) are actually importable, so the app can tell "sidecar reachable"
+apart from "model truly runnable" and not offer a model that would fail at score time.
 """
 import argparse
 import base64
+import importlib.util
 import json
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
@@ -40,6 +45,27 @@ CATALOG = [
 ]
 
 _loaded = {}
+
+# All sidecar models need these three importable before they can score. We probe with find_spec
+# (no import side effects, no GPU/VRAM touched) so /health stays instant even on first launch.
+_REQUIRED_DEPS = ("torch", "transformers", "PIL")
+
+
+def _deps_ready():
+    """True only when every heavy dependency a model needs is actually installed."""
+    try:
+        # The app installs deps via pip while this server may already be running, so drop
+        # importlib's cached directory listings before probing — otherwise find_spec keeps
+        # reporting the just-installed packages as missing until the sidecar restarts.
+        importlib.invalidate_caches()
+        return all(importlib.util.find_spec(dep) is not None for dep in _REQUIRED_DEPS)
+    except (ImportError, ValueError):
+        return False
+
+
+def _ready_models():
+    """Model ids that are genuinely runnable right now (deps present)."""
+    return [c["id"] for c in CATALOG] if _deps_ready() else []
 
 
 def _score_qalign(image_bytes):
@@ -104,7 +130,8 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_GET(self):
         if self.path == "/health":
-            self._send(200, {"status": "ok", "models": [c["id"] for c in CATALOG], "loaded": list(_loaded)})
+            self._send(200, {"status": "ok", "models": [c["id"] for c in CATALOG],
+                             "ready": _ready_models(), "loaded": list(_loaded)})
         elif self.path == "/models":
             self._send(200, {"models": CATALOG})
         else:

@@ -27,8 +27,16 @@ to the system `python`.
 
 ## GPU
 
-For your AMD 7900 XTX: install a **ROCm** torch build (Linux) or **torch-directml** / WSL+ROCm
-(Windows). `device_map="auto"` then places the models on the GPU.
+The default install fetches the CPU/CUDA torch wheel from PyPI — fine for NVIDIA/CPU, but not
+accelerated on AMD/Intel. Pick a build to match your GPU:
+
+- **AMD on Linux** — ROCm torch build.
+- **AMD/Intel on Windows** — `torch-directml`, or run under WSL with ROCm.
+
+`device_map="auto"` then places the models on the GPU. From the app, set this once in
+**Settings → Python sidecar → Compute target** before clicking **Install Python deps** — the
+installer fetches the matching torch wheel first (both GPU options are experimental). Installing
+manually, just `pip install` the appropriate torch build into `.venv` yourself.
 
 ## API
 

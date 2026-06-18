@@ -56,6 +56,7 @@ public sealed class FlowchartControl : Control
             if (_subscribed is not null) _subscribed.Changed -= OnRunChanged;
             _subscribed = Run;
             if (_subscribed is not null) _subscribed.Changed += OnRunChanged;
+            InvalidateMeasure();   // stage count may differ between runs (#6)
             InvalidateVisual();
         }
     }
@@ -81,6 +82,18 @@ public sealed class FlowchartControl : Control
     }
 
     private void OnRunChanged() => Dispatcher.UIThread.Post(InvalidateVisual);
+
+    // Size to the stage count (+ legend) so the surrounding border wraps every box instead of a fixed
+    // height clipping the last stage (#6). Height is content-driven; width follows the available space.
+    protected override Size MeasureOverride(Size availableSize)
+    {
+        var n = Run?.Graph.Stages.Count ?? 0;
+        if (n == 0)
+            return new Size(double.IsInfinity(availableSize.Width) ? BoxW + 40 : availableSize.Width, 80);
+        var h = TopPad + n * (BoxH + Gap) + 28;   // trailing gap + legend strip
+        var w = double.IsInfinity(availableSize.Width) ? BoxW + 40 : availableSize.Width;
+        return new Size(w, h);
+    }
 
     public override void Render(DrawingContext context)
     {
