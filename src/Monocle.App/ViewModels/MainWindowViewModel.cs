@@ -65,6 +65,10 @@ public partial class MainWindowViewModel : ViewModelBase
         // Python side are visible (it fires on a thread-pool thread; Log marshals it from there).
         _sidecar.Output += OnSidecarOutput;
 
+        // Surface why a ticked scorer produced no score (sidecar down, deps missing, runtime error)
+        // so models like Q-Align / Qwen2-VL don't silently contribute nothing to scores + critique.
+        _service.ScorerSkipped += OnScorerSkipped;
+
         _ = InitModelsAsync();
     }
 
@@ -423,6 +427,21 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private static void OnSidecarOutput(string line) => Diagnostics.Log.Info($"[sidecar] {line}");
 
+    // De-duplicate the per-frame skip reason: a down sidecar would otherwise log the same line for
+    // every frame in the shoot. Reset each scan so a newly-broken model is reported again. Analysis
+    // runs many frames in parallel, so the set is guarded by its own lock.
+    private readonly HashSet<string> _scorerSkipReasons = new(StringComparer.Ordinal);
+    private void OnScorerSkipped(string message)
+    {
+        // The reason is the same across frames (only the filename differs); key on the part after ':'.
+        var reason = message[(message.IndexOf(':') + 1)..].Trim();
+        bool isNew;
+        lock (_scorerSkipReasons)
+            isNew = _scorerSkipReasons.Add(reason);
+        if (isNew)
+            Diagnostics.Log.Warn($"[models] {message}");
+    }
+
     // ---- Visualizations (#24) ----
     [ObservableProperty] private ShootStats? _stats;
 
@@ -517,6 +536,10 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnDetailPreviewChanged(Bitmap? oldValue, Bitmap? newValue) => oldValue?.Dispose();
     [ObservableProperty] private string _detailMetrics = "";
     [ObservableProperty] private ObservableCollection<string> _detailScores = new();
+    /// <summary>Free-text critiques for the selected frame — Claude's verdict, Qwen/Q-Align
+    /// commentary, heuristic fault remarks (#2/#3/#4). Each says what works and what doesn't.</summary>
+    [ObservableProperty] private ObservableCollection<CritiqueLine> _detailComments = new();
+    [ObservableProperty] private bool _hasDetailComments;
     [ObservableProperty] private string _notesText = "";
     [ObservableProperty] private string _detailExif = "";
     [ObservableProperty] private string _detailRating = "";
@@ -579,6 +602,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
             var scorers = SelectedScorers();
             SetupPipeline(scorers);
+            lock (_scorerSkipReasons) _scorerSkipReasons.Clear();   // re-report skips for this fresh run
 
             var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
             var expectsScoring = scorers.Count > 0;
@@ -667,6 +691,10 @@ public partial class MainWindowViewModel : ViewModelBase
                         tile.Thumbnail = bmp;
                         tile.Analyzing = false;
                         tile.RefreshFromItem();
+                        // If the user is looking at this frame, surface its just-computed scores and
+                        // model critiques (Qwen, Q-Align, …) without waiting for a re-select (#3/#4).
+                        if (ReferenceEquals(SelectedPhoto, tile))
+                            RefreshDetailText(tile);
                         Analyzed++;
                         var frac = Total == 0 ? 0 : (double)Analyzed / Total;
                         ProgressFraction = frac;
@@ -725,10 +753,15 @@ public partial class MainWindowViewModel : ViewModelBase
         CullLog.Clear();
         CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
         Pipeline?.SetStatus("claude", StageStatus.Running);
-        // Every frame is pending Claude's judgement: show the in-progress block on each tile now, and
-        // clear it per frame as Claude rates it (#3).
+        // Every frame is pending Claude's judgement. Reset progress (a prior cull may have left it at
+        // 1.0) before arming Culling so no bar flashes full; each frame's bar then fills as Claude
+        // reaches it and clears when it's rated (#1).
         foreach (var tile in Photos)
+        {
+            tile.CullProgress = 0;
+            tile.Culled = false;
             tile.Culling = true;
+        }
         _cullCts?.Cancel();
         _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
 
@@ -753,15 +786,24 @@ public partial class MainWindowViewModel : ViewModelBase
                         break;
                     case ClaudeEventKind.ToolUse:
                         CullLog.Add($"→ {ev.ToolName}");
-                        if (ev.ToolName?.EndsWith("set_rating", StringComparison.Ordinal) == true)
+                        var tile = TryGetToolId(ev.ToolInput) is { } toolId
+                            ? Photos.FirstOrDefault(p => IdsMatch(p.Item.Id, toolId))
+                            : null;
+                        var tool = ev.ToolName ?? "";
+                        if (tool.EndsWith("set_rating", StringComparison.Ordinal))
                         {
                             rated++;
                             Pipeline?.SetProgress("claude", Total == 0 ? 0 : Math.Min(1.0, (double)rated / Total));
-                            // Stop the in-progress block on the frame Claude just rated (#3).
-                            if (TryGetToolId(ev.ToolInput) is { } id &&
-                                Photos.FirstOrDefault(p => string.Equals(p.Item.Id, id, StringComparison.OrdinalIgnoreCase)) is { } tile)
-                                tile.Culling = false;
+                            // The frame Claude just rated is complete: fill its bar and hide it (#1).
+                            tile?.CompleteCull();
                         }
+                        // Claude inspects a frame (preview → metrics) before rating it; advance that
+                        // frame's bar on each step so it climbs monotonically toward — but never to —
+                        // 1.0 until the rating actually lands (#1).
+                        else if (tool.EndsWith("get_preview", StringComparison.Ordinal))
+                            tile?.AdvanceCull(0.5);
+                        else if (tool.EndsWith("get_metrics", StringComparison.Ordinal))
+                            tile?.AdvanceCull(0.8);
                         break;
                     case ClaudeEventKind.Result:
                         CullLog.Add($"Done — {ev.NumTurns} turns, {ev.DurationMs} ms, ${ev.CostUsd:0.0000}.");
@@ -789,6 +831,21 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
+    /// <summary>Match a grid tile's id against the id Claude passed to a tool. Frame ids are
+    /// <c>{folder}::{basename}</c>; the cull MCP server scans the folder independently, so the folder
+    /// half can differ purely in formatting (forward vs back slashes, a trailing separator) even though
+    /// it's the same shoot. Comparing the basename half makes the tile mapping robust to that, so the
+    /// per-frame cull progress actually tracks (#1, #3).</summary>
+    private static bool IdsMatch(string tileId, string toolId) =>
+        string.Equals(tileId, toolId, StringComparison.OrdinalIgnoreCase) ||
+        string.Equals(IdBase(tileId), IdBase(toolId), StringComparison.OrdinalIgnoreCase);
+
+    private static string IdBase(string id)
+    {
+        var i = id.LastIndexOf("::", StringComparison.Ordinal);
+        return i >= 0 ? id[(i + 2)..] : id;
+    }
+
     /// <summary>Pull the frame <c>id</c> out of a tool-use input JSON blob (e.g. set_rating), or null
     /// if it's missing or not a string. Used to map a cull rating back to its grid tile (#3).</summary>
     private static string? TryGetToolId(string? toolInput)
@@ -813,12 +870,21 @@ public partial class MainWindowViewModel : ViewModelBase
         await Task.Run(() =>
         {
             foreach (var tile in tiles)
+            {
+                // Drop the heuristic headline first: SidecarService.Load only fills the headline when
+                // it's absent, so without this the stale pre-cull verdict would shadow the one Claude
+                // just wrote to the sidecar (#2). RatedByModel travels inside the headline's "[model]"
+                // prefix, so the critique card still attributes it correctly.
+                tile.Item.Rationale.Remove("headline");
                 SidecarService.Load(tile.Item);
+            }
         });
         foreach (var tile in tiles)
             tile.RefreshFromItem();
+        // Claude's verdict was written to the sidecar by the MCP process; now that it's read back
+        // into the in-memory item, surface it (and any model critiques) in the detail pane (#2).
         if (SelectedPhoto is { } sel)
-            DetailRating = FormatRating(sel.Item);
+            RefreshDetailText(sel);
         ApplyFilter();
         RefreshStats();
     }
@@ -895,19 +961,11 @@ public partial class MainWindowViewModel : ViewModelBase
         if (tile is null || _cache is null)
         {
             DetailPreview = null;
-            DetailMetrics = "";
-            DetailExif = "";
-            DetailRating = "";
-            DetailScores = new ObservableCollection<string>();
-            NotesText = "";
+            RefreshDetailText(null);
             return;
         }
 
-        NotesText = tile.Item.UserNotes ?? "";
-        DetailRating = FormatRating(tile.Item);
-        DetailMetrics = FormatMetrics(tile.Item);
-        DetailExif = FormatExif(tile.Item);
-        DetailScores = new ObservableCollection<string>(tile.Item.Scores.Select(FormatScore));
+        RefreshDetailText(tile);
 
         try
         {
@@ -1007,8 +1065,105 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             ResourceKind.Cpu => "CPU", ResourceKind.Gpu => "GPU", _ => "Claude"
         };
-        var text = string.IsNullOrWhiteSpace(s.Text) ? "" : $" — {s.Text}";
-        return $"[{s.ModelDisplayName} · {resource}]{val}{text}";
+        // The free-text critique now lives in the AI-critique section, so the score line is numeric only.
+        return $"[{s.ModelDisplayName} · {resource}]{val}";
+    }
+
+    /// <summary>Refresh every text field of the detail pane (rating, metrics, EXIF, scores, critiques,
+    /// notes) from the tile without touching the preview bitmap, so it can be re-run cheaply when a
+    /// scan or cull lands new data on the selected frame (#2/#3/#4).</summary>
+    private void RefreshDetailText(PhotoTileViewModel? tile)
+    {
+        if (tile is null)
+        {
+            DetailMetrics = "";
+            DetailExif = "";
+            DetailRating = "";
+            DetailScores = new ObservableCollection<string>();
+            DetailComments = new ObservableCollection<CritiqueLine>();
+            HasDetailComments = false;
+            NotesText = "";
+            return;
+        }
+
+        NotesText = tile.Item.UserNotes ?? "";
+        DetailRating = FormatRating(tile.Item);
+        DetailMetrics = FormatMetrics(tile.Item);
+        DetailExif = FormatExif(tile.Item);
+        DetailScores = new ObservableCollection<string>(tile.Item.Scores.Select(FormatScore));
+        DetailComments = new ObservableCollection<CritiqueLine>(BuildComments(tile.Item));
+        HasDetailComments = DetailComments.Count > 0;
+    }
+
+    /// <summary>Gather every free-text critique attached to a frame, in order of usefulness: the
+    /// judging model's headline verdict (Claude after a cull, or the heuristic), each scoring model's
+    /// own commentary (Qwen, Q-Align, …), then the per-fault technical remarks. De-duplicated so the
+    /// same sentence isn't shown twice when it appears as both headline and a model score.</summary>
+    private static IEnumerable<CritiqueLine> BuildComments(PhotoItem item)
+    {
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+        CritiqueLine? Make(string author, string? body)
+        {
+            body = body?.Trim();
+            if (string.IsNullOrEmpty(body) || !seen.Add(body))
+                return null;
+            return new CritiqueLine(author, body);
+        }
+
+        // Headline verdict (what works / what doesn't) from whichever model rated the frame. The
+        // stored headline is prefixed "[model] …" (e.g. "[Claude] …"); peel that off for the author so
+        // a sidecar-loaded verdict is attributed correctly even though Load doesn't restore RatedByModel.
+        if (item.Rationale.TryGetValue("headline", out var headline))
+        {
+            var (author, body) = SplitRater(headline, item.RatedByModel ?? "AI verdict");
+            if (Make(author, body) is { } h)
+                yield return h;
+        }
+
+        // Each scoring model's own commentary. Q-Align emits only a number, so derive a short
+        // qualitative read from its 1-5 score so it still "says" something.
+        foreach (var s in item.Scores)
+        {
+            var body = !string.IsNullOrWhiteSpace(s.Text) ? s.Text : QualitativeRead(s);
+            if (Make(s.ModelDisplayName, body) is { } c)
+                yield return c;
+        }
+
+        // Per-fault technical remarks (sharpness/exposure/noise), excluding the headline key.
+        foreach (var kv in item.Rationale)
+            if (!string.Equals(kv.Key, "headline", StringComparison.Ordinal) &&
+                Make(Capitalize(kv.Key), kv.Value) is { } c)
+                yield return c;
+    }
+
+    /// <summary>A short words-not-numbers read of a numeric quality/aesthetic score (e.g. Q-Align's
+    /// 1-5), so a model with no text critique still contributes a sentence to the critique section.</summary>
+    private static string? QualitativeRead(ModelScore s)
+    {
+        if (s.Normalized is not { } n || s.Kind is not (ScoreKind.Quality or ScoreKind.Aesthetic))
+            return null;
+        var word = n >= 0.8 ? "excellent" : n >= 0.6 ? "good" : n >= 0.45 ? "average" : n >= 0.3 ? "weak" : "poor";
+        var facet = s.Kind == ScoreKind.Quality ? "technical quality" : "aesthetic appeal";
+        return $"Rates the {facet} as {word}.";
+    }
+
+    private static string Capitalize(string s) =>
+        string.IsNullOrEmpty(s) ? s : char.ToUpperInvariant(s[0]) + s[1..];
+
+    /// <summary>Split a stored "[model] verdict" headline into (author, verdict). Falls back to
+    /// <paramref name="fallbackAuthor"/> when there's no bracketed prefix.</summary>
+    private static (string Author, string Body) SplitRater(string headline, string fallbackAuthor)
+    {
+        headline = headline.Trim();
+        if (headline.StartsWith('[') && headline.IndexOf(']') is var close && close > 1)
+        {
+            var author = headline[1..close].Trim();
+            var body = headline[(close + 1)..].Trim();
+            if (author.Length > 0 && body.Length > 0)
+                return (author, body);
+        }
+        return (fallbackAuthor, headline);
     }
 
     private static Bitmap? SafeLoadBitmap(string path)
@@ -1145,6 +1300,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Diagnostics.Log.LineWritten -= OnLogLine;
         _sidecar.Output -= OnSidecarOutput;
+        _service.ScorerSkipped -= OnScorerSkipped;
         _scanCts?.Cancel();
         _cullCts?.Cancel();
         _cache?.Dispose();

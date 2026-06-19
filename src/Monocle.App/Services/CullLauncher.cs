@@ -65,7 +65,10 @@ public static class CullLauncher
         "Use ONLY the monocle MCP tools. scan_folder first, then for each frame call " +
         "get_preview to judge the JPEG/embedded preview visually together with its technical " +
         "metrics, and set_rating(id, stars, rationale, model) where 1=reject, 2=weak, " +
-        "3=average, 4=good or better. For bursts keep the strongest and down-rate the rest but " +
-        "keep at least 3 frames of a genuine series. Never demosaic a RAW. Report picks/rejects " +
-        "and the cost when done.";
+        "3=average, 4=good or better. In the rationale, say in one or two sentences BOTH what " +
+        "works in the frame and what doesn't (e.g. 'Sharp eyes and strong side light, but the " +
+        "horizon tilts and the background is cluttered.') so the photographer understands the " +
+        "verdict — never just a single adjective. For bursts keep the strongest and down-rate the " +
+        "rest but keep at least 3 frames of a genuine series. Never demosaic a RAW. Report " +
+        "picks/rejects and the cost when done.";
 }

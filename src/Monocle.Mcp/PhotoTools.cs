@@ -65,7 +65,7 @@ public sealed class PhotoTools(ShootState state)
     public string SetRating(
         [Description("Frame id.")] string id,
         [Description("Stars 1-4 (0 clears).")] int stars,
-        [Description("Short headline rationale.")] string? rationale = null,
+        [Description("One or two sentences saying what works in the frame AND what doesn't — not just a single adjective.")] string? rationale = null,
         [Description("Judging model name, e.g. 'Opus 4.8'.")] string? model = null)
     {
         if (stars < 0 || stars > 4)

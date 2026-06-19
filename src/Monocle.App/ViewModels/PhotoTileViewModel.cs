@@ -53,19 +53,49 @@ public partial class PhotoTileViewModel : ViewModelBase
     /// "Score" pip is treated as an expected step rather than skipped (#7). Set by the VM per scan.</summary>
     [ObservableProperty] private bool _expectsScoring;
 
-    /// <summary>True while a Claude cull is judging this frame (#3). Frames already carry a heuristic
-    /// rating before a cull, so the terminal "Rate" pip would otherwise read Done; this forces it to
-    /// show the in-progress block until Claude writes its own rating.</summary>
+    /// <summary>True while a Claude cull is running and this frame has not yet been re-judged (#1).
+    /// Cleared per frame as Claude rates it. Drives the per-tile Claude pip (Active while culling).</summary>
     [ObservableProperty] private bool _culling;
     partial void OnCullingChanged(bool value) => RefreshPipelineStates();
 
+    /// <summary>0..1 progress of Claude's judging of THIS frame (#1). Driven by the actual cull
+    /// tool calls (preview fetched → metrics fetched → rated), so it is monotonic, never resets, and
+    /// stays below 1 until Claude actually rates the frame. &gt; 0 means Claude has reached this frame,
+    /// so its Claude pip animates; queued frames sit at 0 and show a quiet hollow pip.</summary>
+    [ObservableProperty] private double _cullProgress;
+    partial void OnCullProgressChanged(double value) => RefreshPipelineStates();
+
+    /// <summary>True once Claude has finished judging this frame in the current/last cull, so its
+    /// Claude pip stays solid (Done) after <see cref="Culling"/> clears (#1).</summary>
+    [ObservableProperty] private bool _culled;
+
+    /// <summary>Advance this frame's cull progress to at least <paramref name="value"/> (monotonic;
+    /// a smaller value never pulls the bar back). Used as Claude steps through preview/metrics.</summary>
+    public void AdvanceCull(double value)
+    {
+        if (value > CullProgress)
+            CullProgress = value;
+    }
+
+    /// <summary>Mark Claude's judging of this frame complete: fill the bar, then settle the pip (#1).</summary>
+    public void CompleteCull()
+    {
+        CullProgress = 1;
+        Culled = true;
+        Culling = false;   // pip settles to Done; the new rating/border now tells the story
+    }
+
     // The per-photo pipeline pips (#7): one square per stage, shown as an overlay on every tile.
-    // Stage order mirrors the pipeline flowchart, top → bottom: Decode, EXIF, Metrics, Score, Rate.
-    public static readonly string[] PipelineStageNames = { "Decode", "EXIF", "Metrics", "Score", "Rate" };
+    // Stage order mirrors the pipeline flowchart, top → bottom (scan + write are folder-level, so the
+    // six per-frame stages are Decode, EXIF, Metrics, Score, Claude, Rate).
+    public static readonly string[] PipelineStageNames = { "Decode", "EXIF", "Metrics", "Score", "Claude", "Rate" };
     [ObservableProperty] private IReadOnlyList<PipState> _pipelineStates = DefaultPips();
 
-    private static PipState[] DefaultPips() =>
-        new[] { PipState.Pending, PipState.Pending, PipState.Pending, PipState.Pending, PipState.Pending };
+    private static PipState[] DefaultPips() => new[]
+    {
+        PipState.Pending, PipState.Pending, PipState.Pending,
+        PipState.Pending, PipState.Pending, PipState.Pending,
+    };
 
     // The pipeline strip + pips reflect how far this frame has progressed, which depends on Analyzing.
     partial void OnAnalyzingChanged(bool value) { RefreshPipelineStrip(); RefreshPipelineStates(); }
@@ -141,13 +171,13 @@ public partial class PhotoTileViewModel : ViewModelBase
         PipelineTip = PipelineStatus.Label(stage);
     }
 
-    /// <summary>Recompute the five per-photo pipeline pips from the item's data and the live
-    /// <see cref="Analyzing"/> flag (#7). Each completed stage is Done; the frame's current stage is
-    /// Active (the growing, bottom-up-filling block); not-yet-reached stages are Pending; and the
-    /// Score stage is Skipped when no scorer model was selected for this scan.</summary>
+    /// <summary>Recompute the six per-photo pipeline pips from the item's data and the live
+    /// <see cref="Analyzing"/>/<see cref="Culling"/> flags (#7, #1). Each completed stage is Done; the
+    /// frame's current stage is Active (the growing, bottom-up-filling block); not-yet-reached stages
+    /// are Pending; and a stage not part of this run (no scorer / no cull) is Skipped.</summary>
     private void RefreshPipelineStates()
     {
-        var s = new PipState[5];
+        var s = new PipState[6];
         var hasMetrics = Item.Metrics is not null;
         var hasScores = Item.Scores.Count > 0;
         var isRated = Item.Stars > 0;
@@ -166,16 +196,26 @@ public partial class PhotoTileViewModel : ViewModelBase
         else
             s[3] = metricsDone && Analyzing ? PipState.Active : PipState.Pending;
 
-        // Rate: terminal stage; heuristic or manual rating completes the frame. A running Claude cull
-        // re-judges every frame, so it forces this pip Active even though a heuristic rating exists (#3).
-        if (Culling)
-            s[4] = PipState.Active;
-        else if (isRated)
+        // Claude: skipped unless a cull is running for this frame. Active (the growing vertical block)
+        // once Claude has reached the frame (progress > 0); a quiet hollow pip while queued; solid once
+        // judged so it reads as Done after the cull moves on (#1).
+        if (Culled)
             s[4] = PipState.Done;
-        else if (metricsDone && Analyzing && (hasScores || !ExpectsScoring))
-            s[4] = PipState.Active;
+        else if (Culling)
+            s[4] = CullProgress > 0 ? PipState.Active : PipState.Pending;
         else
-            s[4] = PipState.Pending;
+            s[4] = PipState.Skipped;
+
+        // Rate: terminal stage; heuristic or manual rating completes the frame. While a cull is in
+        // flight the rating is being re-decided by Claude, so this pip waits behind the Claude stage.
+        if (Culling && !Culled)
+            s[5] = PipState.Pending;
+        else if (isRated)
+            s[5] = PipState.Done;
+        else if (metricsDone && Analyzing && (hasScores || !ExpectsScoring))
+            s[5] = PipState.Active;
+        else
+            s[5] = PipState.Pending;
 
         // Keep at most one Active block (the spec's single growing step): if a later stage is Active,
         // an earlier "would-be Active" Decode is already Done, so no conflict arises here.

@@ -101,12 +101,16 @@ def _score_qwen(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     messages = [{"role": "user", "content": [
         {"type": "image", "image": img},
-        {"type": "text", "text": "Critique this photo in two sentences for a culling decision."},
+        {"type": "text", "text": "Critique this photo for a culling decision in two sentences: "
+                                 "first what works in it, then what doesn't."},
     ]}]
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[text], images=[img], return_tensors="pt").to(model.device)
-    out = model.generate(**inputs, max_new_tokens=96)
-    critique = processor.batch_decode(out, skip_special_tokens=True)[0]
+    out = model.generate(**inputs, max_new_tokens=128)
+    # batch_decode over the full sequence echoes the prompt back; slice off the input tokens so
+    # only the model's own critique is returned.
+    trimmed = out[:, inputs.input_ids.shape[1]:]
+    critique = processor.batch_decode(trimmed, skip_special_tokens=True)[0].strip()
     return None, critique
 
 

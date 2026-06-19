@@ -353,6 +353,8 @@
                                                             </Border>
                                                             <ProgressBar IsIndeterminate="True" IsVisible="{Binding Analyzing}"
                                                                          VerticalAlignment="Bottom" Height="3" MinHeight="3"/>
+                                                            <!-- Per-photo Claude cull progress (#1) is shown by the vertical "Claude" pip in
+                                                                 PipelinePipsControl (it grows + animates for the frame Claude is judging). -->
                                                         </Panel>
                                                         <!-- Footer -->
                                                         <StackPanel Margin="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).CardPadding}" Spacing="7">
@@ -716,6 +718,27 @@
                                         <DataTemplate>
                                             <TextBlock Text="{Binding}" TextWrapping="Wrap" FontSize="11" Margin="0,1"
                                                        Foreground="{StaticResource Text2}"/>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <!-- AI critique (#2/#3/#4): Claude's verdict + every model's commentary,
+                                     what works and what doesn't. Hidden when no model has spoken yet. -->
+                                <TextBlock Text="AI CRITIQUE — WHAT WORKS / WHAT DOESN'T" FontWeight="SemiBold"
+                                           FontSize="11" Foreground="{StaticResource Text3}"
+                                           IsVisible="{Binding HasDetailComments}"/>
+                                <ItemsControl ItemsSource="{Binding DetailComments}" IsVisible="{Binding HasDetailComments}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:CritiqueLine">
+                                            <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                                    BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,2">
+                                                <StackPanel Spacing="3">
+                                                    <TextBlock Text="{Binding Author}" FontWeight="SemiBold" FontSize="10.5"
+                                                               Foreground="{StaticResource Accent}"/>
+                                                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" FontSize="11.5"
+                                                               Foreground="{StaticResource Text1}"/>
+                                                </StackPanel>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>

@@ -27,6 +27,12 @@ public sealed class ShootService
         _exif = exif ?? new ExifReader();
     }
 
+    /// <summary>Raised when a selected scorer is skipped or fails for a frame. Scoring still degrades
+    /// gracefully (the run continues), but this surfaces *why* a model produced no score so a ticked
+    /// model that silently contributes nothing (e.g. a sidecar that went down or whose deps aren't
+    /// installed) isn't a mystery. The App routes it to the Run log.</summary>
+    public event Action<string>? ScorerSkipped;
+
     /// <summary>Scan the folder and load any ratings/notes that already exist in sidecars.</summary>
     public IReadOnlyList<PhotoItem> Load(string folder, bool foldPairs = true)
     {
@@ -91,7 +97,13 @@ public sealed class ShootService
                         // The availability probe is inside the try: a runner whose probe throws must
                         // be skipped, not abort the whole frame (FEATURES §6 graceful degrade).
                         if (!await runner.IsAvailableAsync(ct).ConfigureAwait(false))
+                        {
+                            // A ticked model that's now unavailable (e.g. the sidecar went down, or its
+                            // Python deps were never installed) would otherwise vanish without a trace.
+                            ScorerSkipped?.Invoke($"{runner.Descriptor.DisplayName} skipped {item.BaseName}: model unavailable" +
+                                (runner.Descriptor.RequiresSidecar ? " (Python sidecar not running, or its deps aren't installed)." : "."));
                             continue;
+                        }
                         var score = await runner.ScoreAsync(context, ct).ConfigureAwait(false);
                         // Attach centrally so a runner's score appears on the item in this same pass
                         // (not only after a reload) without each runner having to mutate item.Scores.
@@ -103,7 +115,13 @@ public sealed class ShootService
                     {
                         throw; // genuine cancellation propagates; a swallowed runner failure does not
                     }
-                    catch { /* one model failing must not break the run (FEATURES §6 graceful degrade) */ }
+                    catch (Exception ex)
+                    {
+                        // One model failing must not break the run (FEATURES §6 graceful degrade), but
+                        // report it so a ticked model that errors (download/OOM/sidecar /score fault)
+                        // isn't silently absent from the scores + critique.
+                        ScorerSkipped?.Invoke($"{runner.Descriptor.DisplayName} failed on {item.BaseName}: {ex.Message}");
+                    }
                 }
             }
         }

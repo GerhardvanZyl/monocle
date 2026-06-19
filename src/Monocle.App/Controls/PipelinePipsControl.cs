@@ -74,7 +74,7 @@ public sealed class PipelinePipsControl : Control
     // expanded block, so the column size stays constant as the active stage moves down the pipeline.
     protected override Size MeasureOverride(Size availableSize)
     {
-        int n = States is { Count: > 0 } s ? s.Count : 5;
+        int n = States is { Count: > 0 } s ? s.Count : 6;
         double h = (n - 1) * (Pip + Gap) + ActiveH + Pad * 2;
         return new Size(Pad * 2 + Pip, h);
     }
