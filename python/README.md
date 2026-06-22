@@ -1,9 +1,16 @@
 # Monocle Python sidecar (optional)
 
-Exposes PyTorch-only HuggingFace models that have no ONNX export — currently **Q-Align /
-OneAlign** (quality+aesthetic scoring with rationale) and **Qwen2-VL** (free-text critique) —
-over a tiny local HTTP API the app calls. The app works fully without it; starting the sidecar
-just makes these models available in the **Models** picker (#1, #10, #28).
+Exposes PyTorch-only HuggingFace models that have no ONNX export — currently **Qwen2.5-VL**
+(free-text critique) — over a tiny local HTTP API the app calls. The app works fully without it;
+starting the sidecar just makes the model available in the **Models** picker (#1, #10, #28).
+
+The critique can run on the GPU via a llama.cpp Vulkan server: set `MONOCLE_QWEN_LLAMA_URL`
+(e.g. `http://127.0.0.1:8080`) and the sidecar forwards the image to it instead of loading
+Qwen in-process. Otherwise it loads Qwen2-VL-7B through `transformers` (GPU required).
+
+The app auto-starts both this sidecar and the llama.cpp GPU server on launch. The GPU server is
+only launched when `MONOCLE_QWEN_LLAMA_EXE` points at `llama-server.exe`; if it's already running
+the app reuses it, and it's killed on app exit. Unset that var to start the server manually instead.
 
 The server uses only the Python standard library, so it starts instantly and `/health` works
 **before** the heavy ML dependencies are installed; `torch`/`transformers` load lazily on the

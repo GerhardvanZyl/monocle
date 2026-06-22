@@ -6,6 +6,9 @@ requires-python = ">=3.11"
 dependencies = [
     "pillow>=10.0",
     "torch>=2.3",
+    # torchvision is required by transformers' Qwen2-VL processor (the image/video processor backend);
+    # without it AutoProcessor.from_pretrained raises "requires the Torchvision library" and scoring fails.
+    "torchvision>=0.18",
     "transformers>=4.45",
     "accelerate>=0.34",
     "qwen-vl-utils>=0.0.8",

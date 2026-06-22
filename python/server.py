@@ -20,35 +20,49 @@ import argparse
 import base64
 import importlib.util
 import json
+import os
+import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+# Prompt shared by both Qwen backends (transformers + llama.cpp), kept identical so the critique
+# reads the same whichever GPU path is active.
+_QWEN_PROMPT = ("Critique this photo for a culling decision in two sentences: "
+                "first what works in it, then what doesn't.")
 
 CATALOG = [
     {
-        "id": "q-align",
-        "name": "Q-Align / OneAlign",
-        "kind": "quality",
-        "scale_max": 5,
-        "description": "Multimodal LLM scorer (q-future/one-align) — state-of-the-art image "
-                       "quality + aesthetic scoring that can also explain its judgement.",
-        "tradeoffs": "Best-in-class scoring with rationale. Large VRAM (~16GB+) and slower; "
-                     "needs this sidecar.",
-    },
-    {
         "id": "qwen2-vl",
-        "name": "Qwen2-VL critique",
+        "name": "Qwen2.5-VL critique",
         "kind": "critique",
         "scale_max": 0,
-        "description": "Vision-language model (Qwen/Qwen2-VL-7B-Instruct) that writes a natural-"
-                       "language critique — useful as training data for your notes.",
+        "description": "Vision-language model that writes a natural-language critique — useful as "
+                       "training data for your notes. Runs on the GPU via a llama.cpp Vulkan server "
+                       "(Qwen2.5-VL-7B) when MONOCLE_QWEN_LLAMA_URL is set; otherwise loads "
+                       "Qwen2-VL-7B in-process through transformers.",
         "tradeoffs": "Rich, flexible critique. Heavy; not a calibrated numeric score.",
     },
 ]
 
 _loaded = {}
 
-# All sidecar models need these three importable before they can score. We probe with find_spec
+
+def _load_kwargs():
+    """from_pretrained kwargs for a GPU load. CPU fallback is deliberately disabled: the 7B
+    transformers models are unusably slow on CPU, so we hard-fail instead of silently crawling.
+    ROCm presents as CUDA (torch.version.hip set, torch.cuda.is_available()==True), so the same
+    device_map='auto' path covers both NVIDIA and the AMD ROCm build."""
+    import torch
+    if not torch.cuda.is_available():
+        raise RuntimeError(
+            "No GPU visible to torch (CPU fallback is disabled). Install a CUDA or ROCm torch "
+            "build, or set MONOCLE_QWEN_LLAMA_URL to route Qwen through a llama.cpp Vulkan server.")
+    return {"dtype": "auto", "device_map": "auto"}
+
+# All sidecar models need these importable before they can score. We probe with find_spec
 # (no import side effects, no GPU/VRAM touched) so /health stays instant even on first launch.
-_REQUIRED_DEPS = ("torch", "transformers", "PIL")
+# torchvision is included because transformers' Qwen2-VL processor imports it eagerly — without it
+# scoring fails at AutoProcessor.from_pretrained, so a model that "looks" ready would error.
+_REQUIRED_DEPS = ("torch", "torchvision", "transformers", "PIL")
 
 
 def _deps_ready():
@@ -68,24 +82,33 @@ def _ready_models():
     return [c["id"] for c in CATALOG] if _deps_ready() else []
 
 
-def _score_qalign(image_bytes):
-    """Lazy-load q-future/one-align and return a 1-5 quality score."""
-    import torch  # noqa: F401
-    from PIL import Image
-    import io
-    from transformers import AutoModelForCausalLM
-
-    if "q-align" not in _loaded:
-        _loaded["q-align"] = AutoModelForCausalLM.from_pretrained(
-            "q-future/one-align", trust_remote_code=True, torch_dtype="auto", device_map="auto")
-    model = _loaded["q-align"]
-    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-    score = model.score([img], task_="quality", input_="image")  # returns a tensor 1..5
-    return float(score.item()), None
+def _score_qwen_llama(image_bytes):
+    """GPU path #2: route the critique through a co-located llama.cpp Vulkan server (runs Qwen2-VL
+    GGUF on the AMD GPU with no torch/ROCm). Enabled by setting MONOCLE_QWEN_LLAMA_URL, e.g.
+    http://127.0.0.1:8080 — pointing at `llama-server --model Qwen2-VL...gguf --mmproj ...`.
+    Stdlib-only so the sidecar keeps its no-heavy-deps guarantee on this branch."""
+    url = os.environ["MONOCLE_QWEN_LLAMA_URL"].rstrip("/") + "/v1/chat/completions"
+    data_uri = "data:image/jpeg;base64," + base64.b64encode(image_bytes).decode("ascii")
+    body = json.dumps({
+        "messages": [{"role": "user", "content": [
+            {"type": "image_url", "image_url": {"url": data_uri}},
+            {"type": "text", "text": _QWEN_PROMPT},
+        ]}],
+        "max_tokens": 128,
+    }).encode("utf-8")
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=300) as resp:  # ponytail: no retry; surfaces as 503
+        out = json.loads(resp.read())
+    return None, out["choices"][0]["message"]["content"].strip()
 
 
 def _score_qwen(image_bytes):
-    """Lazy-load Qwen2-VL and return a short critique string (no numeric score)."""
+    """Lazy-load Qwen2-VL and return a short critique string (no numeric score).
+    Prefers the llama.cpp Vulkan server when MONOCLE_QWEN_LLAMA_URL is set, else the GPU
+    transformers build (ROCm/CUDA)."""
+    if os.environ.get("MONOCLE_QWEN_LLAMA_URL"):
+        return _score_qwen_llama(image_bytes)
+
     import torch  # noqa: F401
     from PIL import Image
     import io
@@ -94,15 +117,14 @@ def _score_qwen(image_bytes):
     if "qwen2-vl" not in _loaded:
         _loaded["qwen2-vl"] = (
             Qwen2VLForConditionalGeneration.from_pretrained(
-                "Qwen/Qwen2-VL-7B-Instruct", torch_dtype="auto", device_map="auto"),
+                "Qwen/Qwen2-VL-7B-Instruct", **_load_kwargs()),
             AutoProcessor.from_pretrained("Qwen/Qwen2-VL-7B-Instruct"),
         )
     model, processor = _loaded["qwen2-vl"]
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     messages = [{"role": "user", "content": [
         {"type": "image", "image": img},
-        {"type": "text", "text": "Critique this photo for a culling decision in two sentences: "
-                                 "first what works in it, then what doesn't."},
+        {"type": "text", "text": _QWEN_PROMPT},
     ]}]
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[text], images=[img], return_tensors="pt").to(model.device)
@@ -114,7 +136,7 @@ def _score_qwen(image_bytes):
     return None, critique
 
 
-SCORERS = {"q-align": _score_qalign, "qwen2-vl": _score_qwen}
+SCORERS = {"qwen2-vl": _score_qwen}
 
 
 def score_image(model_id, image_bytes, kind):

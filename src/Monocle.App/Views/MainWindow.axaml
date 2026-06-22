@@ -179,26 +179,26 @@
                 BorderThickness="0,1,0,0">
             <DockPanel>
                 <Border DockPanel.Dock="Top" Padding="12,5" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                        <TextBlock Grid.Column="0" Text="CONSOLE" FontSize="10.5" FontWeight="SemiBold"
-                                   Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="Application &amp; Python sidecar diagnostics" FontSize="11"
-                                   Foreground="{StaticResource Text3}" Margin="10,0" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Classes="ghost" Content="Clear" FontSize="11" Padding="8,2"
+                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                        <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding !DrawerRunLog}" Content="Console"
+                                Command="{Binding SetDrawerTabCommand}" CommandParameter="Console"/>
+                        <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding DrawerRunLog}" Content="Run log" Margin="4,0,0,0"
+                                Command="{Binding SetDrawerTabCommand}" CommandParameter="RunLog"/>
+                        <Button Grid.Column="3" Classes="ghost" Content="Clear" FontSize="11" Padding="8,2"
                                 Command="{Binding ClearConsoleCommand}"/>
-                        <Button Grid.Column="3" Classes="ghost" Content="Hide" FontSize="11" Padding="8,2" Margin="6,0,0,0"
+                        <Button Grid.Column="4" Classes="ghost" Content="Hide" FontSize="11" Padding="8,2" Margin="6,0,0,0"
                                 Command="{Binding ToggleConsoleCommand}"/>
                     </Grid>
                 </Border>
-                <ListBox Name="ConsoleList" ItemsSource="{Binding ConsoleLog}" Background="Transparent"
-                         BorderThickness="0" Padding="10,4">
-                    <ListBox.ItemTemplate>
-                        <DataTemplate>
-                            <TextBlock Text="{Binding}" FontFamily="{StaticResource FontMono}" FontSize="11"
-                                       Foreground="{StaticResource Text2}" TextWrapping="NoWrap"/>
-                        </DataTemplate>
-                    </ListBox.ItemTemplate>
-                </ListBox>
+                <!-- Read-only TextBoxes are natively selectable + Ctrl+C copyable. -->
+                <TextBox Text="{Binding ConsoleText, Mode=OneWay}" IsReadOnly="True" IsVisible="{Binding !DrawerRunLog}"
+                         AcceptsReturn="True" TextWrapping="NoWrap" Background="Transparent" BorderThickness="0"
+                         FontFamily="{StaticResource FontMono}" FontSize="11" Foreground="{StaticResource Text2}" Padding="10,4"
+                         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                <TextBox Text="{Binding CullLogText, Mode=OneWay}" IsReadOnly="True" IsVisible="{Binding DrawerRunLog}"
+                         AcceptsReturn="True" TextWrapping="Wrap" Background="Transparent" BorderThickness="0"
+                         FontFamily="{StaticResource FontMono}" FontSize="11" Foreground="{StaticResource Text2}" Padding="10,4"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
             </DockPanel>
         </Border>
 
@@ -339,6 +339,7 @@
                                                             <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
                                                             <!-- per-photo pipeline pips overlay (#7) -->
                                                             <ctl:PipelinePipsControl States="{Binding PipelineStates}"
+                                                                                     Progress="{Binding ActivePipProgress}"
                                                                                      HorizontalAlignment="Left" VerticalAlignment="Top"
                                                                                      ToolTip.Tip="{Binding PipelineTip}"/>
                                                             <!-- technical-reason dot (transparent brush = no reason) -->
@@ -355,6 +356,9 @@
                                                                          VerticalAlignment="Bottom" Height="3" MinHeight="3"/>
                                                             <!-- Per-photo Claude cull progress (#1) is shown by the vertical "Claude" pip in
                                                                  PipelinePipsControl (it grows + animates for the frame Claude is judging). -->
+                                                            <!-- 3px accent border around frames being processed right now (scan or cull) (#3). -->
+                                                            <Border BorderBrush="{Binding ProcessingBorder}" BorderThickness="3"
+                                                                    IsHitTestVisible="False"/>
                                                         </Panel>
                                                         <!-- Footer -->
                                                         <StackPanel Margin="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).CardPadding}" Spacing="7">
@@ -658,15 +662,13 @@
                     <!-- Tab row -->
                     <Border DockPanel.Dock="Top" Height="38" BorderBrush="{StaticResource BorderSoft}"
                             BorderThickness="0,0,0,1" Padding="6,4">
-                        <Grid ColumnDefinitions="*,*,*,*" >
+                        <Grid ColumnDefinitions="*,*,*" >
                             <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding IsDetailTab}" Content="Detail"
                                     HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="Detail"/>
                             <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding IsAiCullTab}" Content="AI Cull"
                                     HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="AiCull"/>
                             <Button Grid.Column="2" Classes="rtab" Classes.on="{Binding IsPipelineTab}" Content="Pipeline"
                                     HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="Pipeline"/>
-                            <Button Grid.Column="3" Classes="rtab" Classes.on="{Binding IsRunLogTab}" Content="Run log"
-                                    HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="RunLog"/>
                         </Grid>
                     </Border>
 
@@ -821,17 +823,6 @@
                             </StackPanel>
                         </ScrollViewer>
 
-                        <!-- RUN LOG TAB -->
-                        <ScrollViewer IsVisible="{Binding IsRunLogTab}" Padding="14">
-                            <ItemsControl ItemsSource="{Binding CullLog}">
-                                <ItemsControl.ItemTemplate>
-                                    <DataTemplate>
-                                        <TextBlock Text="{Binding}" Foreground="{StaticResource Text2}" FontSize="11"
-                                                   TextWrapping="Wrap" FontFamily="{StaticResource FontMono}" Margin="0,1"/>
-                                    </DataTemplate>
-                                </ItemsControl.ItemTemplate>
-                            </ItemsControl>
-                        </ScrollViewer>
                     </Panel>
                 </DockPanel>
             </Border>

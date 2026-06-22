@@ -47,7 +47,14 @@ public partial class PhotoTileViewModel : ViewModelBase
     [ObservableProperty] private IBrush _reasonDot = Brushes.Transparent;
     [ObservableProperty] private IBrush _pipelineStrip = Brushes.Transparent;
     [ObservableProperty] private string _pipelineTip = "";
-    [ObservableProperty] private bool _analyzing = true;
+    // False until this frame's analysis task actually starts, so queued frames show a quiet Pending pip
+    // instead of every tile flashing the tall in-progress block at once (#scan). Set true per-task.
+    [ObservableProperty] private bool _analyzing;
+
+    /// <summary>0..1 fill for the scan in-progress pip, crept up while this frame is being analysed so
+    /// the block grows rather than snapping to full. Reset per analysis.</summary>
+    [ObservableProperty] private double _scanFill;
+    partial void OnScanFillChanged(double value) => OnPropertyChanged(nameof(ActivePipProgress));
 
     /// <summary>True while a scan with at least one scorer model selected is running, so the per-photo
     /// "Score" pip is treated as an expected step rather than skipped (#7). Set by the VM per scan.</summary>
@@ -56,18 +63,42 @@ public partial class PhotoTileViewModel : ViewModelBase
     /// <summary>True while a Claude cull is running and this frame has not yet been re-judged (#1).
     /// Cleared per frame as Claude rates it. Drives the per-tile Claude pip (Active while culling).</summary>
     [ObservableProperty] private bool _culling;
-    partial void OnCullingChanged(bool value) => RefreshPipelineStates();
+    partial void OnCullingChanged(bool value) { RefreshPipelineStates(); OnPropertyChanged(nameof(ActivePipProgress)); RaiseProcessing(); }
+
+    /// <summary>The fill fraction for the pip control's single Active pip. During a cull the Active pip
+    /// is the Claude stage, so it shows Claude's determinate per-frame progress; otherwise NaN tells the
+    /// control the active (scan) stage has no sub-progress and should draw a non-looping busy block (#1).</summary>
+    public double ActivePipProgress =>
+        Culling && !Culled ? CullProgress
+        : Analyzing ? ScanFill
+        : double.NaN;
+
+    /// <summary>True while this frame is actively being worked right now — decoded/scored during a scan,
+    /// or judged by Claude during a cull. Drives the 3px highlight border around the thumbnail (#3).</summary>
+    public bool IsProcessing => Analyzing || (Culling && !Culled && CullProgress > 0);
+
+    /// <summary>Accent border brush shown around the thumbnail while <see cref="IsProcessing"/> (#3).</summary>
+    public IBrush ProcessingBorder => IsProcessing ? ProcessingBrush : Brushes.Transparent;
+
+    private static readonly IBrush ProcessingBrush = new SolidColorBrush(Color.FromRgb(0x1E, 0xB5, 0xA6)); // --accent
+
+    private void RaiseProcessing()
+    {
+        OnPropertyChanged(nameof(IsProcessing));
+        OnPropertyChanged(nameof(ProcessingBorder));
+    }
 
     /// <summary>0..1 progress of Claude's judging of THIS frame (#1). Driven by the actual cull
     /// tool calls (preview fetched → metrics fetched → rated), so it is monotonic, never resets, and
     /// stays below 1 until Claude actually rates the frame. &gt; 0 means Claude has reached this frame,
     /// so its Claude pip animates; queued frames sit at 0 and show a quiet hollow pip.</summary>
     [ObservableProperty] private double _cullProgress;
-    partial void OnCullProgressChanged(double value) => RefreshPipelineStates();
+    partial void OnCullProgressChanged(double value) { RefreshPipelineStates(); OnPropertyChanged(nameof(ActivePipProgress)); RaiseProcessing(); }
 
     /// <summary>True once Claude has finished judging this frame in the current/last cull, so its
     /// Claude pip stays solid (Done) after <see cref="Culling"/> clears (#1).</summary>
     [ObservableProperty] private bool _culled;
+    partial void OnCulledChanged(bool value) { RefreshPipelineStates(); OnPropertyChanged(nameof(ActivePipProgress)); RaiseProcessing(); }
 
     /// <summary>Advance this frame's cull progress to at least <paramref name="value"/> (monotonic;
     /// a smaller value never pulls the bar back). Used as Claude steps through preview/metrics.</summary>
@@ -98,7 +129,7 @@ public partial class PhotoTileViewModel : ViewModelBase
     };
 
     // The pipeline strip + pips reflect how far this frame has progressed, which depends on Analyzing.
-    partial void OnAnalyzingChanged(bool value) { RefreshPipelineStrip(); RefreshPipelineStates(); }
+    partial void OnAnalyzingChanged(bool value) { RefreshPipelineStrip(); RefreshPipelineStates(); RaiseProcessing(); OnPropertyChanged(nameof(ActivePipProgress)); }
     partial void OnExpectsScoringChanged(bool value) => RefreshPipelineStates();
 
     // ---- Design palette (mirrors the Photo Critic tokens; kept here so brushes match App.axaml). ----
@@ -206,11 +237,9 @@ public partial class PhotoTileViewModel : ViewModelBase
         else
             s[4] = PipState.Skipped;
 
-        // Rate: terminal stage; heuristic or manual rating completes the frame. While a cull is in
-        // flight the rating is being re-decided by Claude, so this pip waits behind the Claude stage.
-        if (Culling && !Culled)
-            s[5] = PipState.Pending;
-        else if (isRated)
+        // Rate: terminal stage. Frames are already heuristic-rated before a cull, so this stays Done
+        // during a cull (the Claude pip alone carries the in-progress state — no extra blank box).
+        if (isRated)
             s[5] = PipState.Done;
         else if (metricsDone && Analyzing && (hasScores || !ExpectsScoring))
             s[5] = PipState.Active;

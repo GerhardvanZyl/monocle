@@ -76,14 +76,13 @@ public static class SidecarModelCatalog
 {
     public static readonly IReadOnlyList<SidecarModelInfo> Models = new[]
     {
-        new SidecarModelInfo("q-align", "Q-Align / OneAlign", "quality", ScoreKind.Quality, ModelCategory.MllmCritique,
-            "Multimodal LLM scorer — state-of-the-art image quality + aesthetic scoring (1-5) that can explain itself.",
-            "Best-in-class scoring with rationale. Large VRAM (~16GB+), slower; needs the Python sidecar.",
-            "https://huggingface.co/q-future/one-align"),
-        new SidecarModelInfo("qwen2-vl", "Qwen2-VL critique", "critique", ScoreKind.Aesthetic, ModelCategory.MllmCritique,
-            "Vision-language model that writes a natural-language critique — good training data for your notes.",
+        // Q-Align / OneAlign removed: its custom code is incompatible with transformers 5.x
+        // (KeyError 'model') and it has no GGUF for the GPU llama.cpp path. See gpu-critique-setup.
+        new SidecarModelInfo("qwen2-vl", "Qwen2.5-VL critique", "critique", ScoreKind.Aesthetic, ModelCategory.MllmCritique,
+            "Vision-language model that writes a natural-language critique — good training data for your notes. "
+            + "Runs on the GPU via a llama.cpp Vulkan server when MONOCLE_QWEN_LLAMA_URL is set.",
             "Rich, flexible critique; not a calibrated numeric score. Heavy; sidecar only.",
-            "https://huggingface.co/Qwen/Qwen2-VL-7B-Instruct"),
+            "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct"),
     };
 
     public static IReadOnlyList<SidecarRunner> BuildRunners(SidecarManager manager) =>

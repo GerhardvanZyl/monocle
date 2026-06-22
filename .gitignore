@@ -29,3 +29,7 @@ models/*.onnx
 
 # Packaged distribution artifact
 monocle.zip
+
+# llama.cpp Vulkan runtime (downloaded binaries) + GPU scratch tests
+tools/
+python/_gpu_test.*

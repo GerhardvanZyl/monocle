@@ -253,9 +253,35 @@
             <Setter Property="Background" Value="Transparent"/>
         </Style>
 
-        <!-- ===== Scrollbars ===== -->
+        <!-- ===== Scrollbars: thin by default, widen smoothly on hover (#4) ===== -->
         <Style Selector="ScrollBar:vertical">
             <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="7"/>
+            <Setter Property="MinWidth" Value="7"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Width" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ScrollBar:vertical:pointerover">
+            <Setter Property="Width" Value="14"/>
+        </Style>
+        <Style Selector="ScrollBar:vertical /template/ Thumb">
+            <Setter Property="MinWidth" Value="7"/>
+        </Style>
+        <Style Selector="ScrollBar:horizontal">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Height" Value="7"/>
+            <Setter Property="MinHeight" Value="7"/>
+            <Setter Property="Transitions">
+                <Transitions>
+                    <DoubleTransition Property="Height" Duration="0:0:0.12" Easing="CubicEaseOut"/>
+                </Transitions>
+            </Setter>
+        </Style>
+        <Style Selector="ScrollBar:horizontal:pointerover">
+            <Setter Property="Height" Value="14"/>
         </Style>
     </Application.Styles>
 </Application>

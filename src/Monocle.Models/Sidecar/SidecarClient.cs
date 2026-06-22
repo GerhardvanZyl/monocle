@@ -63,16 +63,28 @@ public sealed class SidecarClient : IDisposable
             image_b64 = Convert.ToBase64String(jpeg),
             kind,
         };
+        using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+        {
+            // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
+            // so the Run log explains *why* a model produced nothing instead of a generic failure.
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}");
+        }
+        return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
+    }
+
+    /// <summary>Pull the <c>error</c> field out of the sidecar's JSON error body, if present.</summary>
+    private static string? ExtractError(string body)
+    {
         try
         {
-            using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode)
-                return null;
-            return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
+            using var doc = JsonDocument.Parse(body);
+            return doc.RootElement.TryGetProperty("error", out var e) ? e.GetString() : null;
         }
-        catch
-        {
-            return null;
-        }
+        catch { return string.IsNullOrWhiteSpace(body) ? null : body.Trim(); }
     }
 }
+
+/// <summary>A scoring call the sidecar rejected, carrying the server's own explanation.</summary>
+public sealed class SidecarScoreException(string message) : Exception(message);

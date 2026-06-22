@@ -51,8 +51,9 @@ public static class SidecarInstaller
         {
             string[] torchArgs = target switch
             {
-                ComputeTarget.Cpu => new[] { "install", "torch", "--index-url", "https://download.pytorch.org/whl/cpu" },
-                ComputeTarget.Rocm => new[] { "install", "torch", "--index-url", "https://download.pytorch.org/whl/rocm6.2" },
+                // torchvision must come from the same index as torch (the Qwen2-VL processor needs it).
+                ComputeTarget.Cpu => new[] { "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu" },
+                ComputeTarget.Rocm => new[] { "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/rocm6.2" },
                 ComputeTarget.DirectMl => new[] { "install", "torch-directml" },
                 _ => Array.Empty<string>(),
             };
@@ -60,8 +61,15 @@ public static class SidecarInstaller
                      + "(experimental on AMD/Intel; falls back to CPU at score time if it can't use the GPU).");
             if (!await RunPipAsync(python, pythonDir, torchArgs, onOutput, ct).ConfigureAwait(false))
             {
-                onOutput("torch build install failed — aborting before the remaining deps.");
-                return false;
+                // The GPU wheel often has no build for this Python (e.g. torch-directml stops at 3.12).
+                // Honour the promised CPU fallback instead of aborting the whole install.
+                onOutput("GPU torch build unavailable for this Python — falling back to the CPU build.");
+                var cpu = new[] { "install", "torch", "torchvision", "--index-url", "https://download.pytorch.org/whl/cpu" };
+                if (!await RunPipAsync(python, pythonDir, cpu, onOutput, ct).ConfigureAwait(false))
+                {
+                    onOutput("CPU torch fallback also failed — aborting before the remaining deps.");
+                    return false;
+                }
             }
         }
         else

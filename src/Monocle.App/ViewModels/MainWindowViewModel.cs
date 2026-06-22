@@ -25,6 +25,7 @@ public partial class MainWindowViewModel : ViewModelBase
 {
     private readonly ShootService _service = new();
     private readonly SidecarManager _sidecar = new();
+    private readonly LlamaServer _llama = new();
     private readonly ModelRegistry _registry;
     private readonly AppSettings _settings;
     private ShootCache? _cache;
@@ -61,15 +62,37 @@ public partial class MainWindowViewModel : ViewModelBase
             ConsoleLog.Add(line);
         Diagnostics.Log.LineWritten += OnLogLine;
 
+        // Keep the selectable text views in sync as lines append (read-only TextBoxes bound to these).
+        ConsoleLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(ConsoleText));
+        CullLog.CollectionChanged += (_, _) => OnPropertyChanged(nameof(CullLogText));
+
         // Surface the Python sidecar's own stdout/stderr in the console too, so crashes on the
         // Python side are visible (it fires on a thread-pool thread; Log marshals it from there).
         _sidecar.Output += OnSidecarOutput;
+        _llama.Output += OnLlamaOutput;
 
         // Surface why a ticked scorer produced no score (sidecar down, deps missing, runtime error)
         // so models like Q-Align / Qwen2-VL don't silently contribute nothing to scores + critique.
         _service.ScorerSkipped += OnScorerSkipped;
 
-        _ = InitModelsAsync();
+        _ = InitModelsAsync();              // populate the model list immediately
+        _ = StartBackgroundServicesAsync(); // then bring the GPU server + Python sidecar up unattended
+    }
+
+    /// <summary>Auto-start the GPU critique server and the Python sidecar on launch so their models
+    /// are available without a manual click (#10). Both are best-effort: a failure just leaves the
+    /// matching models unavailable, never blocks the UI.</summary>
+    private async Task StartBackgroundServicesAsync()
+    {
+        // GPU server first so the sidecar (which inherits MONOCLE_QWEN_LLAMA_URL) can route to it.
+        try { await _llama.EnsureAsync(); }
+        catch (Exception ex) { Diagnostics.Log.Warn($"[llama] autostart failed: {ex.Message}"); }
+
+        if (SidecarLauncher.ServerExists() && !_sidecar.Running)
+        {
+            try { await StartSidecarAsync(); }   // also refreshes the model list when done
+            catch (Exception ex) { Diagnostics.Log.Warn($"[sidecar] autostart failed: {ex.Message}"); }
+        }
     }
 
     private static ModelRegistry BuildRegistry(SidecarManager sidecar)
@@ -399,8 +422,21 @@ public partial class MainWindowViewModel : ViewModelBase
 
     partial void OnShowConsoleChanged(bool value) { _settings.ShowConsole = value; _settings.Save(); }
 
-    [RelayCommand] private void ClearConsole() => ConsoleLog.Clear();
+    [RelayCommand] private void ClearConsole() { if (DrawerRunLog) CullLog.Clear(); else ConsoleLog.Clear(); }
     [RelayCommand] private void ToggleConsole() => ShowConsole = !ShowConsole;
+
+    // Bottom drawer has two selectable tabs: Console (raw app/sidecar log) and Run log (high-level
+    // scan/cull activity: start, scorer failures, completion).
+    [ObservableProperty] private bool _drawerRunLog;
+    [RelayCommand] private void SetDrawerTab(string tab) => DrawerRunLog = tab == "RunLog";
+
+    /// <summary>Whole console/run-log joined for the read-only, selectable TextBoxes in the drawer.</summary>
+    public string ConsoleText => string.Join("\n", ConsoleLog);
+    public string CullLogText => string.Join("\n", CullLog);
+
+    /// <summary>Append a line to the Run log (CullLog). Marshals to the UI thread so it's safe to
+    /// call from analysis worker threads (e.g. scorer-skip events fire off the thread pool).</summary>
+    private void RunLog(string line) => Dispatcher.UIThread.Post(() => CullLog.Add(line));
 
     // ---- Python sidecar compute target (which torch build "Install Python deps" fetches) ----
     public string[] SidecarComputeChoices { get; } =
@@ -427,6 +463,8 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private static void OnSidecarOutput(string line) => Diagnostics.Log.Info($"[sidecar] {line}");
 
+    private static void OnLlamaOutput(string line) => Diagnostics.Log.Info($"[llama] {line}");
+
     // De-duplicate the per-frame skip reason: a down sidecar would otherwise log the same line for
     // every frame in the shoot. Reset each scan so a newly-broken model is reported again. Analysis
     // runs many frames in parallel, so the set is guarded by its own lock.
@@ -439,7 +477,10 @@ public partial class MainWindowViewModel : ViewModelBase
         lock (_scorerSkipReasons)
             isNew = _scorerSkipReasons.Add(reason);
         if (isNew)
+        {
             Diagnostics.Log.Warn($"[models] {message}");
+            RunLog($"⚠ {message}");   // surface why a ticked scorer produced nothing, in the Run log
+        }
     }
 
     // ---- Visualizations (#24) ----
@@ -617,13 +658,20 @@ public partial class MainWindowViewModel : ViewModelBase
             RefreshCounts();
             StatusText = $"Analyzing {Total} photos…";
 
+            CullLog.Clear();   // the Run log tracks this run (scan now, not just cull)
+            RunLog($"Scan started — {Total} photos" + (scorers.Count > 0
+                ? $", scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}"
+                : ", no scorers selected"));
+
             await AnalyzeAllAsync(scorers, ct);
             CompletePipeline();
             RefreshStats();
 
             ApplyFilter();   // apply the chosen sort now that every frame is analysed
-            StatusText = $"Done. {Total} photos, {Photos.Count(p => p.Item.IsPick)} picks, " +
-                         $"{Photos.Count(p => p.Item.IsReject)} rejects.";
+            var picks = Photos.Count(p => p.Item.IsPick);
+            var rejects = Photos.Count(p => p.Item.IsReject);
+            RunLog($"Scan complete — {Total} photos, {picks} picks, {rejects} rejects.");
+            StatusText = $"Done. {Total} photos, {picks} picks, {rejects} rejects.";
         }
         catch (OperationCanceledException)
         {
@@ -632,6 +680,7 @@ public partial class MainWindowViewModel : ViewModelBase
         catch (Exception ex)
         {
             Diagnostics.Log.Error("Scan failed", ex);
+            RunLog($"Scan failed: {ex.Message}");
             StatusText = $"Scan failed: {ex.Message}";
         }
         finally
@@ -672,12 +721,26 @@ public partial class MainWindowViewModel : ViewModelBase
         var tiles = Photos.ToList();
         var maxConcurrency = Math.Clamp(Environment.ProcessorCount - 1, 2, 8);
 
+        // Grow the in-progress block of frames being analysed right now (not the whole queue) so it
+        // fills gradually instead of snapping to full. Capped below 1; the frame snaps Done when ready.
+        var creep = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+        creep.Tick += (_, _) =>
+        {
+            foreach (var t in tiles)
+                if (t.Analyzing && t.ScanFill < 0.9)
+                    t.ScanFill = Math.Min(0.9, t.ScanFill + 0.04);
+        };
+        creep.Start();
+
+        try
+        {
         await Parallel.ForEachAsync(tiles,
             new ParallelOptions { MaxDegreeOfParallelism = maxConcurrency, CancellationToken = ct },
             async (tile, token) =>
             {
                 try
                 {
+                    await Dispatcher.UIThread.InvokeAsync(() => { tile.ScanFill = 0; tile.Analyzing = true; });
                     await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated: true, scorers, token);
                     var previewPath = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge, token);
                     var bmp = SafeLoadBitmap(previewPath);
@@ -719,6 +782,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     });
                 }
             });
+        }
+        finally { creep.Stop(); }
     }
 
     [RelayCommand]
@@ -750,6 +815,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
 
         CullRunning = true;
+        ShowConsole = true; DrawerRunLog = true;   // surface the run log (now a drawer tab) while culling
         CullLog.Clear();
         CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
         Pipeline?.SetStatus("claude", StageStatus.Running);
@@ -764,6 +830,18 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         _cullCts?.Cancel();
         _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
+
+        // Creep the bar of any frame Claude has started (progress > 0) smoothly toward a cap below 1.0,
+        // so it visibly fills between the discrete tool steps without ever looping or completing early (#1).
+        const double creepCap = 0.92;
+        var creep = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(90) };
+        creep.Tick += (_, _) =>
+        {
+            foreach (var t in Photos)
+                if (t.Culling && !t.Culled && t.CullProgress > 0 && t.CullProgress < creepCap)
+                    t.AdvanceCull(Math.Min(creepCap, t.CullProgress + 0.012));
+        };
+        creep.Start();
 
         var options = new ClaudeCullOptions
         {
@@ -786,24 +864,29 @@ public partial class MainWindowViewModel : ViewModelBase
                         break;
                     case ClaudeEventKind.ToolUse:
                         CullLog.Add($"→ {ev.ToolName}");
-                        var tile = TryGetToolId(ev.ToolInput) is { } toolId
+                        var toolId = TryGetToolId(ev.ToolInput);
+                        var tile = toolId is not null
                             ? Photos.FirstOrDefault(p => IdsMatch(p.Item.Id, toolId))
                             : null;
                         var tool = ev.ToolName ?? "";
+                        // Diagnostic: confirms whether each frame-scoped tool call maps to a grid tile,
+                        // so a per-photo cull bar that never moves can be traced to id-matching (#1).
+                        if (toolId is not null)
+                            Diagnostics.Log.Info($"[cull] {tool} id={toolId} -> {(tile is null ? "NO tile match" : tile.Title)}");
                         if (tool.EndsWith("set_rating", StringComparison.Ordinal))
                         {
                             rated++;
                             Pipeline?.SetProgress("claude", Total == 0 ? 0 : Math.Min(1.0, (double)rated / Total));
-                            // The frame Claude just rated is complete: fill its bar and hide it (#1).
+                            // The frame Claude just rated is complete: fill its bar and settle it (#1).
                             tile?.CompleteCull();
                         }
                         // Claude inspects a frame (preview → metrics) before rating it; advance that
-                        // frame's bar on each step so it climbs monotonically toward — but never to —
-                        // 1.0 until the rating actually lands (#1).
+                        // frame's bar on each step. The creep timer then fills it smoothly between steps,
+                        // climbing monotonically toward — but never to — 1.0 until the rating lands (#1).
                         else if (tool.EndsWith("get_preview", StringComparison.Ordinal))
-                            tile?.AdvanceCull(0.5);
+                            tile?.AdvanceCull(0.35);
                         else if (tool.EndsWith("get_metrics", StringComparison.Ordinal))
-                            tile?.AdvanceCull(0.8);
+                            tile?.AdvanceCull(0.7);
                         break;
                     case ClaudeEventKind.Result:
                         CullLog.Add($"Done — {ev.NumTurns} turns, {ev.DurationMs} ms, ${ev.CostUsd:0.0000}.");
@@ -824,6 +907,7 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         finally
         {
+            creep.Stop();
             CullRunning = false;
             foreach (var tile in Photos)   // clear any frames Claude didn't reach (cancel/error) (#3)
                 tile.Culling = false;
@@ -871,11 +955,12 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             foreach (var tile in tiles)
             {
-                // Drop the heuristic headline first: SidecarService.Load only fills the headline when
-                // it's absent, so without this the stale pre-cull verdict would shadow the one Claude
-                // just wrote to the sidecar (#2). RatedByModel travels inside the headline's "[model]"
-                // prefix, so the critique card still attributes it correctly.
+                // Drop the heuristic headline + rater first: SidecarService.Load only fills these when
+                // they're absent, so without this the stale pre-cull verdict/model would shadow the one
+                // Claude just wrote. Load then adopts the most recent on-disk entry (Claude's) as the
+                // headline + rater, so the critique card attributes it correctly (#2/#5).
                 tile.Item.Rationale.Remove("headline");
+                tile.Item.RatedByModel = null;
                 SidecarService.Load(tile.Item);
             }
         });
@@ -1300,11 +1385,13 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         Diagnostics.Log.LineWritten -= OnLogLine;
         _sidecar.Output -= OnSidecarOutput;
+        _llama.Output -= OnLlamaOutput;
         _service.ScorerSkipped -= OnScorerSkipped;
         _scanCts?.Cancel();
         _cullCts?.Cancel();
         _cache?.Dispose();
         _sidecar.Dispose();
+        _llama.Dispose();      // kills the GPU server we launched, freeing VRAM
     }
 }
 
