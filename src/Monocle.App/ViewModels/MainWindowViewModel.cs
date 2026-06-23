@@ -50,6 +50,8 @@ public partial class MainWindowViewModel : ViewModelBase
         _thumbSize = _settings.ThumbSize;
         _foldPairs = _settings.FoldPairs;
         _showConsole = _settings.ShowConsole;
+        _persistPips = _settings.PersistPips;
+        PhotoTileViewModel.PersistPips = _settings.PersistPips;
         _sidecarCompute = SidecarComputeChoices.Contains(_settings.SidecarCompute)
             ? _settings.SidecarCompute : SidecarComputeChoices[0];
         if (!string.IsNullOrWhiteSpace(_settings.LastFolder) && System.IO.Directory.Exists(_settings.LastFolder))
@@ -149,6 +151,8 @@ public partial class MainWindowViewModel : ViewModelBase
     // their Clear()/Add() and corrupt the bound Models collection.
     private readonly SemaphoreSlim _modelsInitGate = new(1, 1);
 
+    // Log each model's unavailability reason once per session so a silently-missing scorer is explained.
+    private readonly HashSet<string> _unavailableLogged = new(StringComparer.Ordinal);
     private async Task InitModelsAsync()
     {
         await _modelsInitGate.WaitAsync().ConfigureAwait(true);
@@ -163,6 +167,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (runner.Descriptor.Category == ModelCategory.Heuristic)
                     continue;
                 var available = await runner.IsAvailableAsync();
+                if (!available && _unavailableLogged.Add(runner.Descriptor.Id))
+                    Diagnostics.Log.Info(runner is Monocle.Models.Onnx.OnnxScoreRunner onnx
+                        ? $"[models] {runner.Descriptor.DisplayName} unavailable — weights file not found: {onnx.ModelPath}"
+                        : $"[models] {runner.Descriptor.DisplayName} unavailable (not installed / sidecar not ready)");
                 var enabled = previouslyEnabled.TryGetValue(runner.Descriptor.Id, out var e)
                     ? e
                     : runner.Descriptor.Id == AestheticRunner.ModelId;
@@ -421,6 +429,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private bool _showConsole;
 
     partial void OnShowConsoleChanged(bool value) { _settings.ShowConsole = value; _settings.Save(); }
+
+    /// <summary>Mode B: keep the per-tile pipeline pip badge on after a scan/cull (vs mode A: hide it).</summary>
+    [ObservableProperty] private bool _persistPips;
+
+    partial void OnPersistPipsChanged(bool value)
+    {
+        _settings.PersistPips = value; _settings.Save();
+        PhotoTileViewModel.PersistPips = value;
+        foreach (var tile in Photos) tile.RefreshPipsVisibility();   // toggle takes effect on idle tiles immediately
+    }
 
     [RelayCommand] private void ClearConsole() { if (DrawerRunLog) CullLog.Clear(); else ConsoleLog.Clear(); }
     [RelayCommand] private void ToggleConsole() => ShowConsole = !ShowConsole;
@@ -719,6 +737,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
+        foreach (var t in tiles) t.JobRunning = true;   // hold every tile's pip column expanded for the run
         var maxConcurrency = Math.Clamp(Environment.ProcessorCount - 1, 2, 8);
 
         // Grow the in-progress block of frames being analysed right now (not the whole queue) so it
@@ -783,7 +802,11 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
             });
         }
-        finally { creep.Stop(); }
+        finally
+        {
+            creep.Stop();
+            foreach (var t in tiles) t.JobRunning = false;   // job done: mode A hides pips, mode B collapses to the badge
+        }
     }
 
     [RelayCommand]
@@ -827,6 +850,7 @@ public partial class MainWindowViewModel : ViewModelBase
             tile.CullProgress = 0;
             tile.Culled = false;
             tile.Culling = true;
+            tile.JobRunning = true;   // keep the pip column expanded across the whole cull
         }
         _cullCts?.Cancel();
         _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
@@ -910,7 +934,10 @@ public partial class MainWindowViewModel : ViewModelBase
             creep.Stop();
             CullRunning = false;
             foreach (var tile in Photos)   // clear any frames Claude didn't reach (cancel/error) (#3)
+            {
                 tile.Culling = false;
+                tile.JobRunning = false;
+            }
             try { System.IO.File.Delete(options.McpConfigPath); } catch { /* best-effort temp cleanup */ }
         }
     }
@@ -1184,7 +1211,7 @@ public partial class MainWindowViewModel : ViewModelBase
     /// judging model's headline verdict (Claude after a cull, or the heuristic), each scoring model's
     /// own commentary (Qwen, Q-Align, …), then the per-fault technical remarks. De-duplicated so the
     /// same sentence isn't shown twice when it appears as both headline and a model score.</summary>
-    private static IEnumerable<CritiqueLine> BuildComments(PhotoItem item)
+    private IEnumerable<CritiqueLine> BuildComments(PhotoItem item)
     {
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
 
@@ -1220,6 +1247,17 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!string.Equals(kv.Key, "headline", StringComparison.Ordinal) &&
                 Make(Capitalize(kv.Key), kv.Value) is { } c)
                 yield return c;
+
+        // A ticked scorer that produced nothing for this frame leaves the pane mysteriously empty;
+        // surface the recorded reason (e.g. "no GPU visible", "sidecar not reachable") right here.
+        if (item.Scores.Count == 0)
+        {
+            string[] reasons;
+            lock (_scorerSkipReasons) reasons = _scorerSkipReasons.ToArray();
+            foreach (var reason in reasons)
+                if (Make("Model unavailable", reason) is { } w)
+                    yield return w;
+        }
     }
 
     /// <summary>A short words-not-numbers read of a numeric quality/aesthetic score (e.g. Q-Align's

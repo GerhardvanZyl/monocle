@@ -77,9 +77,31 @@ def _deps_ready():
         return False
 
 
+_gpu_probe = None  # None=not yet probed; cached True/False so /health stays instant after the first probe
+
+
+def _qwen_ready():
+    """True only when Qwen can actually run — not merely when its packages import. The llama.cpp
+    Vulkan path needs no torch/GPU. The in-process transformers path needs a visible GPU (CPU is
+    disabled, see _load_kwargs), so probe torch.cuda once and cache it; otherwise a CPU-only box would
+    report Qwen ready and then fail every frame at score time."""
+    if os.environ.get("MONOCLE_QWEN_LLAMA_URL"):
+        return True
+    if not _deps_ready():
+        return False
+    global _gpu_probe
+    if _gpu_probe is None:
+        try:
+            import torch  # only after deps exist, so pre-install /health stays import-free and instant
+            _gpu_probe = bool(torch.cuda.is_available())
+        except Exception:  # ponytail: broken/missing torch build -> not ready; restart re-probes
+            _gpu_probe = False
+    return _gpu_probe
+
+
 def _ready_models():
-    """Model ids that are genuinely runnable right now (deps present)."""
-    return [c["id"] for c in CATALOG] if _deps_ready() else []
+    """Model ids that are genuinely runnable right now (deps present and a usable backend)."""
+    return ["qwen2-vl"] if _qwen_ready() else []
 
 
 def _score_qwen_llama(image_bytes):

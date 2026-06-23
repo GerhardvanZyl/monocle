@@ -340,7 +340,9 @@
                                                             <!-- per-photo pipeline pips overlay (#7) -->
                                                             <ctl:PipelinePipsControl States="{Binding PipelineStates}"
                                                                                      Progress="{Binding ActivePipProgress}"
-                                                                                     HorizontalAlignment="Left" VerticalAlignment="Top"
+                                                                                     Expanded="{Binding PipsExpanded}"
+                                                                                     IsVisible="{Binding ShowPips}"
+                                                                                     HorizontalAlignment="Left" VerticalAlignment="Stretch"
                                                                                      ToolTip.Tip="{Binding PipelineTip}"/>
                                                             <!-- technical-reason dot (transparent brush = no reason) -->
                                                             <Border Width="11" Height="11" CornerRadius="6"
@@ -569,6 +571,14 @@
                                                    FontSize="11.5" Foreground="{StaticResource Text3}"/>
                                     </StackPanel>
                                     <CheckBox Grid.Column="1" IsChecked="{Binding ShowConsole}" VerticalAlignment="Center"/>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0">
+                                        <TextBlock Text="Keep pipeline badge" FontSize="13"/>
+                                        <TextBlock Text="Leave the per-photo pipeline pips on each tile as a small badge after a scan/cull finishes"
+                                                   FontSize="11.5" Foreground="{StaticResource Text3}"/>
+                                    </StackPanel>
+                                    <CheckBox Grid.Column="1" IsChecked="{Binding PersistPips}" VerticalAlignment="Center"/>
                                 </Grid>
                             </StackPanel>
                         </Border>

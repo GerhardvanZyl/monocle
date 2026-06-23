@@ -41,6 +41,12 @@ public sealed class PipelinePipsControl : Control
     public static readonly StyledProperty<double> ProgressProperty =
         AvaloniaProperty.Register<PipelinePipsControl, double>(nameof(Progress), double.NaN);
 
+    /// <summary>True while a scan/cull job is running: the column fills the full image height and the
+    /// in-progress (or, for an already-finished frame, the last Done) block expands to absorb the
+    /// slack. False = the compact done badge (small pips at the top).</summary>
+    public static readonly StyledProperty<bool> ExpandedProperty =
+        AvaloniaProperty.Register<PipelinePipsControl, bool>(nameof(Expanded));
+
     public IReadOnlyList<PipState>? States
     {
         get => GetValue(StatesProperty);
@@ -53,28 +59,27 @@ public sealed class PipelinePipsControl : Control
         set => SetValue(ProgressProperty, value);
     }
 
+    public bool Expanded
+    {
+        get => GetValue(ExpandedProperty);
+        set => SetValue(ExpandedProperty, value);
+    }
+
     private const double Pad = 5;
     private const double Pip = 9;     // small square side
     private const double Gap = 5;
-    private const double ActiveH = 30; // the in-progress block expands to this fixed height in place
 
     static PipelinePipsControl()
     {
-        AffectsRender<PipelinePipsControl>(StatesProperty, ProgressProperty);
-        AffectsMeasure<PipelinePipsControl>(StatesProperty);
+        AffectsRender<PipelinePipsControl>(StatesProperty, ProgressProperty, ExpandedProperty);
     }
 
     public PipelinePipsControl() => IsHitTestVisible = false; // decorative overlay; clicks pass through
 
-    // Keep the pip column compact and top-anchored so the in-progress block expands in place from its
-    // own stage position instead of ballooning to fill the whole tile (#2). The height reserves one
-    // expanded block, so the column size stays constant as the active stage moves down the pipeline.
+    // Stretch to the image height (VerticalAlignment=Stretch in XAML) so the in-progress block can
+    // expand to fill the tile. Falling back to a fixed height only if the parent leaves us unconstrained.
     protected override Size MeasureOverride(Size availableSize)
-    {
-        int n = States is { Count: > 0 } s ? s.Count : 6;
-        double h = (n - 1) * (Pip + Gap) + ActiveH + Pad * 2;
-        return new Size(Pad * 2 + Pip, h);
-    }
+        => new(Pad * 2 + Pip, double.IsInfinity(availableSize.Height) ? 144 : availableSize.Height);
 
     private IBrush Token(string key, Color fallback)
         => Application.Current?.Resources.TryGetResource(key, ThemeVariant, out var v) == true && v is IBrush b
@@ -98,24 +103,33 @@ public sealed class PipelinePipsControl : Control
         int n = states.Count;
         double availH = Bounds.Height - Pad * 2;
         if (availH <= 0) return;
-        double x = (Bounds.Width - Pip) / 2;
-
-        // When a stage is in progress, it expands to fill the height the other (small) pips leave.
-        bool anyActive = HasActive(states);
-        double smallTotal = (n - 1) * Pip + (n - 1) * Gap;
-        double activeH = Math.Max(Pip, availH - smallTotal);
 
         // Determinate when a real fraction is supplied (the cull stage); otherwise a solid busy block.
         bool determinate = !double.IsNaN(Progress);
         double frac = determinate ? Math.Clamp(Progress, 0, 1) : 1.0;
 
+        // Which block expands to fill the tile height: the in-progress stage if any, else (a finished
+        // frame whose job is still running) the last Done block — so the bar stays expanded until the
+        // whole job completes. -1 = compact mode (job not running): small pips at the top.
+        int expand = -1;
+        if (Expanded)
+        {
+            for (int i = 0; i < n; i++) if (states[i] == PipState.Active) { expand = i; break; }
+            if (expand < 0) for (int i = n - 1; i >= 0; i--) if (states[i] == PipState.Done) { expand = i; break; }
+        }
+
+        // Compact done badge (mode B, job finished): halve the pips once every stage is resolved.
+        bool half = expand < 0 && AllResolved(states);
+        double pip = half ? Pip / 2 : Pip;
+        double gap = half ? Gap / 2 : Gap;
+        double x = (Bounds.Width - pip) / 2;
+        double expandH = Math.Max(pip, availH - (n - 1) * (pip + gap));
+
         double y = Pad;
         for (int i = 0; i < n; i++)
         {
-            bool isActive = states[i] == PipState.Active && anyActive;
-            double hgt = isActive ? activeH : Pip;
-            var rect = new Rect(x, y, Pip, hgt);
-            var rr = new RoundedRect(rect, 2);
+            double hgt = i == expand ? expandH : pip;
+            var rr = new RoundedRect(new Rect(x, y, pip, hgt), 2);
 
             switch (states[i])
             {
@@ -131,23 +145,21 @@ public sealed class PipelinePipsControl : Control
                     ctx.DrawRectangle(null, activeStroke, rr);
                     double fillH = hgt * frac;
                     if (fillH > 1)
-                    {
-                        var fillRect = new Rect(x, y + hgt - fillH, Pip, fillH);
-                        ctx.DrawRectangle(determinate ? done : busy, null, new RoundedRect(fillRect, 2));
-                    }
+                        ctx.DrawRectangle(determinate ? done : busy, null,
+                            new RoundedRect(new Rect(x, y + hgt - fillH, pip, fillH), 2));
                     break;
                 default: // Pending
                     ctx.DrawRectangle(null, pendingStroke, rr);
                     break;
             }
-            y += hgt + Gap;
+            y += hgt + gap;
         }
     }
 
-    private static bool HasActive(IReadOnlyList<PipState> states)
+    private static bool AllResolved(IReadOnlyList<PipState> states)
     {
         foreach (var s in states)
-            if (s == PipState.Active) return true;
-        return false;
+            if (s is PipState.Pending or PipState.Active) return false;
+        return true;
     }
 }

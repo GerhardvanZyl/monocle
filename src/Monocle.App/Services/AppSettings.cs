@@ -18,6 +18,7 @@ public sealed class AppSettings
     public int ThumbSize { get; set; } = 200;
     public bool FoldPairs { get; set; } = true;
     public bool ShowConsole { get; set; } = false;   // in-app diagnostic log panel along the bottom
+    public bool PersistPips { get; set; } = false;    // keep the per-tile pipeline pip badge after a job ends (mode B)
     public string SidecarCompute { get; set; } = "Default (CPU / CUDA)";   // torch build for sidecar deps
 
     private static string FilePath => Path.Combine(

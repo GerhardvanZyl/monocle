@@ -73,6 +73,28 @@ public partial class PhotoTileViewModel : ViewModelBase
         : Analyzing ? ScanFill
         : double.NaN;
 
+    /// <summary>Mode B (persist the per-tile pip badge after a job ends) vs mode A (hide it). Global
+    /// user setting, mirrored here from AppSettings so each tile can resolve <see cref="ShowPips"/>.</summary>
+    public static bool PersistPips;
+
+    /// <summary>True while any scan/cull job is running (set by the VM on every tile at job start/end).
+    /// Keeps each tile's pip column expanded — and a finished frame's bar held expanded — until the
+    /// whole job completes.</summary>
+    [ObservableProperty] private bool _jobRunning;
+    partial void OnJobRunningChanged(bool value) { OnPropertyChanged(nameof(PipsExpanded)); OnPropertyChanged(nameof(ShowPips)); }
+
+    /// <summary>Fill the pip column to the image height while a job runs.</summary>
+    public bool PipsExpanded => JobRunning;
+
+    /// <summary>This frame has something worth showing as a done badge (mode B).</summary>
+    public bool HasStatus => Item.Metrics is not null || Item.Scores.Count > 0 || Item.Stars > 0;
+
+    /// <summary>Show the pip overlay: always during a job; in mode B also as a compact done badge after.</summary>
+    public bool ShowPips => JobRunning || (PersistPips && HasStatus);
+
+    /// <summary>Re-evaluate <see cref="ShowPips"/> (e.g. after the persist setting toggles).</summary>
+    public void RefreshPipsVisibility() => OnPropertyChanged(nameof(ShowPips));
+
     /// <summary>True while this frame is actively being worked right now — decoded/scored during a scan,
     /// or judged by Claude during a cull. Drives the 3px highlight border around the thumbnail (#3).</summary>
     public bool IsProcessing => Analyzing || (Culling && !Culled && CullProgress > 0);
@@ -193,6 +215,7 @@ public partial class PhotoTileViewModel : ViewModelBase
         ReasonDot = ReasonToBrush(Item.Reason);
         RefreshPipelineStrip();
         RefreshPipelineStates();
+        OnPropertyChanged(nameof(ShowPips));   // scores/metrics landing can flip the mode-B done badge on
     }
 
     private void RefreshPipelineStrip()
