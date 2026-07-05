@@ -7,10 +7,17 @@
     <LangVersion>latest</LangVersion>
   </PropertyGroup>
 
-  <ItemGroup>
-    <!-- Base (cross-platform, CPU) ONNX Runtime. For AMD GPU acceleration on Windows,
-         swap this for Microsoft.ML.OnnxRuntime.DirectML; for NVIDIA, the .Gpu package.
-         EP auto-select tries DML/CUDA at runtime and falls back to CPU. -->
+  <!-- ONNX Runtime execution provider. DirectML on Windows drives any DX12 GPU (AMD RDNA incl.
+       7900 XTX, Intel, NVIDIA) with no ROCm/CUDA toolkit; Linux uses the base CPU package. Both
+       ship the same Microsoft.ML.OnnxRuntime assembly, so no code differs — OnnxSessionFactory
+       auto-selects DML/CUDA/ROCm at runtime and falls back to CPU. -->
+  <PropertyGroup>
+    <UseDirectMl Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">true</UseDirectMl>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(UseDirectMl)' == 'true'">
+    <PackageReference Include="Microsoft.ML.OnnxRuntime.DirectML" Version="1.20.1" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(UseDirectMl)' != 'true'">
     <PackageReference Include="Microsoft.ML.OnnxRuntime" Version="1.20.1" />
   </ItemGroup>
 

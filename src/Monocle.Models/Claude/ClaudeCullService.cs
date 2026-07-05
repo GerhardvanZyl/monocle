@@ -73,6 +73,9 @@ public sealed class ClaudeCullService
 
         using var process = new Process { StartInfo = psi };
         process.Start();
+        // Pin to the kill-on-exit job before Claude spawns its MCP server: that grandchild then
+        // inherits the job, so neither Claude nor the MCP can orphan if the app dies mid-cull.
+        Core.Processes.ChildProcessJob.Assign(process);
 
         ClaudeEvent? result = null;
         using var reg = ct.Register(() => { try { if (!process.HasExited) process.Kill(true); } catch { } });

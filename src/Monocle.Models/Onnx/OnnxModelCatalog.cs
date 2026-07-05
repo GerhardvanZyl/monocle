@@ -23,10 +23,14 @@ public static class OnnxModelCatalog
             Tradeoffs = "Runs anywhere via ONNX; good cheap pre-filter. Dated versus newer " +
                         "predictors; aesthetic only.",
             InputSize = 224,
+            // The exported model (see python/export_onnx.py) normalises internally and emits the
+            // mean opinion score directly, so feed it plain 0..1 RGB and read a single value.
+            Mean = new[] { 0f, 0f, 0f },
+            Std = new[] { 1f, 1f, 1f },
             ScaleMax = 10,
-            PostProcess = OnnxModelConfig.NimaExpectedScore,
-            // No DownloadUrl/Sha256: there is no canonical single-file NIMA ONNX matching this
-            // 224px / 10-bin-softmax runner. Drop nima.onnx into the models dir manually for now.
+            PostProcess = OnnxModelConfig.SingleRegression,
+            // No hosted single-file ONNX exists; run `python python/export_onnx.py` once to build
+            // nima.onnx into the models dir (it downloads the reference weights and exports them).
             InfoUrl = "https://github.com/idealo/image-quality-assessment",
         },
         new OnnxModelConfig
@@ -44,9 +48,9 @@ public static class OnnxModelCatalog
             Std = new[] { 0.5f, 0.5f, 0.5f },
             ScaleMax = 10,
             PostProcess = OnnxModelConfig.SingleRegression,
-            // No DownloadUrl/Sha256: aesthetic-predictor-v2.5 ships as a SigLIP backbone + separate
-            // MLP head (PyTorch/safetensors); only the backbone has community ONNX exports, so no
-            // single file produces this score. Drop a fused aesthetic-v2-5.onnx in manually for now.
+            // No hosted single-file ONNX exists (SigLIP backbone + separate MLP head). Run
+            // `python python/export_onnx.py` once to fuse and export aesthetic-v2-5.onnx into the
+            // models dir; it expects the same 384px / 0.5-0.5 normalisation configured above.
             InfoUrl = "https://huggingface.co/spaces/discus0434/aesthetic-predictor-v2-5",
         },
     };

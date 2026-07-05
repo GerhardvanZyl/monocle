@@ -793,7 +793,7 @@
                                                                 CommandParameter="{Binding}"/>
                                                         <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
                                                                    FontSize="10" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
-                                                                   IsVisible="{Binding Installing}"/>
+                                                                   IsVisible="{Binding ShowInstallProgress}"/>
                                                         <Button Content="model card ↗" FontSize="10" Padding="6,1"
                                                                 IsVisible="{Binding HasInfoUrl}" ToolTip.Tip="{Binding InfoUrl}"
                                                                 Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"

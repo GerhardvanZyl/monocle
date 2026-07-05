@@ -14,9 +14,11 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
-  <!-- Copy any ONNX weights dropped in the repo-level models/ folder next to the app. -->
+  <!-- Copy any ONNX weights dropped in the repo-level models/ folder next to the app.
+       Glob matches both foo.onnx and its external-data sibling foo.onnx.data (large models
+       store weights externally; ONNX Runtime needs the .data file beside the .onnx). -->
   <ItemGroup>
-    <None Include="..\..\models\*.onnx" Link="models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <None Include="..\..\models\*.onnx*" Link="models\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

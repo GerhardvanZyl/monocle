@@ -1,7 +1,11 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <OutputType>Exe</OutputType>
+    <!-- WinExe (GUI subsystem) so Windows never allocates a console window for it: the Claude CLI
+         launches this as a child and we can't control its spawn flags. MCP talks over stdio, which
+         still works fully when the parent redirects the handles — the subsystem only governs the
+         auto-created console window, not redirected std streams. -->
+    <OutputType>WinExe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>

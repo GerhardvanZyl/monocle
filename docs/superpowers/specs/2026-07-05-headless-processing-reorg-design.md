@@ -30,10 +30,11 @@ windowless `Monocle.Mcp.exe` apphost copied next to the app under `mcp/`.
 - Change `WriteMcpConfig` to set `command = <BaseDirectory>/mcp/Monocle.Mcp.exe` with no args
   (or `[]`). A WinExe apphost keeps working stdin/stdout when the parent redirects them (MCP is
   stdio), but does not allocate a console.
-- This also removes the need to inject `DOTNET_ROOT` into the server `env`. Drop `DotnetHost()`
-  and the `env` block if nothing else uses them; keep a fallback to `dotnet.exe Monocle.Mcp.dll`
-  only if the `.exe` is missing.
-- Add a helper `McpServerExe()` alongside `McpServerDll()`; `McpServerExists()` prefers the exe.
+- This also removes the need to inject `DOTNET_ROOT` into the server `env`. Drop `DotnetHost()`,
+  the `env` block, and the `dotnet.exe + dll` path entirely — point straight at the exe. No
+  fallback (the exe is always copied next to the app by the build).
+- Replace `McpServerDll()` with `McpServerExe()` → `<BaseDirectory>/mcp/Monocle.Mcp.exe`;
+  `McpServerExists()` checks the exe.
 
 **A2 — Launcher is an exe, not a `.cmd`.** `run-monocle.cmd` opens a console window by nature and
 is the documented launch path. `Monocle.App.exe` is already `WinExe`
@@ -43,8 +44,9 @@ directly needs the net10 runtime discoverable (today the `.cmd` sets `DOTNET_ROO
 - Make the primary launch artifact the **self-contained** `Monocle.App.exe` produced by
   `scripts/publish-windows.ps1` (already targets win-x64). Self-contained → no `DOTNET_ROOT`
   needed → double-click the exe, no console.
-- Retire `run-monocle.cmd` from the launch path. Keep it only if useful as a dev *build* helper,
-  or delete it. Update README/CLAUDE.md launch instructions to point at the exe.
+- Retire `run-monocle.cmd` from the launch path but keep it as a dev *build* helper (build-if-
+  missing + set `DOTNET_ROOT` for iterating on the framework-dependent build). Update
+  README/CLAUDE.md so the documented *launch* path is the exe, not the `.cmd`.
 
 **Acceptance:** launching Monocle by double-clicking the exe shows no console; running a Claude
 cull shows no console flash.

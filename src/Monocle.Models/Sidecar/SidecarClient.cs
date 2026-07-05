@@ -55,6 +55,14 @@ public sealed class SidecarClient : IDisposable
         }
     }
 
+    // The scan analyses frames up to 8-wide, but the sidecar's GPU backend (llama.cpp Vulkan, or
+    // in-process transformers) has a single inference slot, and the stdlib HTTP server's listen
+    // backlog is only 5. Firing 8 concurrent /score requests overruns both — connections get
+    // refused ("error sending the request") or truncated mid-body (server reads {} -> KeyError
+    // 'model'). Serialise here: throughput is unchanged (the GPU runs them one at a time anyway).
+    // ponytail: gate of 1; raise it if a sidecar backend ever gains real parallel slots.
+    private static readonly SemaphoreSlim ScoreGate = new(1, 1);
+
     public async Task<SidecarScore?> ScoreAsync(string model, byte[] jpeg, string kind, CancellationToken ct = default)
     {
         var payload = new
@@ -63,15 +71,23 @@ public sealed class SidecarClient : IDisposable
             image_b64 = Convert.ToBase64String(jpeg),
             kind,
         };
-        using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
-        if (!resp.IsSuccessStatusCode)
+        await ScoreGate.WaitAsync(ct).ConfigureAwait(false);
+        try
         {
-            // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
-            // so the Run log explains *why* a model produced nothing instead of a generic failure.
-            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}");
+            using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
+            if (!resp.IsSuccessStatusCode)
+            {
+                // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
+                // so the Run log explains *why* a model produced nothing instead of a generic failure.
+                var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}");
+            }
+            return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
         }
-        return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
+        finally
+        {
+            ScoreGate.Release();
+        }
     }
 
     /// <summary>Pull the <c>error</c> field out of the sidecar's JSON error body, if present.</summary>

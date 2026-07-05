@@ -38,6 +38,9 @@ public partial class ModelOptionViewModel : ViewModelBase
     [ObservableProperty] private bool _installing;
     [ObservableProperty] private double _installProgress;
 
+    /// <summary>Only downloads report a fraction; the Python build streams to the Run log instead.</summary>
+    public bool ShowInstallProgress => Installing && InstallProgress > 0;
+
     private bool HasOnnxDownload => Runner is OnnxScoreRunner { DownloadUrl: not null };
     private bool RequiresSidecar => Runner.Descriptor.RequiresSidecar;
 
@@ -45,20 +48,33 @@ public partial class ModelOptionViewModel : ViewModelBase
     /// install path (an ONNX download, or sidecar deps to fetch).</summary>
     public bool ShowInstall => !Available && (HasOnnxDownload || RequiresSidecar || Runner is OnnxScoreRunner);
 
+    /// <summary>An ONNX model with no direct download is built in-app from its PyTorch source.</summary>
+    private bool CanExportOnnx => Runner is OnnxScoreRunner && !HasOnnxDownload;
+
     /// <summary>The button is only actionable when we actually have something to run.</summary>
-    public bool CanInstall => !Installing && (HasOnnxDownload || RequiresSidecar);
+    public bool CanInstall => !Installing && (HasOnnxDownload || RequiresSidecar || CanExportOnnx);
 
-    public string InstallLabel => RequiresSidecar ? "Install Python deps" : "Install";
+    public string InstallLabel =>
+        RequiresSidecar ? "Install Python deps"
+        : CanExportOnnx ? "Build (Python)"
+        : "Install";
 
-    public string InstallTip => RequiresSidecar
-        ? "Downloads torch/transformers into the sidecar's Python; the model weights then download from Hugging Face on first use."
+    public string InstallTip =>
+        RequiresSidecar
+            ? "Downloads torch/transformers into the sidecar's Python; the model weights then download from Hugging Face on first use."
         : HasOnnxDownload
             ? "Downloads and checksum-verifies the model weights into the models folder."
-            : "No verified download yet — drop the .onnx into the models folder manually (see docs/models.md).";
+            : "Builds the model in-app from its PyTorch source (torch, one-time few-GB download) and exports the .onnx locally.";
 
     // ---- Source link (#6) ----
     public string? InfoUrl => Runner.Descriptor.InfoUrl;
     public bool HasInfoUrl => !string.IsNullOrWhiteSpace(InfoUrl);
 
-    partial void OnInstallingChanged(bool value) => OnPropertyChanged(nameof(CanInstall));
+    partial void OnInstallingChanged(bool value)
+    {
+        OnPropertyChanged(nameof(CanInstall));
+        OnPropertyChanged(nameof(ShowInstallProgress));
+    }
+
+    partial void OnInstallProgressChanged(double value) => OnPropertyChanged(nameof(ShowInstallProgress));
 }

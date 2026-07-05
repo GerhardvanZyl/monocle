@@ -79,6 +79,7 @@ public sealed class SidecarManager : IDisposable
         _process = Process.Start(psi);
         if (_process is null)
             return false;
+        Core.Processes.ChildProcessJob.Assign(_process);   // dies with the app even on crash/taskkill
 
         // Drain stdout/stderr to the Output event. Beyond surfacing the sidecar's log, this is
         // required: an unread redirected pipe will fill and block the child once it logs enough.

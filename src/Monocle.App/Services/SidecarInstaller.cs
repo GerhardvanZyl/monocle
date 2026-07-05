@@ -111,6 +111,7 @@ public static class SidecarInstaller
         try
         {
             proc = Process.Start(psi) ?? throw new InvalidOperationException("Process.Start returned null.");
+            Monocle.Core.Processes.ChildProcessJob.Assign(proc);   // pip dies with the app even on crash/taskkill
         }
         catch (Exception ex)
         {

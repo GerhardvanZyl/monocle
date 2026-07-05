@@ -17,6 +17,27 @@ Legend for **Resource**: 🖥️ CPU · 🎮 GPU · ☁️ Claude tokens.
 | **Qwen2-VL critique** (`Qwen/Qwen2-VL-7B-Instruct`) | MLLM critique | 🎮 **sidecar** | free-text critique | Vision-language model that writes a natural-language critique, useful as training data for your notes. | Rich, flexible critique. Heavy; sidecar only; not a calibrated score. |
 | **Claude (vision)** | Cloud judge | ☁️ | stars + per-criterion rationale | Uses your existing Claude Code (no API keys) to judge the JPEG/preview, de-dup bursts and explain each rating. | Best subjective judgement and reasoning. Optional; costs tokens and is rate-limited. Model selectable: Haiku (cheap, huge folders) ↔ Opus (quality). |
 
+## Installing NIMA / aesthetic-predictor-v2.5
+
+These two ship in the catalog but show as **(not installed)** because neither has a trustworthy
+single-file ONNX download. They're built from their reference PyTorch models.
+
+**In-app (recommended):** click **Build (Python)** next to the model in the Models picker. The app
+pip-installs the export deps and runs `python/export_onnx.py` for you, streaming progress to the Run
+log, then the model flips to available. Needs Python on PATH; the first build downloads a few GB
+(torch) and runs on CPU.
+
+**From a shell** (same result, e.g. for CI):
+
+```
+pip install torch pyiqa "aesthetic-predictor-v2-5" onnx
+python python/export_onnx.py            # --check (needs onnxruntime) smoke-tests the output
+```
+
+Either way writes `nima.onnx` and `aesthetic-v2-5.onnx` into `models/`, matching the exact
+input/output contract in `OnnxModelCatalog`. Inference uses the GPU if you swap in the DirectML/CUDA
+ONNX Runtime package (see `models/README.md`); export itself is CPU-only.
+
 ## Adding a model (#28)
 
 - **Native (ONNX):** export the model to ONNX, drop a `ModelDescriptor` + an

@@ -251,12 +251,13 @@ public partial class PhotoTileViewModel : ViewModelBase
             s[3] = metricsDone && Analyzing ? PipState.Active : PipState.Pending;
 
         // Claude: skipped unless a cull is running for this frame. Active (the growing vertical block)
-        // once Claude has reached the frame (progress > 0); a quiet hollow pip while queued; solid once
-        // judged so it reads as Done after the cull moves on (#1).
+        // the moment the cull starts — the scan before it is done, so Claude is now this frame's live
+        // stage even while queued (it just sits at 0 fill until Claude reaches it). Solid once judged
+        // so it reads as Done after the cull moves on (#1).
         if (Culled)
             s[4] = PipState.Done;
         else if (Culling)
-            s[4] = CullProgress > 0 ? PipState.Active : PipState.Pending;
+            s[4] = PipState.Active;
         else
             s[4] = PipState.Skipped;
 

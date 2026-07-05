@@ -64,6 +64,7 @@ public sealed class LlamaServer : IDisposable
         _process = Process.Start(psi);
         if (_process is null)
             return false;
+        Monocle.Core.Processes.ChildProcessJob.Assign(_process);   // dies with the app even on crash/taskkill
         _process.OutputDataReceived += (_, e) => { if (e.Data is not null) Output?.Invoke(e.Data); };
         _process.ErrorDataReceived += (_, e) => { if (e.Data is not null) Output?.Invoke(e.Data); };
         _process.BeginOutputReadLine();

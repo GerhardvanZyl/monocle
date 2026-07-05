@@ -7,10 +7,20 @@ enables) in the **Models** picker once its weights are present; otherwise it sho
 
 Expected file names (see `src/Monocle.Models/Onnx/OnnxModelCatalog.cs`):
 
-| Model | File | Input | Notes |
+| Model | File | Input | Output |
 |---|---|---|---|
-| NIMA | `nima.onnx` | 224×224, ImageNet norm | Output = 10-way softmax over scores 1–10. |
-| aesthetic-predictor-v2.5 | `aesthetic-v2-5.onnx` | 384×384, 0.5/0.5 norm | Output = single 1–10 regression. |
+| NIMA | `nima.onnx` | 224×224, RGB 0–1 (norm baked in) | single score ~1–10 |
+| aesthetic-predictor-v2.5 | `aesthetic-v2-5.onnx` | 384×384, 0.5/0.5 norm | single score ~1–10 |
+
+**Building NIMA / aesthetic-v2.5:** neither has a trustworthy single-file ONNX download, so build
+them from their reference PyTorch models with the one-time export script:
+
+```
+pip install torch pyiqa "aesthetic-predictor-v2-5" onnx
+python python/export_onnx.py            # add --check (needs onnxruntime) to smoke-test output
+```
+
+That drops both files here; rebuild the app and they show up enabled in the **Models** picker.
 
 To add another model, add an `OnnxModelConfig` to `OnnxModelCatalog` (file name, input size,
 mean/std, and a post-processor) and drop its `.onnx` here — no other code changes.

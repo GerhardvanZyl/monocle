@@ -233,14 +233,21 @@ public partial class MainWindowViewModel : ViewModelBase
                         : "Python deps installed — Start the Python sidecar to use these models.")
                     : "Python deps install failed (see the Run log).";
             }
-            else if (model.Runner is OnnxScoreRunner onnxManual)
+            else if (model.Runner is OnnxScoreRunner)
             {
-                // NIMA / aesthetic-predictor-v2.5 ship no canonical single-file ONNX, so there's nothing
-                // to auto-download — point the user at the exact folder + filename to drop in (#1).
-                var dir = System.IO.Path.GetDirectoryName(onnxManual.ModelPath);
-                var msg = $"{model.Name} has no auto-download — drop {onnxManual.FileName} into {dir}, then re-scan. See docs/models.md.";
-                CullLog.Add(msg);
-                StatusText = msg;
+                // NIMA / aesthetic-predictor-v2.5 ship no canonical single-file ONNX, so build them
+                // in-app from their reference PyTorch models via python/export_onnx.py (#1, #5).
+                StatusText = $"Building {model.Name} (Python)…";
+                RightTab = RightTab.RunLog;   // export is chatty; surface it
+                void Append(string line) => Dispatcher.UIThread.Post(() =>
+                {
+                    CullLog.Add(line);
+                    StatusText = line;
+                });
+                var ok = await OnnxExporter.ExportAsync(model.Runner.Descriptor.Id, Append);
+                StatusText = ok
+                    ? $"{model.Name} built — it's now available."
+                    : $"{model.Name} build failed (see the Run log).";
             }
             else
             {
@@ -841,6 +848,7 @@ public partial class MainWindowViewModel : ViewModelBase
         ShowConsole = true; DrawerRunLog = true;   // surface the run log (now a drawer tab) while culling
         CullLog.Clear();
         CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
+        StatusText = $"Culling {Total} photos with {ClaudeModel}…";   // replace the stale scan result now, not at the end
         Pipeline?.SetStatus("claude", StageStatus.Running);
         // Every frame is pending Claude's judgement. Reset progress (a prior cull may have left it at
         // 1.0) before arming Culling so no bar flashes full; each frame's bar then fills as Claude
