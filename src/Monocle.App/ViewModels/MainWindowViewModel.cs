@@ -1531,14 +1531,6 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedPhoto = firstUnrated;
     }
 
-    /// <summary>Unattended run: open the AI Cull view and process every ticked model.</summary>
-    [RelayCommand]
-    private async Task UnattendedRunAsync()
-    {
-        View = CenterView.AiCull;
-        await ProcessAsync();
-    }
-
     public void Cleanup()
     {
         Diagnostics.Log.LineWritten -= OnLogLine;

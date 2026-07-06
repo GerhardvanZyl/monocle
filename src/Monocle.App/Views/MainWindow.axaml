@@ -280,8 +280,6 @@
                         <Button Classes="nav" Command="{Binding RunHeuristicBaselineCommand}" IsEnabled="{Binding !IsBusy}"
                                 Content="⚡  Heuristic baseline"/>
                         <Button Classes="nav" Command="{Binding InteractiveCullCommand}" Content="✦  Interactive cull"/>
-                        <Button Classes="nav" Command="{Binding UnattendedRunCommand}" IsEnabled="{Binding !CullRunning}"
-                                Content="▶  Unattended run"/>
 
                         <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="6,12,6,4"/>
                         <Button Classes="nav" Command="{Binding ExportCommand}" Content="⤓  Export CSV / JSON" FontSize="12.5"
