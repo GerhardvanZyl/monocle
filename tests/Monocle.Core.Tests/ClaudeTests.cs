@@ -1,3 +1,4 @@
+using System.Linq;
 using Monocle.Models.Claude;
 using Xunit;
 
@@ -5,6 +6,32 @@ namespace Monocle.Core.Tests;
 
 public class ClaudeTests
 {
+    [Fact]
+    public void ClaudeCatalog_has_three_models_with_claude_prefixed_ids()
+    {
+        var ids = ClaudeCullRunner.Catalog.Select(r => r.Descriptor.Id).ToList();
+        Assert.Equal(3, ids.Count);
+        Assert.All(ids, id => Assert.StartsWith("claude:", id));
+        Assert.Contains("claude:claude-opus-4-8", ids);
+        Assert.All(ClaudeCullRunner.Catalog,
+            r => Assert.Equal(Monocle.Core.Model.ResourceKind.ClaudeTokens, r.Descriptor.Resource));
+    }
+
+    [Fact]
+    public async Task ClaudeRunner_ScoreAsync_throws_because_it_culls_the_folder_not_a_frame()
+    {
+        var runner = ClaudeCullRunner.Catalog[0];
+        await Assert.ThrowsAsync<NotSupportedException>(
+            () => runner.ScoreAsync(null!));
+    }
+
+    [Fact]
+    public void IsClaudeId_recognises_the_prefix()
+    {
+        Assert.True(ClaudeCullRunner.IsClaudeId("claude:claude-haiku-4-5"));
+        Assert.False(ClaudeCullRunner.IsClaudeId("qwen2-vl"));
+    }
+
     [Fact]
     public void ParsesAssistantText()
     {

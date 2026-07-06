@@ -106,6 +106,8 @@ public partial class MainWindowViewModel : ViewModelBase
             registry.Register(onnx);
         foreach (var runner in SidecarModelCatalog.BuildRunners(sidecar))
             registry.Register(runner);
+        foreach (var claude in ClaudeCullRunner.Catalog)
+            registry.Register(claude);
         return registry;
     }
 
