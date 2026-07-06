@@ -119,6 +119,13 @@ public partial class MainWindow : Window
 
     private void OnCloseEnlargedClick(object? sender, RoutedEventArgs e) => Vm?.CloseEnlarged();
 
+    private void OnDrawerResize(object? sender, VectorEventArgs e)
+    {
+        // Drawer sits at the window bottom; dragging its top edge up (negative Y) grows it.
+        var target = ConsoleDrawer.Bounds.Height - e.Vector.Y;
+        ConsoleDrawer.Height = Math.Clamp(target, 90, 600);
+    }
+
     private async void OpenFullscreen()
     {
         // async void event handler: an unguarded throw (preview decode) would escape to the sync
