@@ -4,28 +4,15 @@ namespace Monocle.App.Services;
 
 /// <summary>
 /// Resolves the bits needed to launch a locked-down Claude cull from the app: the user's
-/// claude.exe, a .NET host for the MCP server, and a generated .mcp.json pointing only at the
-/// co-located Monocle.Mcp server (#11). No API keys are ever read or stored.
+/// claude.exe, the windowless Monocle.Mcp.exe apphost, and a generated .mcp.json pointing only at
+/// the co-located Monocle.Mcp server (#11). No API keys are ever read or stored.
 /// </summary>
 public static class CullLauncher
 {
-    public static string McpServerDll() =>
-        Path.Combine(AppContext.BaseDirectory, "mcp", "Monocle.Mcp.dll");
+    public static string McpServerExe() =>
+        Path.Combine(AppContext.BaseDirectory, "mcp", "Monocle.Mcp.exe");
 
-    public static bool McpServerExists() => File.Exists(McpServerDll());
-
-    /// <summary>The .NET host that can run the net10 MCP server (prefer the user-local runtime).</summary>
-    public static string DotnetHost()
-    {
-        var root = Environment.GetEnvironmentVariable("DOTNET_ROOT");
-        if (!string.IsNullOrEmpty(root))
-        {
-            var p = Path.Combine(root, OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet");
-            if (File.Exists(p))
-                return p;
-        }
-        return OperatingSystem.IsWindows() ? "dotnet.exe" : "dotnet";
-    }
+    public static bool McpServerExists() => File.Exists(McpServerExe());
 
     public static string ResolveClaude()
     {
@@ -41,12 +28,11 @@ public static class CullLauncher
     {
         var server = new Dictionary<string, object>
         {
-            ["command"] = DotnetHost(),
-            ["args"] = new[] { McpServerDll() },
+            // Launch the windowless WinExe apphost directly: no dotnet muxer, so no console
+            // window flashes when claude.exe spawns the MCP server as a grandchild.
+            ["command"] = McpServerExe(),
+            ["args"] = Array.Empty<string>(),
         };
-        var root = Environment.GetEnvironmentVariable("DOTNET_ROOT");
-        if (!string.IsNullOrEmpty(root))
-            server["env"] = new Dictionary<string, string> { ["DOTNET_ROOT"] = root };
 
         var config = new Dictionary<string, object>
         {
@@ -54,7 +40,7 @@ public static class CullLauncher
         };
 
         // Unique per run so concurrent culls don't clobber each other's config; the caller deletes
-        // it when the run ends. It holds no secrets (only the dotnet host + server dll paths).
+        // it when the run ends. It holds no secrets (only the server exe path).
         var path = Path.Combine(Path.GetTempPath(), $"monocle-cull-mcp-{Guid.NewGuid():N}.json");
         File.WriteAllText(path, JsonSerializer.Serialize(config, new JsonSerializerOptions { WriteIndented = true }));
         return path;
