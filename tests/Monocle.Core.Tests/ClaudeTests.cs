@@ -1,4 +1,5 @@
 using System.Linq;
+using Monocle.App.ViewModels;
 using Monocle.Models.Claude;
 using Xunit;
 
@@ -85,6 +86,19 @@ public class ClaudeTests
             ClaudeStreamParser.ParseLine("""{"type":"system","subtype":"init","model":"claude-haiku-4-5"}""").Kind);
         Assert.Equal(ClaudeEventKind.Unknown, ClaudeStreamParser.ParseLine("not json").Kind);
         Assert.Equal(ClaudeEventKind.Unknown, ClaudeStreamParser.ParseLine("").Kind);
+    }
+
+    [Fact]
+    public void ClaudeVerdictScore_keys_by_model_so_models_do_not_collide()
+    {
+        var haiku = MainWindowViewModel.ClaudeVerdictScore("claude-haiku-4-5", "Claude Haiku 4.5", 3, "slightly soft");
+        var opus  = MainWindowViewModel.ClaudeVerdictScore("claude-opus-4-8", "Claude Opus 4.8", 4, "keeper");
+
+        Assert.Equal("claude:claude-haiku-4-5", haiku.ModelId);
+        Assert.Equal("claude:claude-opus-4-8", opus.ModelId);
+        Assert.NotEqual(haiku.ModelId, opus.ModelId);   // distinct scores rows → no clobber
+        Assert.Equal(4, opus.Value);
+        Assert.Equal("keeper", opus.Text);
     }
 
     [Fact]

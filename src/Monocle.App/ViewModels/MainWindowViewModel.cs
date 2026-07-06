@@ -911,6 +911,19 @@ public partial class MainWindowViewModel : ViewModelBase
                         {
                             rated++;
                             Pipeline?.SetProgress("claude", Total == 0 ? 0 : Math.Min(1.0, (double)rated / Total));
+                            // Attach + cache this model's verdict as its own ModelScore (keyed
+                            // "claude:<modelId>") so a later model's set_rating doesn't clobber an
+                            // earlier one's — only item.Stars/headline stay last-writer-wins (#5).
+                            if (tile is not null && TryGetStars(ev.ToolInput) is { } stars)
+                            {
+                                var displayName = ClaudeCullRunner.Catalog
+                                    .FirstOrDefault(r => r.ClaudeModelId == ClaudeModel)?.Descriptor.DisplayName
+                                    ?? ClaudeModel;
+                                var verdict = ClaudeVerdictScore(ClaudeModel, displayName, stars, TryGetRationale(ev.ToolInput));
+                                tile.Item.Scores.RemoveAll(s => s.ModelId == verdict.ModelId);   // re-run replaces
+                                tile.Item.Scores.Add(verdict);
+                                _cache?.PutScore(tile.Item.Id, tile.Item.Fingerprint, verdict);
+                            }
                             // The frame Claude just rated is complete: fill its bar and settle it (#1).
                             tile?.CompleteCull();
                         }
@@ -982,6 +995,50 @@ public partial class MainWindowViewModel : ViewModelBase
         }
         catch { return null; }
     }
+
+    /// <summary>Pull the star rating out of a <c>set_rating</c> tool-use input blob, or null if
+    /// missing/not an int. Mirrors <see cref="TryGetToolId"/> (#5).</summary>
+    private static int? TryGetStars(string? toolInput)
+    {
+        if (string.IsNullOrWhiteSpace(toolInput))
+            return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(toolInput);
+            return doc.RootElement.TryGetProperty("stars", out var s) && s.TryGetInt32(out var v)
+                ? v
+                : null;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Pull the free-text rationale out of a <c>set_rating</c> tool-use input blob, or null
+    /// if missing/not a string. Mirrors <see cref="TryGetToolId"/> (#5).</summary>
+    private static string? TryGetRationale(string? toolInput)
+    {
+        if (string.IsNullOrWhiteSpace(toolInput))
+            return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(toolInput);
+            return doc.RootElement.TryGetProperty("rationale", out var r) && r.ValueKind == System.Text.Json.JsonValueKind.String
+                ? r.GetString()
+                : null;
+        }
+        catch { return null; }
+    }
+
+    /// <summary>Build the per-model verdict score for a Claude cull so Haiku/Sonnet/Opus verdicts
+    /// coexist in the scores cache (keyed by model id) instead of overwriting one shared slot (#5).</summary>
+    public static ModelScore ClaudeVerdictScore(string modelId, string displayName, int stars, string? rationale) => new()
+    {
+        ModelId = $"claude:{modelId}",
+        ModelDisplayName = displayName,
+        Kind = ScoreKind.Aesthetic,
+        Value = stars,
+        Text = string.IsNullOrWhiteSpace(rationale) ? null : rationale.Trim(),
+        Resource = ResourceKind.ClaudeTokens,
+    };
 
     /// <summary>Re-read sidecars after a cull so the grid shows the ratings Claude wrote. The disk
     /// reads (one per photo) run off the UI thread so the window stays responsive on large shoots.</summary>
