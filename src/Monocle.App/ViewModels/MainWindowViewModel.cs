@@ -191,10 +191,17 @@ public partial class MainWindowViewModel : ViewModelBase
     // Set while "Heuristic baseline" runs so the scan rates with the heuristic only (no scorers).
     private bool _heuristicOnly;
 
+    private IReadOnlyList<ModelOptionViewModel> EnabledModels() =>
+        _heuristicOnly ? Array.Empty<ModelOptionViewModel>()
+                       : Models.Where(m => m.IsEnabled && m.Available).ToList();
+
+    /// <summary>Per-photo scoring runners (everything except the folder-level Claude culls).</summary>
     private IReadOnlyList<IModelRunner> SelectedScorers() =>
-        _heuristicOnly
-            ? Array.Empty<IModelRunner>()
-            : Models.Where(m => m.IsEnabled && m.Available).Select(m => m.Runner).ToList();
+        EnabledModels().Where(m => !ClaudeCullRunner.IsClaudeId(m.Runner.Descriptor.Id))
+                       .Select(m => m.Runner).ToList();
+
+    private IReadOnlyList<ClaudeCullRunner> SelectedClaudeModels() =>
+        EnabledModels().Select(m => m.Runner).OfType<ClaudeCullRunner>().ToList();
 
     /// <summary>Install a not-yet-available model from the app (#5): download + verify ONNX weights,
     /// or pip-install the Python sidecar's deps. Refreshes availability when done.</summary>
@@ -281,7 +288,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Navigation: left-rail center view + right-panel tab (Photo Critic layout, #8) ----
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBrowse), nameof(IsOverview), nameof(IsRejectsView),
-                              nameof(IsSettings), nameof(IsDesign), nameof(ViewTitle))]
+                              nameof(IsSettings), nameof(IsDesign), nameof(IsAiCull), nameof(ViewTitle))]
     private CenterView _view = CenterView.Browse;
 
     public bool IsBrowse => View == CenterView.Browse;
@@ -289,6 +296,7 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsRejectsView => View == CenterView.Rejects;
     public bool IsSettings => View == CenterView.Settings;
     public bool IsDesign => View == CenterView.Design;
+    public bool IsAiCull => View == CenterView.AiCull;
 
     public string ViewTitle => View switch
     {
@@ -296,6 +304,7 @@ public partial class MainWindowViewModel : ViewModelBase
         CenterView.Rejects => "Reject management",
         CenterView.Settings => "Settings",
         CenterView.Design => "Design system",
+        CenterView.AiCull => "AI Cull — models & process",
         _ => "Browse",
     };
 
@@ -310,11 +319,10 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsDetailTab), nameof(IsAiCullTab), nameof(IsPipelineTab), nameof(IsRunLogTab))]
+    [NotifyPropertyChangedFor(nameof(IsDetailTab), nameof(IsPipelineTab), nameof(IsRunLogTab))]
     private RightTab _rightTab = RightTab.Detail;
 
     public bool IsDetailTab => RightTab == RightTab.Detail;
-    public bool IsAiCullTab => RightTab == RightTab.AiCull;
     public bool IsPipelineTab => RightTab == RightTab.Pipeline;
     public bool IsRunLogTab => RightTab == RightTab.RunLog;
 
@@ -426,8 +434,6 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ---- Claude cull (#5, #11) ----
     public ObservableCollection<string> CullLog { get; } = new();
-    public string[] ClaudeModels { get; } = { "claude-haiku-4-5", "claude-sonnet-4-6", "claude-opus-4-8" };
-    [ObservableProperty] private string _claudeModel = "claude-haiku-4-5";
     [ObservableProperty] private bool _cullRunning;
 
     // ---- In-app console / diagnostic log panel (toggled in Settings) ----
@@ -832,7 +838,57 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     [RelayCommand]
-    private async Task CullWithClaudeAsync()
+    private async Task ProcessAsync()
+    {
+        if (_cache is null || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
+        {
+            StatusText = "Scan a folder before processing.";
+            return;
+        }
+
+        var scorers = SelectedScorers();
+        var claude = SelectedClaudeModels();
+        if (scorers.Count == 0 && claude.Count == 0)
+        {
+            StatusText = "Tick at least one model to process.";
+            return;
+        }
+
+        // D: start Qwen's host so a ticked Qwen isn't silently skipped. EnsureAsync is a no-op when
+        // GPU routing isn't configured; also (re)start the Python sidecar if a sidecar model is ticked.
+        if (scorers.Any(r => r.Descriptor.RequiresSidecar))
+        {
+            await _llama.EnsureAsync();          // GPU route (MONOCLE_QWEN_LLAMA_URL); no-op otherwise
+            if (!_sidecar.Running) await StartSidecarAsync();
+        }
+
+        // Probabilistic: run every ticked scorer for every frame, every click (re-scores on re-click).
+        if (scorers.Count > 0)
+        {
+            IsBusy = true;
+            try
+            {
+                SetupPipeline(scorers);
+                lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
+                RunLog($"Process — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
+                await AnalyzeAllAsync(scorers, CancellationToken.None);
+                CompletePipeline();
+                RefreshStats();
+                ApplyFilter();
+            }
+            finally { IsBusy = false; }
+        }
+
+        // Folder-level: one Claude cull per ticked Claude model, each storing a per-model verdict.
+        foreach (var model in claude)
+            await RunClaudeCullAsync(model, CancellationToken.None);
+
+        StatusText = "Process complete.";
+    }
+
+    /// <summary>Run a folder-level Claude cull with a specific ticked Claude model, storing its verdict
+    /// as its own per-model score (Task 5) so multiple models' verdicts coexist on a frame.</summary>
+    private async Task RunClaudeCullAsync(ClaudeCullRunner runner, CancellationToken outerCt)
     {
         if (_cache is null || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
         {
@@ -844,12 +900,13 @@ public partial class MainWindowViewModel : ViewModelBase
             CullLog.Add("Monocle MCP server not found next to the app — build the solution first.");
             return;
         }
+        var currentClaudeModelId = runner.ClaudeModelId;
+        var currentClaudeDisplay = runner.Descriptor.DisplayName;
 
         CullRunning = true;
         ShowConsole = true; DrawerRunLog = true;   // surface the run log (now a drawer tab) while culling
-        CullLog.Clear();
-        CullLog.Add($"Starting cull with {ClaudeModel} (locked to Monocle photo tools)…");
-        StatusText = $"Culling {Total} photos with {ClaudeModel}…";   // replace the stale scan result now, not at the end
+        CullLog.Add($"Starting cull with {currentClaudeDisplay} (locked to Monocle photo tools)…");
+        StatusText = $"Culling {Total} photos with {currentClaudeDisplay}…";   // replace the stale scan result now, not at the end
         Pipeline?.SetStatus("claude", StageStatus.Running);
         // Every frame is pending Claude's judgement. Reset progress (a prior cull may have left it at
         // 1.0) before arming Culling so no bar flashes full; each frame's bar then fills as Claude
@@ -881,7 +938,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Folder = FolderPath,
             Prompt = CullLauncher.BuildCullPrompt(FolderPath),
             McpConfigPath = CullLauncher.WriteMcpConfig(),
-            Model = ClaudeModel,
+            Model = currentClaudeModelId,
         };
         var service = new ClaudeCullService { Executable = CullLauncher.ResolveClaude() };
         var rated = 0;
@@ -915,10 +972,7 @@ public partial class MainWindowViewModel : ViewModelBase
                             // earlier one's — only item.Stars/headline stay last-writer-wins (#5).
                             if (tile is not null && TryGetStars(ev.ToolInput) is { } stars)
                             {
-                                var displayName = ClaudeCullRunner.Catalog
-                                    .FirstOrDefault(r => r.ClaudeModelId == ClaudeModel)?.Descriptor.DisplayName
-                                    ?? ClaudeModel;
-                                var verdict = ClaudeVerdictScore(ClaudeModel, displayName, stars, TryGetRationale(ev.ToolInput));
+                                var verdict = ClaudeVerdictScore(currentClaudeModelId, currentClaudeDisplay, stars, TryGetRationale(ev.ToolInput));
                                 tile.Item.Scores.RemoveAll(s => s.ModelId == verdict.ModelId);   // re-run replaces
                                 tile.Item.Scores.Add(verdict);
                                 _cache?.PutScore(tile.Item.Id, tile.Item.Fingerprint, verdict);
@@ -1477,12 +1531,12 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedPhoto = firstUnrated;
     }
 
-    /// <summary>Unattended cull: open the AI Cull tab and start the Claude run.</summary>
+    /// <summary>Unattended run: open the AI Cull view and process every ticked model.</summary>
     [RelayCommand]
     private async Task UnattendedRunAsync()
     {
-        RightTab = RightTab.AiCull;
-        await CullWithClaudeAsync();
+        View = CenterView.AiCull;
+        await ProcessAsync();
     }
 
     public void Cleanup()
@@ -1500,7 +1554,7 @@ public partial class MainWindowViewModel : ViewModelBase
 }
 
 /// <summary>The center pane's current page, chosen from the left navigation rail (#8).</summary>
-public enum CenterView { Browse, Overview, Rejects, Settings, Design }
+public enum CenterView { Browse, Overview, Rejects, Settings, Design, AiCull }
 
 /// <summary>The right panel's current tab (#8).</summary>
-public enum RightTab { Detail, AiCull, Pipeline, RunLog }
+public enum RightTab { Detail, Pipeline, RunLog }

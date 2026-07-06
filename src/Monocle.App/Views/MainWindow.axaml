@@ -271,6 +271,11 @@
                             </Grid>
                         </Button>
 
+                        <TextBlock Text="AI CULL" FontSize="10" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Text3}" Margin="8,14,0,4"/>
+                        <Button Classes="nav" Classes.on="{Binding IsAiCull}" Command="{Binding GoViewCommand}"
+                                CommandParameter="AiCull" Content="✦  Models &amp; Process"/>
+
                         <TextBlock Text="CULL" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="8,14,0,4"/>
                         <Button Classes="nav" Command="{Binding RunHeuristicBaselineCommand}" IsEnabled="{Binding !IsBusy}"
                                 Content="⚡  Heuristic baseline"/>
@@ -410,6 +415,55 @@
                         </ListBox.ItemTemplate>
                     </ListBox>
                 </Grid>
+
+                <!-- AI CULL: models checklist + Process -->
+                <ScrollViewer IsVisible="{Binding IsAiCull}">
+                    <StackPanel Spacing="12" Margin="18,14" MaxWidth="720" HorizontalAlignment="Left">
+                        <TextBlock Text="MODELS" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
+                        <TextBlock Text="Tick models, then Process. Scan first for metrics; Process runs the ticked models (and Claude, if ticked) every click."
+                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
+                        <Button Classes="ghost" Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
+                                IsEnabled="{Binding !SidecarStarting}" HorizontalAlignment="Left" FontSize="11"
+                                ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
+                        <TextBlock Text="GPU build: set the compute target in Settings → Python sidecar before installing deps."
+                                   Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding Models}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ModelOptionViewModel">
+                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3" ToolTip.Tip="{Binding Tradeoffs}">
+                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
+                                                  IsEnabled="{Binding Available}" VerticalAlignment="Top"/>
+                                        <StackPanel Grid.Column="1">
+                                            <TextBlock Text="{Binding Header}" FontSize="12"/>
+                                            <TextBlock Text="{Binding Description}" FontSize="10"
+                                                       Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
+                                                <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
+                                                        IsVisible="{Binding ShowInstall}" IsEnabled="{Binding CanInstall}"
+                                                        ToolTip.Tip="{Binding InstallTip}"
+                                                        Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
+                                                        CommandParameter="{Binding}"/>
+                                                <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
+                                                           FontSize="10" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
+                                                           IsVisible="{Binding ShowInstallProgress}"/>
+                                                <Button Content="model card ↗" FontSize="10" Padding="6,1"
+                                                        IsVisible="{Binding HasInfoUrl}" ToolTip.Tip="{Binding InfoUrl}"
+                                                        Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
+                                                        CommandParameter="{Binding InfoUrl}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
+                                                   Foreground="{StaticResource Accent}" VerticalAlignment="Top" Margin="4,0,0,0"/>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
+                        <Button Classes="primary" Content="Process" HorizontalAlignment="Left" MinWidth="160"
+                                Command="{Binding ProcessCommand}" IsEnabled="{Binding !CullRunning}"/>
+                        <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
+                    </StackPanel>
+                </ScrollViewer>
 
                 <!-- FOLDER OVERVIEW -->
                 <ScrollViewer IsVisible="{Binding IsOverview}">
@@ -551,14 +605,6 @@
                                 <TextBlock Text="Cull &amp; writing" FontWeight="SemiBold" FontSize="13"/>
                                 <Grid ColumnDefinitions="*,Auto">
                                     <StackPanel Grid.Column="0">
-                                        <TextBlock Text="Judging model" FontSize="13"/>
-                                        <TextBlock Text="Opus for quality, Haiku for huge folders" FontSize="11.5" Foreground="{StaticResource Text3}"/>
-                                    </StackPanel>
-                                    <ComboBox Grid.Column="1" ItemsSource="{Binding ClaudeModels}" SelectedItem="{Binding ClaudeModel}"
-                                              Width="180" VerticalAlignment="Center"/>
-                                </Grid>
-                                <Grid ColumnDefinitions="*,Auto">
-                                    <StackPanel Grid.Column="0">
                                         <TextBlock Text="Fold RAW+JPG pairs" FontSize="13"/>
                                         <TextBlock Text="One frame = two files; a rating mirrors to both" FontSize="11.5" Foreground="{StaticResource Text3}"/>
                                     </StackPanel>
@@ -678,12 +724,10 @@
                     <!-- Tab row -->
                     <Border DockPanel.Dock="Top" Height="38" BorderBrush="{StaticResource BorderSoft}"
                             BorderThickness="0,0,0,1" Padding="6,4">
-                        <Grid ColumnDefinitions="*,*,*" >
+                        <Grid ColumnDefinitions="*,*" >
                             <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding IsDetailTab}" Content="Detail"
                                     HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="Detail"/>
-                            <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding IsAiCullTab}" Content="AI Cull"
-                                    HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="AiCull"/>
-                            <Button Grid.Column="2" Classes="rtab" Classes.on="{Binding IsPipelineTab}" Content="Pipeline"
+                            <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding IsPipelineTab}" Content="Pipeline"
                                     HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="Pipeline"/>
                         </Grid>
                     </Border>
@@ -767,60 +811,6 @@
                                          FontFamily="{StaticResource FontSans}" TextWrapping="Wrap"
                                          Watermark="Your own thoughts on this image…"/>
                                 <Button Classes="ghost" Content="Save notes" Command="{Binding SaveNotesCommand}" HorizontalAlignment="Right"/>
-                            </StackPanel>
-                        </ScrollViewer>
-
-                        <!-- AI CULL TAB -->
-                        <ScrollViewer IsVisible="{Binding IsAiCullTab}">
-                            <StackPanel Spacing="12" Margin="14">
-                                <TextBlock Text="MODELS" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                <TextBlock Text="Tick models, then Scan to apply. Hover for tradeoffs."
-                                           Foreground="{StaticResource Text3}" FontSize="11"/>
-                                <Button Classes="ghost" Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
-                                        IsEnabled="{Binding !SidecarStarting}" HorizontalAlignment="Left" FontSize="11"
-                                        ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
-                                <TextBlock Text="GPU build: set the compute target in Settings → Python sidecar before installing deps."
-                                           Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
-                                <ItemsControl ItemsSource="{Binding Models}">
-                                    <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="vm:ModelOptionViewModel">
-                                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3" ToolTip.Tip="{Binding Tradeoffs}">
-                                                <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
-                                                          IsEnabled="{Binding Available}" VerticalAlignment="Top"/>
-                                                <StackPanel Grid.Column="1">
-                                                    <TextBlock Text="{Binding Header}" FontSize="12"/>
-                                                    <TextBlock Text="{Binding Description}" FontSize="10"
-                                                               Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
-                                                    <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-                                                        <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
-                                                                IsVisible="{Binding ShowInstall}" IsEnabled="{Binding CanInstall}"
-                                                                ToolTip.Tip="{Binding InstallTip}"
-                                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
-                                                                CommandParameter="{Binding}"/>
-                                                        <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
-                                                                   FontSize="10" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
-                                                                   IsVisible="{Binding ShowInstallProgress}"/>
-                                                        <Button Content="model card ↗" FontSize="10" Padding="6,1"
-                                                                IsVisible="{Binding HasInfoUrl}" ToolTip.Tip="{Binding InfoUrl}"
-                                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
-                                                                CommandParameter="{Binding InfoUrl}"/>
-                                                    </StackPanel>
-                                                </StackPanel>
-                                                <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
-                                                           Foreground="{StaticResource Accent}" VerticalAlignment="Top" Margin="4,0,0,0"/>
-                                            </Grid>
-                                        </DataTemplate>
-                                    </ItemsControl.ItemTemplate>
-                                </ItemsControl>
-
-                                <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
-                                <TextBlock Text="CLAUDE CULL" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                <TextBlock Text="Uses your own Claude Code — no API keys, locked to Monocle photo tools."
-                                           Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
-                                <ComboBox ItemsSource="{Binding ClaudeModels}" SelectedItem="{Binding ClaudeModel}" HorizontalAlignment="Stretch"/>
-                                <Button Classes="primary" Content="Cull with Claude" HorizontalAlignment="Stretch"
-                                        Command="{Binding CullWithClaudeCommand}" IsEnabled="{Binding !CullRunning}"/>
-                                <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
                             </StackPanel>
                         </ScrollViewer>
 
