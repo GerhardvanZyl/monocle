@@ -180,5 +180,25 @@ public class ShootServiceTests : IDisposable
             svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { runner }, cts.Token));
     }
 
+    [Fact]
+    public async Task AnalyzeAsync_with_no_scorers_rates_heuristically_and_produces_zero_model_scores()
+    {
+        // Scan is deterministic-only: metrics + EXIF + heuristic rating, no probabilistic scorers.
+        WriteJpeg("f.jpg");
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var item = svc.Load(_dir)[0];
+
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, Array.Empty<IModelRunner>(), CancellationToken.None);
+
+        Assert.True(item.Stars >= 1);   // heuristic rated it (deterministic)
+
+        // No probabilistic scorer ran: the only entry in Scores is the heuristic's own self-attached
+        // rating (HeuristicRatingEngine.Rate always adds a ModelId="heuristic" ModelScore — that's a
+        // pre-existing, separately-tested contract, not a probabilistic model result).
+        var score = Assert.Single(item.Scores);
+        Assert.Equal(ScoreKind.Rating, score.Kind);
+    }
+
     public void Dispose() => Directory.Delete(_dir, recursive: true);
 }

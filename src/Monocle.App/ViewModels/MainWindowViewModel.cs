@@ -668,14 +668,15 @@ public partial class MainWindowViewModel : ViewModelBase
             // Remember this folder so the next session reopens it (#2).
             _settings.LastFolder = folder; _settings.Save();
 
-            var scorers = SelectedScorers();
+            // Scan is deterministic-only now: decode → exif → metrics → heuristic rate. Probabilistic
+            // model scoring moved to the Process button. Pass no scorers.
+            IReadOnlyList<IModelRunner> scorers = Array.Empty<IModelRunner>();
             SetupPipeline(scorers);
             lock (_scorerSkipReasons) _scorerSkipReasons.Clear();   // re-report skips for this fresh run
 
             var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
-            var expectsScoring = scorers.Count > 0;
             foreach (var item in items)
-                Photos.Add(new PhotoTileViewModel(item) { ExpectsScoring = expectsScoring });
+                Photos.Add(new PhotoTileViewModel(item) { ExpectsScoring = false });
             ApplyFilter();
             Pipeline?.SetStatus("scan", StageStatus.Done);
 
@@ -686,9 +687,7 @@ public partial class MainWindowViewModel : ViewModelBase
             StatusText = $"Analyzing {Total} photos…";
 
             CullLog.Clear();   // the Run log tracks this run (scan now, not just cull)
-            RunLog($"Scan started — {Total} photos" + (scorers.Count > 0
-                ? $", scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}"
-                : ", no scorers selected"));
+            RunLog($"Scan started — {Total} photos (deterministic: metrics + heuristic rating)");
 
             await AnalyzeAllAsync(scorers, ct);
             CompletePipeline();
