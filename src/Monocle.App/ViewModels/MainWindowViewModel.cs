@@ -854,6 +854,8 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
+        CullLog.Clear();
+
         // D: start Qwen's host so a ticked Qwen isn't silently skipped. EnsureAsync is a no-op when
         // GPU routing isn't configured; also (re)start the Python sidecar if a sidecar model is ticked.
         if (scorers.Any(r => r.Descriptor.RequiresSidecar))
@@ -868,6 +870,8 @@ public partial class MainWindowViewModel : ViewModelBase
             IsBusy = true;
             try
             {
+                foreach (var tile in Photos)
+                    tile.ExpectsScoring = true;
                 SetupPipeline(scorers);
                 lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
                 RunLog($"Process — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
