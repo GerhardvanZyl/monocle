@@ -45,7 +45,7 @@ bash scripts/publish-linux.sh      # -> self-contained linux-x64 + an AppImage (
   - This repo was bootstrapped with a user-local SDK at
     `%LOCALAPPDATA%\Microsoft\dotnet`. If `dotnet` on your `PATH` is an older version,
     use that full path, or set `DOTNET_ROOT` (see below).
-  - Easiest run path: double-click **`run-monocle.cmd`** (sets `DOTNET_ROOT` and launches).
+  - **Launch path:** double-click **`publish/win-x64/Monocle.App.exe`** (self-contained, built via `pwsh scripts/publish-windows.ps1` — no .NET install needed). `run-monocle.cmd` is a dev build helper only.
 
 ## Build & test
 
@@ -58,8 +58,9 @@ $dotnet = "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe"
 
 ## Run
 
-The app targets .NET 9. If your machine's system-wide runtime is older, point the host at
-the .NET 9 runtime via `DOTNET_ROOT`:
+**Headless launch (end-user):** `publish/win-x64/Monocle.App.exe` is self-contained (no runtime needed). Build it with the packaging commands above, then double-click.
+
+**Dev iteration:** Use `dotnet run` (framework-dependent):
 
 ```powershell
 $env:DOTNET_ROOT = "$env:LOCALAPPDATA\Microsoft\dotnet"
@@ -69,7 +70,7 @@ $env:DOTNET_ROOT = "$env:LOCALAPPDATA\Microsoft\dotnet"
 & "$env:LOCALAPPDATA\Microsoft\dotnet\dotnet.exe" run --project src/Monocle.App -- "D:\Photos\2026-06-09"
 ```
 
-A self-contained single-file build (no runtime install needed) arrives in the packaging phase.
+(Or use `run-monocle.cmd` as a shorthand dev helper.)
 
 ## Keyboard review
 

@@ -29,9 +29,7 @@ $env:DOTNET_ROOT = "$env:LOCALAPPDATA\Microsoft\dotnet"
 & $dotnet run --project src/Monocle.App -- "D:\Photos\2026-06-09"   # open + auto-scan a folder
 ```
 
-`run-monocle.cmd` (double-click) sets `DOTNET_ROOT` and launches the built exe, building first if
-needed. Self-contained packaging: `pwsh scripts/publish-windows.ps1` →
-`publish/win-x64/Monocle.App.exe`; `bash scripts/publish-linux.sh` → linux-x64 + AppImage.
+**Launch path:** `publish/win-x64/Monocle.App.exe` is self-contained (no runtime needed) — build with `pwsh scripts/publish-windows.ps1`. `run-monocle.cmd` is a **dev build helper only** (sets `DOTNET_ROOT` and launches the debug build for quick iteration). Self-contained Linux: `bash scripts/publish-linux.sh` → linux-x64 + AppImage.
 
 Tests live only in `tests/Monocle.Core.Tests` (xUnit) and cover Core + Models + Pipeline. There is
 no UI test project — the App layer is verified manually.

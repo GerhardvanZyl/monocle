@@ -1,5 +1,7 @@
 @echo off
-rem Launches Monocle, pointing the .NET host at the user-local .NET 10 runtime.
+rem DEV BUILD HELPER (not the end-user launch path). Builds if needed, sets DOTNET_ROOT for the
+rem framework-dependent build, then runs the exe for quick iteration. For a headless, no-console
+rem launch, use the self-contained publish/win-x64/Monocle.App.exe (scripts/publish-windows.ps1).
 rem Optional first argument: a folder to open and auto-scan.
 setlocal
 set "DOTNET_ROOT=%LOCALAPPDATA%\Microsoft\dotnet"
