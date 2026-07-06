@@ -173,34 +173,39 @@
             </Grid>
         </Border>
 
-        <!-- ===== CONSOLE / LOG PANEL (toggled in Settings) ===== -->
-        <Border DockPanel.Dock="Bottom" Height="176" IsVisible="{Binding ShowConsole}"
-                Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                BorderThickness="0,1,0,0">
-            <DockPanel>
-                <Border DockPanel.Dock="Top" Padding="12,5" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
-                    <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
-                        <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding !DrawerRunLog}" Content="Console"
-                                Command="{Binding SetDrawerTabCommand}" CommandParameter="Console"/>
-                        <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding DrawerRunLog}" Content="Run log" Margin="4,0,0,0"
-                                Command="{Binding SetDrawerTabCommand}" CommandParameter="RunLog"/>
-                        <Button Grid.Column="3" Classes="ghost" Content="Clear" FontSize="11" Padding="8,2"
-                                Command="{Binding ClearConsoleCommand}"/>
-                        <Button Grid.Column="4" Classes="ghost" Content="Hide" FontSize="11" Padding="8,2" Margin="6,0,0,0"
-                                Command="{Binding ToggleConsoleCommand}"/>
-                    </Grid>
-                </Border>
-                <!-- Read-only TextBoxes are natively selectable + Ctrl+C copyable. -->
-                <TextBox Text="{Binding ConsoleText, Mode=OneWay}" IsReadOnly="True" IsVisible="{Binding !DrawerRunLog}"
-                         AcceptsReturn="True" TextWrapping="NoWrap" Background="Transparent" BorderThickness="0"
-                         FontFamily="{StaticResource FontMono}" FontSize="11" Foreground="{StaticResource Text2}" Padding="10,4"
-                         ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
-                <TextBox Text="{Binding CullLogText, Mode=OneWay}" IsReadOnly="True" IsVisible="{Binding DrawerRunLog}"
-                         AcceptsReturn="True" TextWrapping="Wrap" Background="Transparent" BorderThickness="0"
-                         FontFamily="{StaticResource FontMono}" FontSize="11" Foreground="{StaticResource Text2}" Padding="10,4"
-                         ScrollViewer.VerticalScrollBarVisibility="Auto"/>
-            </DockPanel>
-        </Border>
+        <!-- ===== CONSOLE / LOG PANEL (toggled in Settings) — resizable via the top splitter ===== -->
+        <Grid DockPanel.Dock="Bottom" IsVisible="{Binding ShowConsole}" RowDefinitions="4,Auto">
+            <GridSplitter Grid.Row="0" Height="4" HorizontalAlignment="Stretch"
+                          Background="{StaticResource BorderSoft}" ResizeDirection="Rows"
+                          Cursor="SizeNorthSouth"/>
+            <Border Grid.Row="1" Height="176" MinHeight="90"
+                    Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                    BorderThickness="0,1,0,0">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Padding="12,5" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
+                        <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
+                            <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding !DrawerRunLog}" Content="Console"
+                                    Command="{Binding SetDrawerTabCommand}" CommandParameter="Console"/>
+                            <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding DrawerRunLog}" Content="Run log" Margin="4,0,0,0"
+                                    Command="{Binding SetDrawerTabCommand}" CommandParameter="RunLog"/>
+                            <Button Grid.Column="3" Classes="ghost" Content="Clear" FontSize="11" Padding="8,2"
+                                    Command="{Binding ClearConsoleCommand}"/>
+                            <Button Grid.Column="4" Classes="ghost" Content="Hide" FontSize="11" Padding="8,2" Margin="6,0,0,0"
+                                    Command="{Binding ToggleConsoleCommand}"/>
+                        </Grid>
+                    </Border>
+                    <!-- Read-only TextBoxes are natively selectable + Ctrl+C copyable. -->
+                    <TextBox Text="{Binding ConsoleText, Mode=OneWay}" IsReadOnly="True" IsVisible="{Binding !DrawerRunLog}"
+                             AcceptsReturn="True" TextWrapping="NoWrap" Background="Transparent" BorderThickness="0"
+                             FontFamily="{StaticResource FontMono}" FontSize="11" Foreground="{StaticResource Text2}" Padding="10,4"
+                             ScrollViewer.HorizontalScrollBarVisibility="Auto" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                    <TextBox Text="{Binding CullLogText, Mode=OneWay}" IsReadOnly="True" IsVisible="{Binding DrawerRunLog}"
+                             AcceptsReturn="True" TextWrapping="Wrap" Background="Transparent" BorderThickness="0"
+                             FontFamily="{StaticResource FontMono}" FontSize="11" Foreground="{StaticResource Text2}" Padding="10,4"
+                             ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                </DockPanel>
+            </Border>
+        </Grid>
 
         <!-- ===== BODY: rail | center | right ===== -->
         <Grid ColumnDefinitions="236,*,392">
