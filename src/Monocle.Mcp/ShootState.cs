@@ -29,11 +29,18 @@ public sealed class ShootState : IDisposable
         _items.Clear();
 
         var items = _service.Load(folder);
+        // Analyse in parallel like the app does (ShootCache serializes its own DB access); a cold
+        // scan_folder on a big shoot was ~8x slower one-frame-at-a-time, and the cull blocks on it.
+        var cache = _cache;
+        await Parallel.ForEachAsync(items,
+            new ParallelOptions
+            {
+                MaxDegreeOfParallelism = Math.Clamp(Environment.ProcessorCount - 1, 2, 8),
+                CancellationToken = ct,
+            },
+            async (item, token) => await _service.AnalyzeAsync(item, cache, rateIfUnrated: false, scorers: null, token));
         foreach (var item in items)
-        {
-            await _service.AnalyzeAsync(item, _cache, rateIfUnrated: false, scorers: null, ct);
             _items[item.Id] = item;
-        }
         return items;
     }
 

@@ -94,5 +94,71 @@ public class DecoderTests : IDisposable
         Assert.Equal(0xD9, extracted[^1]);
     }
 
+    [Fact]
+    public void LargeJpegDecodesScaledButKeepsMetricsResolution()
+    {
+        // A 24MP-class frame must not be decoded at native size for a 360px thumbnail, but the
+        // metrics luma buffer must still come out at its full standard long edge (512) so
+        // sharpness stays comparable across the shoot.
+        var path = Path.Combine(_dir, "big.jpg");
+        File.WriteAllBytes(path, MakeJpeg(4000, 3000));
+
+        var result = SkiaImageDecoder.Decode(path, maxLongEdge: 360);
+
+        Assert.Equal(512, Math.Max(result.Gray.Width, result.Gray.Height));
+        using var codec = SKCodec.Create(new MemoryStream(result.PreviewJpeg));
+        Assert.Equal(360, Math.Max(codec.Info.Width, codec.Info.Height));
+
+        // Detail must survive the scaled decode path.
+        var metrics = TechnicalMetricsCalculator.Compute(result.Gray);
+        Assert.True(metrics.SharpnessBestTile > 0.2, $"sharpness {metrics.SharpnessBestTile:0.00}");
+    }
+
+    [Fact]
+    public void CroppedDecodeOfLargeJpegKeepsEnoughResolution()
+    {
+        // Cropping to a quarter of the frame must not leave the metrics buffer starved because
+        // the scaled decode was sized for the full frame.
+        var path = Path.Combine(_dir, "bigcrop.jpg");
+        File.WriteAllBytes(path, MakeJpeg(4000, 3000));
+
+        var result = SkiaImageDecoder.Decode(path, maxLongEdge: 360,
+            crop: new Monocle.Core.Model.CropRect(0.25, 0.25, 0.5, 0.5));
+
+        Assert.Equal(512, Math.Max(result.Gray.Width, result.Gray.Height));
+    }
+
+    [Fact]
+    public void EmbeddedJpegExtractionIsServedFromIndexOnRepeat()
+    {
+        // Second Extract of the same (unchanged) file must hit the offset index, not rescan;
+        // observable contract: both calls return the identical JPEG stream.
+        var large = MakeJpeg(160, 120);
+        using var ms = new MemoryStream();
+        ms.Write(new byte[] { 0x00, 0x11 });
+        ms.Write(large);
+        ms.Write(new byte[] { 0x55 });
+        var rawPath = Path.Combine(_dir, "fake.arw");
+        File.WriteAllBytes(rawPath, ms.ToArray());
+
+        var first = EmbeddedJpegExtractor.Extract(rawPath);
+        var second = EmbeddedJpegExtractor.Extract(rawPath);
+        Assert.NotNull(first);
+        Assert.Equal(first!, second!);
+
+        // Changing the file must invalidate the index (different content → different preview).
+        var replaced = MakeJpeg(80, 60);
+        using (var ms2 = new MemoryStream())
+        {
+            ms2.Write(new byte[] { 0x00 });
+            ms2.Write(replaced);
+            File.WriteAllBytes(rawPath, ms2.ToArray());
+        }
+        File.SetLastWriteTimeUtc(rawPath, DateTime.UtcNow.AddMinutes(1));
+        var third = EmbeddedJpegExtractor.Extract(rawPath);
+        Assert.NotNull(third);
+        Assert.NotEqual(first!.Length, third!.Length);
+    }
+
     public void Dispose() => System.IO.Directory.Delete(_dir, recursive: true);
 }

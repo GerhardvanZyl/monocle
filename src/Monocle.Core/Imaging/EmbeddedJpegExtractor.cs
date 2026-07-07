@@ -1,3 +1,5 @@
+using System.Collections.Concurrent;
+
 namespace Monocle.Core.Imaging;
 
 /// <summary>
@@ -7,15 +9,44 @@ namespace Monocle.Core.Imaging;
 /// </summary>
 public static class EmbeddedJpegExtractor
 {
-    /// <summary>Return the largest embedded JPEG, or null if none is found.</summary>
+    // Where the preview lives inside each RAW, keyed by path and validated by size+mtime. The
+    // thumbnail, detail view, crop editor and MCP previews all extract from the same file — without
+    // this, every one of them re-reads and re-scans the whole 25-80MB RAW. Entries are a few dozen
+    // bytes each, so the map just grows for the session. ponytail: in-memory only; persist in
+    // ShootCache if cold detail views ever matter.
+    private static readonly ConcurrentDictionary<string, (long Size, long MtimeTicks, int Offset, int Length)> _index = new();
+
+    /// <summary>Return the largest embedded JPEG, or null if none is found. Repeat extractions of
+    /// an unchanged file read only the indexed byte range instead of rescanning the whole RAW.</summary>
     public static byte[]? Extract(string rawPath)
     {
+        var fi = new FileInfo(rawPath);
+        if (_index.TryGetValue(rawPath, out var e) && e.Size == fi.Length && e.MtimeTicks == fi.LastWriteTimeUtc.Ticks)
+        {
+            using var fs = File.OpenRead(rawPath);
+            fs.Position = e.Offset;
+            var jpeg = new byte[e.Length];
+            fs.ReadExactly(jpeg);
+            return jpeg;
+        }
+
         var bytes = File.ReadAllBytes(rawPath);
-        return ExtractFrom(bytes);
+        var (offset, length) = Locate(bytes);
+        if (offset < 0)
+            return null;
+        _index[rawPath] = (fi.Length, fi.LastWriteTimeUtc.Ticks, offset, length);
+        return bytes.AsSpan(offset, length).ToArray();
     }
 
     /// <summary>Scan a byte buffer for the largest JPEG (FFD8..FFD9) sub-stream.</summary>
     public static byte[]? ExtractFrom(ReadOnlySpan<byte> bytes)
+    {
+        var (offset, length) = Locate(bytes);
+        return offset < 0 ? null : bytes.Slice(offset, length).ToArray();
+    }
+
+    /// <summary>Find the (offset, length) of the largest JPEG sub-stream, or (-1, 0).</summary>
+    private static (int Offset, int Length) Locate(ReadOnlySpan<byte> bytes)
     {
         int bestStart = -1, bestLen = 0;
         int i = 0;
@@ -39,10 +70,7 @@ public static class EmbeddedJpegExtractor
             }
             i++;
         }
-
-        if (bestStart < 0)
-            return null;
-        return bytes.Slice(bestStart, bestLen).ToArray();
+        return (bestStart, bestLen);
     }
 
     /// <summary>
