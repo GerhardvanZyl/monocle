@@ -32,6 +32,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private CancellationTokenSource? _scanCts;
     private Task? _scanRun;   // the in-flight scan; awaited before a new scan disposes its cache
     private CancellationTokenSource? _cullCts;
+    private CancellationTokenSource? _processCts;
 
     public MainWindowViewModel()
     {
@@ -455,6 +456,7 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Claude cull (#5, #11) ----
     public ObservableCollection<string> CullLog { get; } = new();
     [ObservableProperty] private bool _cullRunning;
+    [ObservableProperty] private bool _processRunning;   // whole Process run (scorers + Claude legs); drives the Stop button
 
     // ---- Customisable cull instructions (AI Cull view) ----
     // The knobs (criteria + keep target) regenerate CullPrompt; CullPrompt is the editable instruction
@@ -889,6 +891,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (SelectedPhoto is not { } tile || !int.TryParse(starsText, out var stars))
             return;
+        var indexBefore = VisiblePhotos.IndexOf(tile);
         tile.Item.Stars = stars;
         tile.Item.RatedByModel = "Manual";
         await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
@@ -896,6 +899,12 @@ public partial class MainWindowViewModel : ViewModelBase
         DetailRating = FormatRating(tile.Item);
         ApplyFilter();
         RefreshStats();
+
+        // Rating under a filter (e.g. Unrated) can drop the frame out of the visible set. Select
+        // the frame that now occupies its slot so the culling flow auto-advances instead of the
+        // next arrow key teleporting to photo #1 (IndexOf(hidden tile) == -1 clamped to 0).
+        if (indexBefore >= 0 && VisiblePhotos.Count > 0 && !VisiblePhotos.Contains(tile))
+            SelectedPhoto = VisiblePhotos[Math.Min(indexBefore, VisiblePhotos.Count - 1)];
     }
 
     [RelayCommand]
@@ -917,38 +926,68 @@ public partial class MainWindowViewModel : ViewModelBase
 
         CullLog.Clear();
 
-        // D: start Qwen's host so a ticked Qwen isn't silently skipped. EnsureAsync is a no-op when
-        // GPU routing isn't configured; also (re)start the Python sidecar if a sidecar model is ticked.
-        if (scorers.Any(r => r.Descriptor.RequiresSidecar))
+        _processCts?.Dispose();
+        _processCts = new CancellationTokenSource();
+        var ct = _processCts.Token;
+        ProcessRunning = true;
+        try
         {
-            await _llama.EnsureAsync();          // GPU route (MONOCLE_QWEN_LLAMA_URL); no-op otherwise
-            if (!_sidecar.Running) await StartSidecarAsync();
-        }
-
-        // Probabilistic: run every ticked scorer for every frame, every click (re-scores on re-click).
-        if (scorers.Count > 0)
-        {
-            IsBusy = true;
-            try
+            // D: start Qwen's host so a ticked Qwen isn't silently skipped. EnsureAsync is a no-op when
+            // GPU routing isn't configured; also (re)start the Python sidecar if a sidecar model is ticked.
+            if (scorers.Any(r => r.Descriptor.RequiresSidecar))
             {
-                foreach (var tile in Photos)
-                    tile.ExpectsScoring = true;
-                SetupPipeline(scorers);
-                lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
-                RunLog($"Process — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
-                await AnalyzeAllAsync(scorers, CancellationToken.None);
-                CompletePipeline();
-                RefreshStats();
-                ApplyFilter();
+                await _llama.EnsureAsync();          // GPU route (MONOCLE_QWEN_LLAMA_URL); no-op otherwise
+                if (!_sidecar.Running) await StartSidecarAsync();
             }
-            finally { IsBusy = false; }
+
+            // Probabilistic: run every ticked scorer for every frame, every click (re-scores on re-click).
+            if (scorers.Count > 0)
+            {
+                IsBusy = true;
+                try
+                {
+                    foreach (var tile in Photos)
+                        tile.ExpectsScoring = true;
+                    SetupPipeline(scorers);
+                    lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
+                    RunLog($"Process — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
+                    await AnalyzeAllAsync(scorers, ct);
+                    CompletePipeline();
+                    RefreshStats();
+                    ApplyFilter();
+                }
+                finally { IsBusy = false; }
+            }
+
+            // Folder-level: one Claude cull per ticked Claude model, each storing a per-model verdict.
+            foreach (var model in claude)
+            {
+                ct.ThrowIfCancellationRequested();
+                await RunClaudeCullAsync(model, ct);
+            }
+
+            StatusText = "Process complete.";
         }
+        catch (OperationCanceledException)
+        {
+            RunLog("Process stopped by user.");
+            StatusText = "Process stopped.";
+        }
+        finally
+        {
+            ProcessRunning = false;
+        }
+    }
 
-        // Folder-level: one Claude cull per ticked Claude model, each storing a per-model verdict.
-        foreach (var model in claude)
-            await RunClaudeCullAsync(model, CancellationToken.None);
-
-        StatusText = "Process complete.";
+    /// <summary>Stop an in-flight Process run: cancels the scorer analysis leg and aborts any
+    /// running Claude cull leg. A multi-hour GPU run was previously unstoppable short of killing
+    /// the app.</summary>
+    [RelayCommand]
+    private void StopProcess()
+    {
+        StatusText = "Stopping…";
+        _processCts?.Cancel();
+        _cullCts?.Cancel();
     }
 
     /// <summary>Run a folder-level Claude cull with a specific ticked Claude model, storing its verdict
@@ -1619,6 +1658,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _service.ScorerSkipped -= OnScorerSkipped;
         _scanCts?.Cancel();
         _cullCts?.Cancel();
+        _processCts?.Cancel();
         _cache?.Dispose();
         _sidecar.Dispose();
         _llama.Dispose();      // kills the GPU server we launched, freeing VRAM

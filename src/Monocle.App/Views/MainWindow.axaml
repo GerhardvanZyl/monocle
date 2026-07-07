@@ -517,8 +517,13 @@
                                  Background="{StaticResource Surface2}" Padding="10,8"/>
 
                         <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
-                        <Button Classes="primary" Content="Process" HorizontalAlignment="Left" MinWidth="160"
-                                Command="{Binding ProcessCommand}" IsEnabled="{Binding !CullRunning}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Classes="primary" Content="Process" HorizontalAlignment="Left" MinWidth="160"
+                                    Command="{Binding ProcessCommand}" IsEnabled="{Binding !CullRunning}"
+                                    IsVisible="{Binding !ProcessRunning}"/>
+                            <Button Classes="primary" Content="■ Stop" HorizontalAlignment="Left" MinWidth="160"
+                                    Command="{Binding StopProcessCommand}" IsVisible="{Binding ProcessRunning}"/>
+                        </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
                     </StackPanel>
                 </ScrollViewer>
