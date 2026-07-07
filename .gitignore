@@ -26,6 +26,7 @@ Thumbs.db
 
 # ONNX model weights (large; not committed)
 models/*.onnx
+models/*.onnx.data
 
 # Packaged distribution artifact
 monocle.zip
