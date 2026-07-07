@@ -1,6 +1,7 @@
 using Monocle.Core.Cache;
 using Monocle.Core.Model;
 using Monocle.Models;
+using Monocle.Models.Heuristic;
 using SkiaSharp;
 using Xunit;
 
@@ -198,6 +199,102 @@ public class ShootServiceTests : IDisposable
         // pre-existing, separately-tested contract, not a probabilistic model result).
         var score = Assert.Single(item.Scores);
         Assert.Equal(ScoreKind.Rating, score.Kind);
+    }
+
+    [Fact]
+    public async Task ProcessScoringReRatesHeuristicAuthoredFrames()
+    {
+        // The whole point of running aesthetic models: their scores must reach the stars.
+        // Scan first (no scorers → aesthetic term defaults to 0.5), then Process with a
+        // bottom-of-scale aesthetic — the heuristic rating must be recomputed and drop.
+        WriteJpeg("rerate.jpg");
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var item = svc.Load(_dir)[0];
+
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, Array.Empty<IModelRunner>());
+        var scanStars = item.Stars;
+        Assert.Equal(HeuristicRatingEngine.ModelName, item.RatedByModel);
+
+        var awful = new FakeRunner("awful")
+        {
+            OnScore = (_, _) => Task.FromResult(new ModelScore
+            {
+                ModelId = "awful", ModelDisplayName = "awful", Kind = ScoreKind.Aesthetic,
+                Value = 0, ScaleMax = 10, Resource = ResourceKind.Cpu,
+            }),
+        };
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { awful });
+
+        Assert.True(item.Stars < scanStars,
+            $"aesthetic 0/10 must lower the heuristic rating (was {scanStars}★, still {item.Stars}★)");
+    }
+
+    [Fact]
+    public async Task ProcessScoringNeverOverwritesManualOrClaudeRatings()
+    {
+        WriteJpeg("manual.jpg");
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var item = svc.Load(_dir)[0];
+
+        item.Stars = 3;
+        item.RatedByModel = "Manual";
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { new FakeRunner("solo") });
+
+        Assert.Equal(3, item.Stars);
+        Assert.Equal("Manual", item.RatedByModel);
+    }
+
+    [Fact]
+    public async Task CropChangeInvalidatesCachedMetricsAndScores()
+    {
+        // Sharp checkerboard on the left half, flat gray on the right: cropping to the right half
+        // must recompute metrics (sharpness collapses) and re-run scorers, not serve pre-crop values.
+        var path = Path.Combine(_dir, "croppy.jpg");
+        using (var bmp = new SKBitmap(320, 240))
+        {
+            using (var canvas = new SKCanvas(bmp))
+            {
+                canvas.Clear(SKColors.SlateGray);
+                using var paint = new SKPaint { Color = SKColors.White };
+                for (int y = 0; y < 240; y += 6)
+                    for (int x = ((y / 6) % 2) * 6; x < 160; x += 12)
+                        canvas.DrawRect(x, y, 6, 6, paint);
+            }
+            using var img = SKImage.FromBitmap(bmp);
+            using var data = img.Encode(SKEncodedImageFormat.Jpeg, 90);
+            File.WriteAllBytes(path, data.ToArray());
+        }
+
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var item = svc.Load(_dir)[0];
+
+        var scoreRuns = 0;
+        var runner = new FakeRunner("counting")
+        {
+            OnScore = (_, _) =>
+            {
+                scoreRuns++;
+                return Task.FromResult(new ModelScore
+                {
+                    ModelId = "counting", ModelDisplayName = "counting", Kind = ScoreKind.Aesthetic,
+                    Value = 5, ScaleMax = 10, Resource = ResourceKind.Cpu,
+                });
+            },
+        };
+
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { runner });
+        var fullSharpness = item.Metrics!.SharpnessBestTile;
+        Assert.Equal(1, scoreRuns);
+
+        item.Crop = new CropRect(0.55, 0.0, 0.45, 1.0);   // flat gray half only
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { runner });
+
+        Assert.True(item.Metrics!.SharpnessBestTile < fullSharpness,
+            $"cropped-to-flat metrics must be recomputed (full {fullSharpness:0.00}, cropped {item.Metrics.SharpnessBestTile:0.00})");
+        Assert.Equal(2, scoreRuns);   // scorer re-ran for the new crop
     }
 
     public void Dispose() => Directory.Delete(_dir, recursive: true);

@@ -50,10 +50,16 @@ public sealed class ShootService
         IReadOnlyList<IModelRunner>? scorers = null, CancellationToken ct = default)
     {
         var fp = item.Fingerprint;
+        // Metrics and model scores are computed on the rotated+cropped view, so in-app edits must
+        // invalidate them exactly like previews (whose key already carries rotation + crop).
+        // Unedited frames keep the plain fingerprint so pre-existing caches stay valid.
+        var afp = item.RotationQuarters == 0 && item.Crop is null
+            ? fp
+            : $"{fp}|r{item.RotationQuarters}|c{CropTag(item.Crop)}";
         DecodeResult? decoded = null;
 
         // --- Metrics + EXIF (from cache, else decode) ---
-        if (cache.TryGetAnalysis(item.Id, fp, out var cachedMetrics, out var cachedExif) && cachedMetrics is not null)
+        if (cache.TryGetAnalysis(item.Id, afp, out var cachedMetrics, out var cachedExif) && cachedMetrics is not null)
         {
             item.Metrics = cachedMetrics;
             if (cachedExif is not null)
@@ -68,7 +74,7 @@ public sealed class ShootService
             decoded = await _decoder.DecodeAsync(item, ThumbLongEdge, item.RotationQuarters, item.Crop, ct).ConfigureAwait(false);
             item.Metrics = TechnicalMetricsCalculator.Compute(decoded.Gray, item.Iso);
 
-            cache.PutAnalysis(item.Id, fp, item.Metrics, exif);
+            cache.PutAnalysis(item.Id, afp, item.Metrics, exif);
             cache.PutPreview(item.Id, fp, ThumbLongEdge, item.RotationQuarters, decoded.PreviewJpeg, CropTag(item.Crop));
         }
 
@@ -76,13 +82,17 @@ public sealed class ShootService
         if (scorers is { Count: > 0 })
         {
             var selectedIds = scorers.Select(r => r.Descriptor.Id).ToHashSet();
-            foreach (var s in cache.GetScores(item.Id, fp).Where(s => selectedIds.Contains(s.ModelId)))
+            var cachedScores = cache.GetScores(item.Id, afp).Where(s => selectedIds.Contains(s.ModelId)).ToList();
+            foreach (var s in cachedScores)
             {
                 item.Scores.RemoveAll(x => x.ModelId == s.ModelId);
                 item.Scores.Add(s);
             }
 
-            var toRun = scorers.Where(r => item.Scores.All(s => s.ModelId != r.Descriptor.Id)).ToList();
+            // Re-run anything not cached for the CURRENT analysis key: an in-memory score may
+            // belong to a previous crop/rotation of the frame and must not suppress a re-score.
+            var cachedIds = cachedScores.Select(s => s.ModelId).ToHashSet();
+            var toRun = scorers.Where(r => !cachedIds.Contains(r.Descriptor.Id)).ToList();
             if (toRun.Count > 0)
             {
                 decoded ??= await _decoder.DecodeAsync(item, ThumbLongEdge, item.RotationQuarters, item.Crop, ct).ConfigureAwait(false);
@@ -109,7 +119,7 @@ public sealed class ShootService
                         // (not only after a reload) without each runner having to mutate item.Scores.
                         item.Scores.RemoveAll(s => s.ModelId == score.ModelId);
                         item.Scores.Add(score);
-                        cache.PutScore(item.Id, fp, score);
+                        cache.PutScore(item.Id, afp, score);
                     }
                     catch (OperationCanceledException) when (ct.IsCancellationRequested)
                     {
@@ -126,7 +136,11 @@ public sealed class ShootService
             }
         }
 
-        if (rateIfUnrated && item.Stars == 0)
+        // Rate unrated frames, and RE-rate heuristic-authored ratings so freshly-run model scores
+        // actually reach the stars (a scan-time rating used a neutral aesthetic; Process must not
+        // leave it frozen). Manual/Claude-authored ratings are never touched.
+        if (rateIfUnrated && (item.Stars == 0 ||
+            string.Equals(item.RatedByModel, HeuristicRatingEngine.ModelName, StringComparison.Ordinal)))
             _heuristic.Rate(item);
     }
 
