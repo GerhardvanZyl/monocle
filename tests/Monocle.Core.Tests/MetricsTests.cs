@@ -65,4 +65,54 @@ public class MetricsTests
         var high = TechnicalMetricsCalculator.Compute(img, iso: 25600);
         Assert.True(high.CompositeScore < low.CompositeScore);
     }
+
+    private static GrayImage Noise(int w, int h, float sigma, int seed)
+    {
+        var rnd = new Random(seed);
+        var px = new float[w * h];
+        for (int i = 0; i < px.Length; i++)
+        {
+            // Box-Muller gaussian around mid-gray — pure sensor grain, no real detail.
+            var u1 = 1.0 - rnd.NextDouble();
+            var u2 = rnd.NextDouble();
+            var n = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Cos(2.0 * Math.PI * u2);
+            px[i] = Math.Clamp(0.5f + (float)(sigma * n), 0f, 1f);
+        }
+        return new GrayImage(w, h, px);
+    }
+
+    [Fact]
+    public void SensorNoiseAloneDoesNotReadAsSharp()
+    {
+        // Laplacian variance is exactly what grain maximises: an out-of-focus high-ISO frame
+        // must not pass the soft threshold on noise energy alone.
+        var noisy = TechnicalMetricsCalculator.Compute(Noise(512, 384, sigma: 0.02f, seed: 42));
+        Assert.True(noisy.SharpnessBestTile < 0.25,
+            $"grain-only frame reads as sharp ({noisy.SharpnessBestTile:0.00})");
+    }
+
+    [Fact]
+    public void SharpSubjectOnFlatBackgroundSurvivesNoiseCorrection()
+    {
+        // A small sharp subject with flat surroundings (shallow DOF) must stay sharp after the
+        // noise-floor subtraction (the flat tiles put the floor near zero).
+        var px = new float[512 * 384];
+        Array.Fill(px, 0.5f);
+        for (int y = 40; y < 90; y++)
+            for (int x = 40; x < 90; x++)
+                px[y * 512 + x] = ((x / 3) + (y / 3)) % 2 == 0 ? 0.1f : 0.9f;
+        var m = TechnicalMetricsCalculator.Compute(new GrayImage(512, 384, px));
+        Assert.True(m.SharpnessBestTile > 0.5, $"sharp subject lost to correction ({m.SharpnessBestTile:0.00})");
+    }
+
+    [Fact]
+    public void NoiseLevelSeparatesGrainyFromClean()
+    {
+        var noisy = TechnicalMetricsCalculator.Compute(Noise(512, 384, sigma: 0.02f, seed: 7));
+        var clean = TechnicalMetricsCalculator.Compute(Flat(512, 384, 0.5f));
+        Assert.NotNull(noisy.NoiseLevel);
+        Assert.NotNull(clean.NoiseLevel);
+        Assert.True(noisy.NoiseLevel > clean.NoiseLevel + 0.1,
+            $"noise metric can't separate grain ({noisy.NoiseLevel:0.00}) from clean ({clean.NoiseLevel:0.00})");
+    }
 }

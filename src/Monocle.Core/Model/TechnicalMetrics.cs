@@ -26,6 +26,11 @@ public sealed class TechnicalMetrics
     /// <summary>Fraction of crushed shadows 0..1.</summary>
     public double ShadowClip { get; init; }
 
+    /// <summary>Measured grain level 0..1 (flattest-tile Laplacian variance against the plausible
+    /// sensor-noise cap). Null when the frame was too small to tile, or on cache rows written
+    /// before this metric existed.</summary>
+    public double? NoiseLevel { get; init; }
+
     /// <summary>ISO read from EXIF, used as a noise proxy. Null if unknown.</summary>
     public int? Iso { get; init; }
 

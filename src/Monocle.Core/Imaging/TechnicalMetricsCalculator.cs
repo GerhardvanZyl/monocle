@@ -12,11 +12,34 @@ public static class TechnicalMetricsCalculator
     private const double ClipLow = 0.02;     // luma below this counts as a crushed shadow
     private const int TileGrid = 4;          // 4x4 tiles for best-tile sharpness
 
+    // Laplacian variance attributable to sensor grain on a ~512px preview tops out around here;
+    // anything above is real texture, so the noise-floor subtraction is capped at this value and
+    // a frame that is genuinely detailed everywhere (no flat tile) keeps its sharpness.
+    // ponytail: fixed cap — a per-shoot noise model (flat-region stats across frames) is the
+    // upgrade path if very grainy shoots misfire.
+    private const double NoiseFloorCap = 0.02;
+
     public static TechnicalMetrics Compute(GrayImage img, int? iso = null)
     {
         var (mean, contrast, highClip, lowClip) = Histogram(img);
-        var sharpWhole = NormalizeSharpness(LaplacianVariance(img, 0, 0, img.Width, img.Height));
-        var sharpBest = BestTileSharpness(img);
+
+        var tiles = TileLaplacianVariances(img, out var wholeVar);
+        double noiseFloor = 0;
+        var bestVar = wholeVar;
+        double? noiseLevel = null;
+        if (tiles is not null)
+        {
+            // The flattest tile ≈ the sensor-noise floor. Laplacian *variance* is exactly what
+            // grain maximises, and best-tile takes a max over tiles — so without this correction
+            // an out-of-focus high-ISO frame reads as "sharp" off its noisiest flat tile.
+            var floor = tiles.Min();
+            noiseFloor = Math.Min(floor, NoiseFloorCap);
+            bestVar = tiles.Max();
+            noiseLevel = Math.Clamp(floor / NoiseFloorCap, 0, 1);
+        }
+
+        var sharpWhole = NormalizeSharpness(Math.Max(0, wholeVar - noiseFloor));
+        var sharpBest = NormalizeSharpness(Math.Max(0, bestVar - noiseFloor));
 
         var composite = Composite(sharpBest, mean, highClip, lowClip, iso);
 
@@ -28,6 +51,7 @@ public static class TechnicalMetricsCalculator
             Contrast = contrast,
             HighlightClip = highClip,
             ShadowClip = lowClip,
+            NoiseLevel = noiseLevel,
             Iso = iso,
             CompositeScore = composite,
         };
@@ -52,7 +76,70 @@ public static class TechnicalMetricsCalculator
         return (mean, Math.Clamp(contrast, 0, 1), (double)high / n, (double)low / n);
     }
 
-    /// <summary>Variance of the Laplacian over a rectangle — a standard focus measure.</summary>
+    /// <summary>
+    /// One pass over the interior pixels computing the Laplacian variance of every 4x4 tile
+    /// (best tile handles shallow depth of field, flattest tile estimates the noise floor) and
+    /// the whole-frame variance from the same sums. Returns null (whole-frame variance only)
+    /// when the image is too small to tile.
+    /// </summary>
+    private static double[]? TileLaplacianVariances(GrayImage img, out double wholeVariance)
+    {
+        var w = img.Width;
+        var h = img.Height;
+        var tw = w / TileGrid;
+        var th = h / TileGrid;
+        if (tw < 3 || th < 3)
+        {
+            wholeVariance = LaplacianVariance(img, 0, 0, w, h);
+            return null;
+        }
+
+        var sums = new double[TileGrid * TileGrid];
+        var sumSqs = new double[TileGrid * TileGrid];
+        var counts = new long[TileGrid * TileGrid];
+        var luma = img.Luma;
+
+        for (int y = 1; y < h - 1; y++)
+        {
+            var row = y * w;
+            var ty = Math.Min(y / th, TileGrid - 1);
+            for (int x = 1; x < w - 1; x++)
+            {
+                var i = row + x;
+                double lap = 4 * luma[i] - luma[i - 1] - luma[i + 1] - luma[i - w] - luma[i + w];
+                var t = ty * TileGrid + Math.Min(x / tw, TileGrid - 1);
+                sums[t] += lap;
+                sumSqs[t] += lap * lap;
+                counts[t]++;
+            }
+        }
+
+        double totalSum = 0, totalSumSq = 0;
+        long totalCount = 0;
+        var vars = new double[TileGrid * TileGrid];
+        for (int t = 0; t < vars.Length; t++)
+        {
+            totalSum += sums[t];
+            totalSumSq += sumSqs[t];
+            totalCount += counts[t];
+            if (counts[t] > 0)
+            {
+                var m = sums[t] / counts[t];
+                vars[t] = Math.Max(0, sumSqs[t] / counts[t] - m * m);
+            }
+        }
+        if (totalCount == 0)
+        {
+            wholeVariance = 0;
+            return null;
+        }
+        var wholeMean = totalSum / totalCount;
+        wholeVariance = Math.Max(0, totalSumSq / totalCount - wholeMean * wholeMean);
+        return vars;
+    }
+
+    /// <summary>Variance of the Laplacian over a rectangle — a standard focus measure. Used for
+    /// images too small to tile.</summary>
     private static double LaplacianVariance(GrayImage img, int x0, int y0, int w, int h)
     {
         if (w < 3 || h < 3) return 0;
@@ -73,25 +160,6 @@ public static class TechnicalMetricsCalculator
         if (count == 0) return 0;
         var mean = sum / count;
         return Math.Max(0, sumSq / count - mean * mean);
-    }
-
-    /// <summary>
-    /// Best-tile focus: split into a grid and take the sharpest tile, so a sharp subject on
-    /// soft bokeh does not read as blurry (FEATURES §5).
-    /// </summary>
-    private static double BestTileSharpness(GrayImage img)
-    {
-        var tw = img.Width / TileGrid;
-        var th = img.Height / TileGrid;
-        if (tw < 3 || th < 3)
-            return NormalizeSharpness(LaplacianVariance(img, 0, 0, img.Width, img.Height));
-
-        double best = 0;
-        for (int ty = 0; ty < TileGrid; ty++)
-            for (int tx = 0; tx < TileGrid; tx++)
-                best = Math.Max(best, LaplacianVariance(img, tx * tw, ty * th, tw, th));
-
-        return NormalizeSharpness(best);
     }
 
     /// <summary>Map raw Laplacian variance into a perceptual 0..1 via a soft saturating curve.</summary>

@@ -20,7 +20,6 @@ public sealed class HeuristicRatingEngine
     private const double HighlightClipBad = 0.10;
     private const double ShadowClipBad = 0.18;
     private const double ExposureMeanLow = 0.20;
-    private const double ExposureMeanHigh = 0.72;
     private const int NoisyIso = 6400;
 
     /// <summary>Rate the item in place. Requires <see cref="PhotoItem.Metrics"/> to be set.</summary>
@@ -34,10 +33,12 @@ public sealed class HeuristicRatingEngine
             faults.Add((TechnicalReason.Sharpness, "soft",
                 $"soft focus (best-tile sharpness {m.SharpnessBestTile:0.00})"));
 
-        if (m.HighlightClip > HighlightClipBad || m.MeanBrightness > ExposureMeanHigh)
+        // Exposure faults require actual clipping: a global mean alone flags deliberate
+        // low-key/high-key work (concert, astro, backlit) as defective when no pixels are lost.
+        if (m.HighlightClip > HighlightClipBad)
             faults.Add((TechnicalReason.Exposure, "overexposed",
                 $"highlights clipping {m.HighlightClip:P0}"));
-        else if (m.ShadowClip > ShadowClipBad || m.MeanBrightness < ExposureMeanLow)
+        else if (m.ShadowClip > ShadowClipBad && m.MeanBrightness < ExposureMeanLow)
             faults.Add((TechnicalReason.Exposure, "underexposed",
                 $"shadows crushed {m.ShadowClip:P0}"));
 
@@ -48,8 +49,11 @@ public sealed class HeuristicRatingEngine
         var aesthetic = AverageAesthetic(item) ?? 0.5;
         var combined = m.CompositeScore * 0.6 + aesthetic * 0.4;
 
-        var hardReject = m.SharpnessBestTile < UnrecoverablySoft || faults.Count >= 2;
-        var stars = hardReject ? 1 : StarsFrom(combined);
+        // Only physically-unrecoverable softness forces 1★. Multiple faults subtract a star
+        // instead of auto-rejecting: each fault's metric already drags CompositeScore down, and
+        // the old 2-fault hard reject was 1★-ing legitimate high-ISO night work.
+        var hardReject = m.SharpnessBestTile < UnrecoverablySoft;
+        var stars = hardReject ? 1 : Math.Max(1, StarsFrom(combined) - (faults.Count >= 2 ? 1 : 0));
 
         // Apply.
         item.Stars = stars;

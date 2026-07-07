@@ -21,6 +21,11 @@ public sealed class OnnxModelConfig
     public float[] Mean { get; init; } = { 0.485f, 0.456f, 0.406f }; // ImageNet defaults
     public float[] Std { get; init; } = { 0.229f, 0.224f, 0.225f };
     public double ScaleMax { get; init; } = 10;
+    public double ScaleMin { get; init; }
+
+    /// <summary>How this model expects its square input built — must match its training
+    /// preprocessing (squash for SigLIP, resize+center-crop for NIMA-class models).</summary>
+    public PreprocessMode Preprocess { get; init; } = PreprocessMode.Squash;
 
     /// <summary>Direct-download URL for the <c>.onnx</c> weights, enabling in-app install. Null when
     /// no trustworthy single-file source exists (the model must then be dropped in manually).</summary>

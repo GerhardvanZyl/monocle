@@ -35,6 +35,58 @@ public class OnnxPreprocessTests
     }
 
     [Fact]
+    public void CenterCropModeSamplesOnlyTheCentralRegion()
+    {
+        // 300x100 in vertical thirds: white / gray / black (uneven so the crop window plus its
+        // bilinear reach sits fully inside the gray band). NIMA-style resize+center-crop must see
+        // only gray; the anamorphic squash would span the full white-to-black range.
+        const int w = 300, h = 100;
+        var buf = new byte[w * h * 3];
+        for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                byte v = x < 90 ? (byte)255 : x < 210 ? (byte)128 : (byte)0;
+                var i = (y * w + x) * 3;
+                buf[i] = buf[i + 1] = buf[i + 2] = v;
+            }
+        var img = new RgbImage(w, h, buf);
+        var zero = new[] { 0f, 0f, 0f };
+        var one = new[] { 1f, 1f, 1f };
+
+        var cropped = OnnxImagePreprocessor.ToTensor(img, 50, zero, one, PreprocessMode.ResizeShortEdgeCenterCrop);
+        float min = float.MaxValue, max = float.MinValue;
+        for (int y = 0; y < 50; y++)
+            for (int x = 0; x < 50; x++)
+            {
+                min = Math.Min(min, cropped[0, 0, y, x]);
+                max = Math.Max(max, cropped[0, 0, y, x]);
+            }
+        Assert.InRange(min, 100f / 255, 156f / 255);
+        Assert.InRange(max, 100f / 255, 156f / 255);
+
+        var squashed = OnnxImagePreprocessor.ToTensor(img, 50, zero, one);
+        float sMin = float.MaxValue, sMax = float.MinValue;
+        for (int y = 0; y < 50; y++)
+            for (int x = 0; x < 50; x++)
+            {
+                sMin = Math.Min(sMin, squashed[0, 0, y, x]);
+                sMax = Math.Max(sMax, squashed[0, 0, y, x]);
+            }
+        Assert.True(sMax - sMin > 0.5, "squash mode should span the full tonal range");
+    }
+
+    [Fact]
+    public void DownsamplingSamplesPixelCenters()
+    {
+        // 4x1 ramp [0,80,160,240] downscaled 2x must average pairs (40, 200) — sampling at x*sx
+        // without the half-pixel offset picks columns {0,2} (0, 160) and shifts the whole image.
+        var img = new RgbImage(4, 1, new byte[] { 0, 0, 0, 80, 80, 80, 160, 160, 160, 240, 240, 240 });
+        var t = OnnxImagePreprocessor.ToTensor(img, 2, new[] { 0f, 0f, 0f }, new[] { 1f, 1f, 1f });
+        Assert.Equal(40f / 255, t[0, 0, 0, 0], 3);
+        Assert.Equal(200f / 255, t[0, 0, 0, 1], 3);
+    }
+
+    [Fact]
     public async Task CatalogRunnersAreUnavailableWithoutWeights()
     {
         var runners = OnnxModelCatalog.BuildRunners(Path.Combine(Path.GetTempPath(), "no_such_models_" + Guid.NewGuid().ToString("N")));

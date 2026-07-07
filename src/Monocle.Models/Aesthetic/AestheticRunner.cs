@@ -39,6 +39,7 @@ public sealed class AestheticRunner : IModelRunner
             ModelDisplayName = Descriptor.DisplayName,
             Kind = ScoreKind.Aesthetic,
             Value = value,
+            ScaleMin = 1,
             ScaleMax = 10,
             Resource = ResourceKind.Cpu,
         };

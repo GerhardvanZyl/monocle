@@ -23,6 +23,10 @@ public sealed class ModelScore
     /// <summary>The model's native scale max, used to normalise for display/sorting. Null if not numeric.</summary>
     public double? ScaleMax { get; init; }
 
+    /// <summary>The model's native scale minimum (1 for 1..10 models like NIMA). Treated as 0 when
+    /// unset — v/max mis-scaled 1..10 outputs and compressed their influence on ratings.</summary>
+    public double? ScaleMin { get; init; }
+
     /// <summary>Free-text critique/rationale, if the model emits one (MLLM/Claude).</summary>
     public string? Text { get; init; }
 
@@ -33,5 +37,7 @@ public sealed class ModelScore
     /// <summary>Value rescaled to 0..1 for cross-model sorting/visualisation, when numeric.</summary>
     [JsonIgnore]
     public double? Normalized =>
-        Value is { } v && ScaleMax is { } max && max > 0 ? Math.Clamp(v / max, 0, 1) : null;
+        Value is { } v && ScaleMax is { } max && max > (ScaleMin ?? 0)
+            ? Math.Clamp((v - (ScaleMin ?? 0)) / (max - (ScaleMin ?? 0)), 0, 1)
+            : null;
 }

@@ -58,6 +58,34 @@ public class HeuristicTests
     }
 
     [Fact]
+    public void LowKeyWithoutCrushedShadowsIsNotFaulted()
+    {
+        // Concert/night/astro: dark mean but no actual crushed shadows — a style, not a defect.
+        var item = ItemWith(new TechnicalMetrics
+        {
+            SharpnessBestTile = 0.9, CompositeScore = 0.7, MeanBrightness = 0.12, ShadowClip = 0.05,
+        });
+        new HeuristicRatingEngine().Rate(item);
+
+        Assert.Equal(TechnicalReason.None, item.Reason);
+        Assert.DoesNotContain("underexposed", item.Keywords);
+        Assert.True(item.Stars >= 2, $"low-key style auto-rejected ({item.Stars}★)");
+    }
+
+    [Fact]
+    public void HighKeyWithoutClippingIsNotFaulted()
+    {
+        var item = ItemWith(new TechnicalMetrics
+        {
+            SharpnessBestTile = 0.9, CompositeScore = 0.7, MeanBrightness = 0.80, HighlightClip = 0.03,
+        });
+        new HeuristicRatingEngine().Rate(item);
+
+        Assert.Equal(TechnicalReason.None, item.Reason);
+        Assert.DoesNotContain("overexposed", item.Keywords);
+    }
+
+    [Fact]
     public void NoisyHighIsoGetsNoiseKeyword()
     {
         var item = ItemWith(new TechnicalMetrics

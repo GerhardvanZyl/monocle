@@ -27,7 +27,11 @@ public static class OnnxModelCatalog
             // mean opinion score directly, so feed it plain 0..1 RGB and read a single value.
             Mean = new[] { 0f, 0f, 0f },
             Std = new[] { 1f, 1f, 1f },
+            ScaleMin = 1,
             ScaleMax = 10,
+            // NIMA is trained on resize-256 + center-crop-224; an anamorphic squash is
+            // out-of-distribution and shifts its scores.
+            Preprocess = PreprocessMode.ResizeShortEdgeCenterCrop,
             PostProcess = OnnxModelConfig.SingleRegression,
             // No hosted single-file ONNX exists; run `python python/export_onnx.py` once to build
             // nima.onnx into the models dir (it downloads the reference weights and exports them).
@@ -46,7 +50,8 @@ public static class OnnxModelCatalog
             InputSize = 384,
             Mean = new[] { 0.5f, 0.5f, 0.5f },
             Std = new[] { 0.5f, 0.5f, 0.5f },
-            ScaleMax = 10,
+            ScaleMin = 1,
+            ScaleMax = 10,   // SigLIP squash-to-square is this model's native preprocessing
             PostProcess = OnnxModelConfig.SingleRegression,
             HasExternalData = true,   // export writes aesthetic-v2-5.onnx.data alongside the graph
             // No hosted single-file ONNX exists (SigLIP backbone + separate MLP head). Run

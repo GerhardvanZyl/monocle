@@ -53,6 +53,20 @@ public class AestheticTests
     }
 
     [Fact]
+    public void MonochromeIsNotPenalizedForZeroColor()
+    {
+        // A well-exposed, high-contrast B&W frame is a style, not a defect: the colourfulness
+        // term must drop out instead of capping every monochrome at ~6/10.
+        var (rgb, gray) = Make(48, 48, (x, y) =>
+        {
+            var v = (byte)(((x / 4 + y / 4) % 2) * 200 + 20);
+            return (v, v, v);
+        });
+        var s = AestheticCalculator.Compute(rgb, gray);
+        Assert.True(s > 0.6, $"B&W frame punished for having no colour: {s:0.00}");
+    }
+
+    [Fact]
     public void IsDeterministic()
     {
         var (rgb, gray) = Make(40, 40, (x, y) => ((byte)(x % 255), (byte)(y % 255), (byte)128));

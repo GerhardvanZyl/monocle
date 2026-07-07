@@ -17,7 +17,11 @@ public static class AestheticCalculator
         var (mean, contrast) = LumaStats(gray);
         var exposure = ExposureBalance(mean);
 
-        var score = 0.45 * color + 0.25 * contrast + 0.30 * exposure;
+        // Near-zero chroma is deliberate monochrome, not a defect: drop the colourfulness term
+        // and renormalise instead of capping every B&W frame at ~6/10.
+        var score = color < 0.03
+            ? 0.45 * contrast + 0.55 * exposure
+            : 0.45 * color + 0.25 * contrast + 0.30 * exposure;
         return Math.Clamp(score, 0, 1);
     }
 

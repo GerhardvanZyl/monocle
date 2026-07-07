@@ -63,7 +63,7 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
             throw new InvalidOperationException("OnnxScoreRunner needs a decoded RGB buffer.");
 
         var session = GetSession();
-        var input = OnnxImagePreprocessor.ToTensor(context.Rgb, _config.InputSize, _config.Mean, _config.Std);
+        var input = OnnxImagePreprocessor.ToTensor(context.Rgb, _config.InputSize, _config.Mean, _config.Std, _config.Preprocess);
         var inputName = session.InputMetadata.Keys.First();
 
         double value;
@@ -83,6 +83,7 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
             ModelDisplayName = _config.DisplayName,
             Kind = _config.OutputKind,
             Value = value,
+            ScaleMin = _config.ScaleMin,
             ScaleMax = _config.ScaleMax,
             Resource = ResourceKind.Gpu,
         };
