@@ -93,6 +93,10 @@ public partial class MainWindowViewModel : ViewModelBase
         // so models like Q-Align / Qwen2-VL don't silently contribute nothing to scores + critique.
         _service.ScorerSkipped += OnScorerSkipped;
 
+        // Surface which execution provider each ONNX session actually loaded (GPU vs CPU fallback):
+        // a silent DML failure would otherwise run 200MB models on the CPU with no trace anywhere.
+        OnnxSessionFactory.Diagnostic += OnOnnxDiagnostic;
+
         _ = InitModelsAsync();              // populate the model list immediately
         _ = StartBackgroundServicesAsync(); // then bring the GPU server + Python sidecar up unattended
     }
@@ -1600,9 +1604,16 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedPhoto = firstUnrated;
     }
 
+    private void OnOnnxDiagnostic(string message)
+    {
+        Diagnostics.Log.Info($"[onnx] {message}");
+        RunLog($"⚙ {message}");
+    }
+
     public void Cleanup()
     {
         Diagnostics.Log.LineWritten -= OnLogLine;
+        OnnxSessionFactory.Diagnostic -= OnOnnxDiagnostic;
         _sidecar.Output -= OnSidecarOutput;
         _llama.Output -= OnLlamaOutput;
         _service.ScorerSkipped -= OnScorerSkipped;

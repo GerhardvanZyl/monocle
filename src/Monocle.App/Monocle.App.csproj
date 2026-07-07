@@ -14,6 +14,18 @@
     <AvaloniaResource Include="Assets\**" />
   </ItemGroup>
 
+  <!-- Pin the DirectML redistributable so it ships next to the exe. Without this, ONNX Runtime
+       loads whatever System32\DirectML.dll the OS has — on older Windows that registration fails
+       and every ONNX model silently falls back to CPU. The package's copy targets only fire for
+       PlatformTarget=x64, so set it explicitly on Windows builds (the AnyCPU default doesn't match). -->
+  <PropertyGroup Condition="'$(RuntimeIdentifier)' == 'win-x64' Or ('$(RuntimeIdentifier)' == '' And $([MSBuild]::IsOSPlatform('Windows')))">
+    <PlatformTarget>x64</PlatformTarget>
+    <UseDirectMlRedist>true</UseDirectMlRedist>
+  </PropertyGroup>
+  <ItemGroup Condition="'$(UseDirectMlRedist)' == 'true'">
+    <PackageReference Include="Microsoft.AI.DirectML" Version="1.15.2" />
+  </ItemGroup>
+
   <!-- Copy any ONNX weights dropped in the repo-level models/ folder next to the app.
        Glob matches both foo.onnx and its external-data sibling foo.onnx.data (large models
        store weights externally; ONNX Runtime needs the .data file beside the .onnx). -->

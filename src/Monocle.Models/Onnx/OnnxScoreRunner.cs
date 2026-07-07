@@ -13,6 +13,7 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
     private readonly OnnxModelConfig _config;
     private readonly string _modelPath;
     private readonly object _gate = new();
+    private readonly object _runGate = new();
     private InferenceSession? _session;
 
     public OnnxScoreRunner(OnnxModelConfig config, string modelsDir)
@@ -36,7 +37,8 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
     };
 
     public Task<bool> IsAvailableAsync(CancellationToken ct = default) =>
-        Task.FromResult(File.Exists(_modelPath));
+        Task.FromResult(File.Exists(_modelPath) &&
+            (!_config.HasExternalData || File.Exists(_modelPath + ".data")));
 
     /// <summary>A direct-download URL for this model's weights, or null if it must be installed manually.</summary>
     public string? DownloadUrl => _config.DownloadUrl;
@@ -64,9 +66,16 @@ public sealed class OnnxScoreRunner : IModelRunner, IDisposable
         var input = OnnxImagePreprocessor.ToTensor(context.Rgb, _config.InputSize, _config.Mean, _config.Std);
         var inputName = session.InputMetadata.Keys.First();
 
-        using var results = session.Run(new[] { NamedOnnxValue.CreateFromTensor(inputName, input) });
-        var output = results.First().AsEnumerable<float>().ToArray();
-        var value = _config.PostProcess(output);
+        double value;
+        // The DirectML EP requires Run calls on a session to be externally synchronized, and the
+        // analysis loop is up to 8-wide. Serializing here costs nothing (the GPU executes one
+        // inference at a time anyway) and prevents device-removed crashes under parallel load.
+        lock (_runGate)
+        {
+            using var results = session.Run(new[] { NamedOnnxValue.CreateFromTensor(inputName, input) });
+            var output = results.First().AsEnumerable<float>().ToArray();
+            value = _config.PostProcess(output);
+        }
 
         var score = new ModelScore
         {

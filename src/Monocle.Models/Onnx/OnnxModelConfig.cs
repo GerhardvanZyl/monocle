@@ -33,6 +33,11 @@ public sealed class OnnxModelConfig
     /// <summary>Link to the model's source/card, shown in the picker.</summary>
     public string? InfoUrl { get; init; }
 
+    /// <summary>True when the export stores weights in an external <c>&lt;FileName&gt;.data</c> file
+    /// (large models). Availability then requires BOTH files — a lone .onnx would report available
+    /// and fail on every frame at session creation.</summary>
+    public bool HasExternalData { get; init; }
+
     /// <summary>Maps the model's raw output vector to a single score on the model's native scale.</summary>
     public required Func<float[], double> PostProcess { get; init; }
 

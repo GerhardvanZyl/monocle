@@ -10,6 +10,12 @@ namespace Monocle.Models.Onnx;
 /// </summary>
 public static class OnnxSessionFactory
 {
+    /// <summary>Raised with a human-readable line whenever a session is created (which execution
+    /// provider actually loaded) or a GPU provider fails to register. Without this, a DML failure
+    /// silently dropped every model to CPU with no trace anywhere — GPU use was asserted, not known.
+    /// The App routes it to the Run log.</summary>
+    public static event Action<string>? Diagnostic;
+
     public static InferenceSession Create(string modelPath)
     {
         // SessionOptions holds a native handle and is NOT owned by the session — the session copies
@@ -20,16 +26,19 @@ public static class OnnxSessionFactory
         };
         try
         {
-            TryAppendGpu(options);
-            return new InferenceSession(modelPath, options);
+            var ep = AppendBestProvider(options);
+            var session = new InferenceSession(modelPath, options);
+            Diagnostic?.Invoke($"{Path.GetFileName(modelPath)}: running on {ep}");
+            return session;
         }
         finally { options.Dispose(); }
     }
 
-    /// <summary>Register the best available GPU provider, falling back to CPU. DML/CUDA are NOT
-    /// accepted by the generic string overload — they need the dedicated <c>AppendExecutionProvider_*</c>
-    /// methods, so calling the string form silently threw and every model ran on the CPU.</summary>
-    private static void TryAppendGpu(SessionOptions options)
+    /// <summary>Register the best available GPU provider, falling back to CPU, and return the name
+    /// of what was chosen. DML/CUDA are NOT accepted by the generic string overload — they need the
+    /// dedicated <c>AppendExecutionProvider_*</c> methods, so calling the string form silently threw
+    /// and every model ran on the CPU.</summary>
+    private static string AppendBestProvider(SessionOptions options)
     {
         // DirectML: any DX12 GPU on Windows (AMD RDNA / Intel / NVIDIA). It requires memory pattern
         // off; restore it if DML isn't available (CPU-only package or no GPU) so CPU keeps the opt.
@@ -37,11 +46,22 @@ public static class OnnxSessionFactory
         {
             options.EnableMemoryPattern = false;
             options.AppendExecutionProvider_DML(0);
-            return;
+            return "GPU (DirectML)";
         }
-        catch { options.EnableMemoryPattern = true; }
+        catch (Exception ex)
+        {
+            options.EnableMemoryPattern = true;
+            Diagnostic?.Invoke($"DirectML unavailable ({FirstLine(ex.Message)}) — trying CUDA/ROCm, else CPU.");
+        }
 
-        try { options.AppendExecutionProvider_CUDA(0); return; } catch { /* not NVIDIA / CPU package */ }
-        try { options.AppendExecutionProvider("ROCmExecutionProvider"); return; } catch { /* fall back to CPU */ }
+        try { options.AppendExecutionProvider_CUDA(0); return "GPU (CUDA)"; } catch { /* not NVIDIA / CPU package */ }
+        try { options.AppendExecutionProvider("ROCmExecutionProvider"); return "GPU (ROCm)"; } catch { /* fall back to CPU */ }
+        return "CPU (no GPU execution provider available)";
+    }
+
+    private static string FirstLine(string s)
+    {
+        var i = s.IndexOfAny(new[] { '\r', '\n' });
+        return i < 0 ? s : s[..i];
     }
 }

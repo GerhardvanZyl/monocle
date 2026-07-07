@@ -48,6 +48,7 @@ public static class OnnxModelCatalog
             Std = new[] { 0.5f, 0.5f, 0.5f },
             ScaleMax = 10,
             PostProcess = OnnxModelConfig.SingleRegression,
+            HasExternalData = true,   // export writes aesthetic-v2-5.onnx.data alongside the graph
             // No hosted single-file ONNX exists (SigLIP backbone + separate MLP head). Run
             // `python python/export_onnx.py` once to fuse and export aesthetic-v2-5.onnx into the
             // models dir; it expects the same 384px / 0.5-0.5 normalisation configured above.
