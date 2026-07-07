@@ -21,6 +21,12 @@ public sealed class AppSettings
     public bool PersistPips { get; set; } = false;    // keep the per-tile pipeline pip badge after a job ends (mode B)
     public string SidecarCompute { get; set; } = "Default (CPU / CUDA)";   // torch build for sidecar deps
 
+    // Claude cull instructions (AI Cull view). The knobs regenerate CullPrompt; CullPrompt is what's
+    // actually sent (the user may hand-edit it). Empty CullPrompt => regenerate the default on load.
+    public int CullKeepTarget { get; set; }                                       // 0 = no target
+    public string CullCriteria { get; set; } = "sharpness,exposure,composition,aesthetics"; // CSV of ticked keys
+    public string CullPrompt { get; set; } = "";                                  // editable instruction body (no folder)
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Monocle", "settings.json");

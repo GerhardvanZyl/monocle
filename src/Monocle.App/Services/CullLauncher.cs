@@ -46,15 +46,30 @@ public static class CullLauncher
         return path;
     }
 
-    public static string BuildCullPrompt(string folder) =>
-        $"Cull the photo shoot in: {folder}\n\n" +
-        "Use ONLY the monocle MCP tools. scan_folder first, then for each frame call " +
-        "get_preview to judge the JPEG/embedded preview visually together with its technical " +
-        "metrics, and set_rating(id, stars, rationale, model) where 1=reject, 2=weak, " +
-        "3=average, 4=good or better. In the rationale, say in one or two sentences BOTH what " +
-        "works in the frame and what doesn't (e.g. 'Sharp eyes and strong side light, but the " +
-        "horizon tilts and the background is cluttered.') so the photographer understands the " +
-        "verdict — never just a single adjective. For bursts keep the strongest and down-rate the " +
-        "rest but keep at least 3 frames of a genuine series. Never demosaic a RAW. Report " +
-        "picks/rejects and the cost when done.";
+    /// <summary>Compose the prompt actually sent to Claude: a current-folder header + the (possibly
+    /// user-edited) instruction body. Folder is kept out of the editable body so it never goes stale.</summary>
+    public static string ComposeCullPrompt(string folder, string body) =>
+        $"Cull the photo shoot in: {folder}\n\n{body.Trim()}";
+
+    /// <summary>Build the editable instruction body from the AI-Cull knobs. Criteria are the ticked
+    /// keys (e.g. "sharpness","exposure"); keepTarget 0 means "no explicit target".</summary>
+    public static string BuildCullBody(int keepTarget, IReadOnlyCollection<string> criteria)
+    {
+        var focus = criteria.Count > 0 ? string.Join(", ", criteria) : "overall image quality";
+        var keep = keepTarget > 0
+            ? $" Aim to keep about {keepTarget} frames as picks (3★+); rate the rest lower."
+            : "";
+        return
+            "Use ONLY the monocle MCP tools. scan_folder first, then for each frame call " +
+            "get_preview to judge the JPEG/embedded preview visually together with its technical " +
+            "metrics, and set_rating(id, stars, rationale, model) where 1★=reject (bad), 2★=weak, " +
+            "3★=average, 4★=good or better." + keep + "\n\n" +
+            $"Judge primarily on: {focus}.\n\n" +
+            "In the rationale, say in one or two sentences BOTH what works in the frame and what " +
+            "doesn't (e.g. 'Sharp eyes and strong side light, but the horizon tilts and the " +
+            "background is cluttered.') so the photographer understands the verdict — never just a " +
+            "single adjective. For bursts keep the strongest and down-rate the rest but keep at " +
+            "least 3 frames of a genuine series. Never demosaic a RAW. Report picks/rejects and the " +
+            "cost when done.";
+    }
 }

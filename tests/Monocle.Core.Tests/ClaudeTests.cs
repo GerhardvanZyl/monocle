@@ -120,4 +120,25 @@ public class ClaudeTests
         Assert.Contains("Write", denied);
         Assert.Contains("30", args);
     }
+
+    [Fact]
+    public void BuildCullBody_reflects_criteria_and_keep_target()
+    {
+        var body = Monocle.App.Services.CullLauncher.BuildCullBody(12, new[] { "sharpness", "noise" });
+        Assert.Contains("sharpness, noise", body);
+        Assert.Contains("about 12 frames", body);
+
+        // No target and no criteria => no keep line, falls back to "overall image quality".
+        var bare = Monocle.App.Services.CullLauncher.BuildCullBody(0, System.Array.Empty<string>());
+        Assert.DoesNotContain("Aim to keep", bare);
+        Assert.Contains("overall image quality", bare);
+    }
+
+    [Fact]
+    public void ComposeCullPrompt_prepends_current_folder()
+    {
+        var prompt = Monocle.App.Services.CullLauncher.ComposeCullPrompt("/photos/2026", "do the thing");
+        Assert.StartsWith("Cull the photo shoot in: /photos/2026", prompt);
+        Assert.Contains("do the thing", prompt);
+    }
 }

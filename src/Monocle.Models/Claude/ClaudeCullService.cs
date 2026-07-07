@@ -67,6 +67,10 @@ public sealed class ClaudeCullService
             RedirectStandardError = true,
             UseShellExecute = false,
             CreateNoWindow = true,
+            // Claude emits UTF-8 JSON; without this the redirected pipe is decoded with the console's
+            // OEM code page (CP850) and any em-dash/accents arrive as mojibake ("—" -> "ÔÇö").
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
         foreach (var a in BuildArguments(opts))
             psi.ArgumentList.Add(a);

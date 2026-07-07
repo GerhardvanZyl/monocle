@@ -6,8 +6,10 @@ namespace Monocle.App.Diagnostics;
 
 /// <summary>
 /// Minimal, dependency-free logger for the desktop app: writes timestamped, colour-coded lines to
-/// the console (see <see cref="ConsoleHost"/>) and appends them to a per-run log file under
-/// <c>%LOCALAPPDATA%\Monocle\logs</c> so errors survive after the window closes. Thread-safe.
+/// the console (when one exists — e.g. `dotnet run` from a terminal) and appends them to a per-run
+/// log file under <c>%LOCALAPPDATA%\Monocle\logs</c> so errors survive after the window closes.
+/// The <see cref="LineWritten"/> event also mirrors every line into the in-app console drawer.
+/// Thread-safe.
 /// </summary>
 internal static class Log
 {

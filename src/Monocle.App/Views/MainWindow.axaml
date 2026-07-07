@@ -182,8 +182,18 @@
                 Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
                 BorderThickness="0,1,0,0">
             <DockPanel>
-                <Thumb DockPanel.Dock="Top" Height="5" Cursor="SizeNorthSouth" Background="{StaticResource BorderSoft}"
-                       DragDelta="OnDrawerResize" HorizontalAlignment="Stretch"/>
+                <Thumb DockPanel.Dock="Top" Height="8" Cursor="SizeNorthSouth" Background="{StaticResource Surface2}"
+                       DragDelta="OnDrawerResize" HorizontalAlignment="Stretch"
+                       ToolTip.Tip="Drag to resize the console">
+                    <Thumb.Template>
+                        <ControlTemplate>
+                            <Border Background="{TemplateBinding Background}">
+                                <Rectangle Width="40" Height="3" RadiusX="1.5" RadiusY="1.5"
+                                           Fill="{StaticResource BorderStrong}" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Thumb.Template>
+                </Thumb>
                 <Border DockPanel.Dock="Top" Padding="12,5" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
                     <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto">
                         <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding !DrawerRunLog}" Content="Console"
@@ -252,7 +262,12 @@
                         </StackPanel>
                     </Border>
 
-                    <!-- Nav groups -->
+                    <!-- Nav groups. Fill child of the DockPanel, so on a short window it scrolls within
+                         the space left by the bottom-pinned legend/design instead of overlapping them.
+                         AllowAutoHide=False: the Fluent overlay scrollbar otherwise collapses to an
+                         invisible sliver against the rail, so it looks like there's no scrollbar. -->
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                  AllowAutoHide="False">
                     <StackPanel Spacing="4">
                         <TextBlock Text="LIBRARY" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="8,6,0,4"/>
                         <Button Classes="nav" Classes.on="{Binding IsBrowse}" Command="{Binding GoViewCommand}" CommandParameter="Browse">
@@ -285,6 +300,7 @@
                         <Button Classes="nav" Command="{Binding ExportCommand}" Content="⤓  Export CSV / JSON" FontSize="12.5"
                                 ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder."/>
                     </StackPanel>
+                    </ScrollViewer>
                 </DockPanel>
             </Border>
 
@@ -456,6 +472,50 @@
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
+                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
+
+                        <!-- ===== CLAUDE CULL INSTRUCTIONS (item 4): knobs regenerate the editable prompt ===== -->
+                        <TextBlock Text="CLAUDE CULL INSTRUCTIONS" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}" Margin="0,6,0,0"/>
+                        <TextBlock Text="These options build the instructions sent to Claude. Edit the prompt below directly for full control — changing an option regenerates it."
+                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
+
+                        <!-- Keep target -->
+                        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                            <TextBlock Text="Keepers to target" FontSize="12" VerticalAlignment="Center"/>
+                            <TextBox Text="{Binding CullKeepTarget}" Width="64" Height="28" VerticalContentAlignment="Center"
+                                     ToolTip.Tip="Roughly how many frames to keep as picks (3★+). 0 = no explicit target."/>
+                            <TextBlock Text="0 = no target" FontSize="11" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                        </StackPanel>
+
+                        <!-- What to judge on -->
+                        <TextBlock Text="Judge on" FontSize="12" Margin="0,4,0,0"/>
+                        <ItemsControl ItemsSource="{Binding CullCriteria}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CullCriterionViewModel">
+                                    <CheckBox Content="{Binding Label}" IsChecked="{Binding IsEnabled}"
+                                              FontSize="12" Margin="0,0,14,0"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Editable system prompt -->
+                        <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,4,0,0">
+                            <TextBlock Grid.Column="0" Text="System prompt (editable)" FontSize="12" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Classes="ghost" Content="Regenerate from options" FontSize="11" Padding="8,2" Margin="0,0,6,0"
+                                    ToolTip.Tip="Rebuild the prompt from the options above, discarding hand edits."
+                                    Command="{Binding ResetCullPromptCommand}"/>
+                            <Button Grid.Column="2" Classes="ghost" Content="Reset to default" FontSize="11" Padding="8,2"
+                                    ToolTip.Tip="Reset the options and the prompt back to their defaults."
+                                    Command="{Binding ResetCullDefaultsCommand}"/>
+                        </Grid>
+                        <TextBox Text="{Binding CullPrompt}" AcceptsReturn="True" TextWrapping="Wrap"
+                                 MinHeight="150" MaxHeight="320" FontFamily="{StaticResource FontMono}" FontSize="11"
+                                 ScrollViewer.VerticalScrollBarVisibility="Auto"
+                                 Background="{StaticResource Surface2}" Padding="10,8"/>
+
                         <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
                         <Button Classes="primary" Content="Process" HorizontalAlignment="Left" MinWidth="160"
                                 Command="{Binding ProcessCommand}" IsEnabled="{Binding !CullRunning}"/>

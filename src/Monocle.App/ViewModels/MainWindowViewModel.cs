@@ -54,6 +54,22 @@ public partial class MainWindowViewModel : ViewModelBase
         PhotoTileViewModel.PersistPips = _settings.PersistPips;
         _sidecarCompute = SidecarComputeChoices.Contains(_settings.SidecarCompute)
             ? _settings.SidecarCompute : SidecarComputeChoices[0];
+
+        // Cull instruction knobs. Build the criteria checkboxes from the persisted CSV, then either
+        // restore the hand-edited prompt or generate a default one from the knobs.
+        _cullKeepTarget = _settings.CullKeepTarget;
+        var ticked = new HashSet<string>((_settings.CullCriteria ?? "").Split(',',
+            StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries));
+        foreach (var (key, label) in new[]
+                 {
+                     ("sharpness", "Sharpness / focus"), ("exposure", "Exposure"),
+                     ("noise", "Noise"), ("composition", "Composition"),
+                     ("aesthetics", "Aesthetics"), ("artistic", "Artistic / mood"),
+                 })
+            CullCriteria.Add(new CullCriterionViewModel(key, label, ticked.Contains(key), OnCullCriteriaToggled));
+        _cullPrompt = string.IsNullOrWhiteSpace(_settings.CullPrompt)
+            ? CullLauncher.BuildCullBody(_cullKeepTarget, CullCriteria.Where(c => c.IsEnabled).Select(c => c.Key).ToArray())
+            : _settings.CullPrompt;
         if (!string.IsNullOrWhiteSpace(_settings.LastFolder) && System.IO.Directory.Exists(_settings.LastFolder))
             _folderPath = _settings.LastFolder;
         ThemeManager.Apply(_theme, _accent);
@@ -435,6 +451,47 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Claude cull (#5, #11) ----
     public ObservableCollection<string> CullLog { get; } = new();
     [ObservableProperty] private bool _cullRunning;
+
+    // ---- Customisable cull instructions (AI Cull view) ----
+    // The knobs (criteria + keep target) regenerate CullPrompt; CullPrompt is the editable instruction
+    // body actually sent to Claude (folder header is prepended fresh at send time). Editing a knob
+    // overwrites hand edits — that's the documented trade-off for keeping it simple.
+    public ObservableCollection<CullCriterionViewModel> CullCriteria { get; } = new();
+
+    [ObservableProperty] private int _cullKeepTarget;
+    partial void OnCullKeepTargetChanged(int value) { _settings.CullKeepTarget = value; RegenerateCullPrompt(); }
+
+    /// <summary>The editable instruction body sent to Claude. Persisted on every change so hand edits
+    /// survive; regenerated (overwriting edits) when a knob changes.</summary>
+    [ObservableProperty] private string _cullPrompt = "";
+    partial void OnCullPromptChanged(string value) { _settings.CullPrompt = value; _settings.Save(); }
+
+    private void OnCullCriteriaToggled()
+    {
+        _settings.CullCriteria = string.Join(",", CullCriteria.Where(c => c.IsEnabled).Select(c => c.Key));
+        RegenerateCullPrompt();
+    }
+
+    private void RegenerateCullPrompt()
+    {
+        var criteria = CullCriteria.Where(c => c.IsEnabled).Select(c => c.Key).ToArray();
+        CullPrompt = CullLauncher.BuildCullBody(CullKeepTarget, criteria);   // OnCullPromptChanged persists it
+    }
+
+    /// <summary>Regenerate the prompt from the current knobs (discards hand edits, keeps the knobs).</summary>
+    [RelayCommand] private void ResetCullPrompt() => RegenerateCullPrompt();
+
+    private static readonly string[] DefaultCullCriteria = { "sharpness", "exposure", "composition", "aesthetics" };
+
+    /// <summary>Reset the knobs to their defaults and regenerate the prompt (a full "back to default").</summary>
+    [RelayCommand]
+    private void ResetCullDefaults()
+    {
+        CullKeepTarget = 0;
+        foreach (var c in CullCriteria)
+            c.IsEnabled = DefaultCullCriteria.Contains(c.Key);   // per-change toggles regenerate; final call ensures it
+        RegenerateCullPrompt();
+    }
 
     // ---- In-app console / diagnostic log panel (toggled in Settings) ----
     /// <summary>Live mirror of the app's diagnostic log (see Diagnostics.Log), shown in the bottom
@@ -940,7 +997,7 @@ public partial class MainWindowViewModel : ViewModelBase
         var options = new ClaudeCullOptions
         {
             Folder = FolderPath,
-            Prompt = CullLauncher.BuildCullPrompt(FolderPath),
+            Prompt = CullLauncher.ComposeCullPrompt(FolderPath, CullPrompt),
             McpConfigPath = CullLauncher.WriteMcpConfig(),
             Model = currentClaudeModelId,
         };
@@ -1347,23 +1404,27 @@ public partial class MainWindowViewModel : ViewModelBase
             return new CritiqueLine(author, body);
         }
 
-        // Headline verdict (what works / what doesn't) from whichever model rated the frame. The
-        // stored headline is prefixed "[model] …" (e.g. "[Claude] …"); peel that off for the author so
-        // a sidecar-loaded verdict is attributed correctly even though Load doesn't restore RatedByModel.
-        if (item.Rationale.TryGetValue("headline", out var headline))
-        {
-            var (author, body) = SplitRater(headline, item.RatedByModel ?? "AI verdict");
-            if (Make(author, body) is { } h)
-                yield return h;
-        }
-
-        // Each scoring model's own commentary. Q-Align emits only a number, so derive a short
-        // qualitative read from its 1-5 score so it still "says" something.
+        // Each scoring model's own commentary FIRST, attributed to its display name (e.g.
+        // "Claude Opus 4.8", "NIMA"). A model with only a number (Q-Align, NIMA) gets a short
+        // qualitative read that includes the value, so two numeric models don't render identical text.
         foreach (var s in item.Scores)
         {
             var body = !string.IsNullOrWhiteSpace(s.Text) ? s.Text : QualitativeRead(s);
             if (Make(s.ModelDisplayName, body) is { } c)
                 yield return c;
+        }
+
+        // Headline verdict — only when no model score carried its own text. After a cull every
+        // verdict is already a per-model score (above), so the headline would just duplicate one of
+        // them (and, when its sidecar encoding differs, dodge the text-dedup and show twice — the
+        // "[id] …" vs display-name duplication). Reopened shoots that restored only the sidecar
+        // headline still surface it here. The stored headline is prefixed "[model] …"; peel it off.
+        if (!item.Scores.Any(s => !string.IsNullOrWhiteSpace(s.Text)) &&
+            item.Rationale.TryGetValue("headline", out var headline))
+        {
+            var (author, body) = SplitRater(headline, item.RatedByModel ?? "AI verdict");
+            if (Make(author, body) is { } h)
+                yield return h;
         }
 
         // Per-fault technical remarks (sharpness/exposure/noise), excluding the headline key.
@@ -1392,7 +1453,11 @@ public partial class MainWindowViewModel : ViewModelBase
             return null;
         var word = n >= 0.8 ? "excellent" : n >= 0.6 ? "good" : n >= 0.45 ? "average" : n >= 0.3 ? "weak" : "poor";
         var facet = s.Kind == ScoreKind.Quality ? "technical quality" : "aesthetic appeal";
-        return $"Rates the {facet} as {word}.";
+        // Include the raw value so each numeric model reads distinctly (otherwise every aesthetic
+        // model emits identical text and the dedup collapses them into one card) and its actual
+        // result is visible.
+        var val = s is { Value: { } v, ScaleMax: { } max } ? $" — {v:0.#}/{max:0}" : "";
+        return $"Rates the {facet} as {word}{val}.";
     }
 
     private static string Capitalize(string s) =>

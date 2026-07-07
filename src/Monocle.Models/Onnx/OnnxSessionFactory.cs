@@ -14,27 +14,34 @@ public static class OnnxSessionFactory
     {
         // SessionOptions holds a native handle and is NOT owned by the session — the session copies
         // what it needs at construction, so dispose the options once it's built to avoid leaking it.
-        using var options = new SessionOptions
+        var options = new SessionOptions
         {
             GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL,
         };
-        TryAppendGpu(options);
-        return new InferenceSession(modelPath, options);
+        try
+        {
+            TryAppendGpu(options);
+            return new InferenceSession(modelPath, options);
+        }
+        finally { options.Dispose(); }
     }
 
+    /// <summary>Register the best available GPU provider, falling back to CPU. DML/CUDA are NOT
+    /// accepted by the generic string overload — they need the dedicated <c>AppendExecutionProvider_*</c>
+    /// methods, so calling the string form silently threw and every model ran on the CPU.</summary>
     private static void TryAppendGpu(SessionOptions options)
     {
-        foreach (var provider in new[] { "DML", "CUDA", "ROCmExecutionProvider" })
+        // DirectML: any DX12 GPU on Windows (AMD RDNA / Intel / NVIDIA). It requires memory pattern
+        // off; restore it if DML isn't available (CPU-only package or no GPU) so CPU keeps the opt.
+        try
         {
-            try
-            {
-                options.AppendExecutionProvider(provider, new Dictionary<string, string>());
-                return; // first one that registers wins
-            }
-            catch
-            {
-                // provider not in this package / not available on this machine — keep trying, then CPU
-            }
+            options.EnableMemoryPattern = false;
+            options.AppendExecutionProvider_DML(0);
+            return;
         }
+        catch { options.EnableMemoryPattern = true; }
+
+        try { options.AppendExecutionProvider_CUDA(0); return; } catch { /* not NVIDIA / CPU package */ }
+        try { options.AppendExecutionProvider("ROCmExecutionProvider"); return; } catch { /* fall back to CPU */ }
     }
 }

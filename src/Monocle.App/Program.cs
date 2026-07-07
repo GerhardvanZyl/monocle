@@ -13,9 +13,8 @@ sealed class Program
     [STAThread]
     public static void Main(string[] args)
     {
-        // Open a console + logger by default for now so errors are visible while developing. To turn
-        // this off later, gate EnsureConsole() behind an env var / launch flag.
-        ConsoleHost.EnsureConsole();
+        // Logs go to the per-run file (Log.FilePath) and the in-app console drawer (Settings → Show
+        // console). No AllocConsole: a WinExe launched from Explorer must not pop a terminal window.
         Log.Init();
         Log.Info($"Monocle starting (args: {string.Join(' ', args)}). Log file: {Log.FilePath}");
 

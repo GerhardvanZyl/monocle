@@ -55,6 +55,8 @@ public sealed class LlamaServer : IDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(exe) ?? ".",
+            StandardOutputEncoding = System.Text.Encoding.UTF8,   // UTF-8 log lines, not OEM mojibake
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
         // ponytail: args mirror tools/start-qwen-server.cmd; if they ever diverge, parse the .cmd instead.
         foreach (var a in new[] { "-hf", "ggml-org/Qwen2.5-VL-7B-Instruct-GGUF", "-ngl", "99",

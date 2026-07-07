@@ -71,6 +71,10 @@ public sealed class SidecarManager : IDisposable
             UseShellExecute = false,
             CreateNoWindow = true,
             WorkingDirectory = Path.GetDirectoryName(serverScript) ?? ".",
+            // Decode the sidecar's UTF-8 output as UTF-8 (not the console OEM code page) so log lines
+            // with em-dashes/accents don't arrive as mojibake.
+            StandardOutputEncoding = System.Text.Encoding.UTF8,
+            StandardErrorEncoding = System.Text.Encoding.UTF8,
         };
         psi.ArgumentList.Add(serverScript);
         psi.ArgumentList.Add("--port");
