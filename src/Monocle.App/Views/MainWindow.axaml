@@ -457,14 +457,26 @@
                                                         ToolTip.Tip="{Binding InstallTip}"
                                                         Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
                                                         CommandParameter="{Binding}"/>
+                                                <!-- Determinate for downloads (fraction known); indeterminate for pip / ONNX builds. -->
+                                                <ProgressBar Minimum="0" Maximum="1" Value="{Binding InstallProgress}"
+                                                             IsIndeterminate="{Binding InstallIndeterminate}"
+                                                             IsVisible="{Binding Installing}"
+                                                             Width="110" Height="6" VerticalAlignment="Center"
+                                                             Foreground="{StaticResource Accent}"/>
                                                 <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
                                                            FontSize="10" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
                                                            IsVisible="{Binding ShowInstallProgress}"/>
+                                                <Button Content="Cancel" FontSize="10" Padding="6,1"
+                                                        IsVisible="{Binding Installing}" Command="{Binding CancelInstallCommand}"
+                                                        ToolTip.Tip="Stops the download/build; nothing partial is left behind."/>
                                                 <Button Content="model card ↗" FontSize="10" Padding="6,1"
                                                         IsVisible="{Binding HasInfoUrl}" ToolTip.Tip="{Binding InfoUrl}"
                                                         Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
                                                         CommandParameter="{Binding InfoUrl}"/>
                                             </StackPanel>
+                                            <TextBlock Text="{Binding InstallStatus}" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0"
+                                                       Classes="installStatus" Classes.err="{Binding InstallFailed}"
+                                                       IsVisible="{Binding InstallStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                         </StackPanel>
                                         <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
                                                    Foreground="{StaticResource Accent}" VerticalAlignment="Top" Margin="4,0,0,0"/>

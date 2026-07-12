@@ -181,10 +181,10 @@ public partial class MainWindowViewModel : ViewModelBase
         await _modelsInitGate.WaitAsync().ConfigureAwait(true);
         try
         {
-            var previouslyEnabled = Models.ToDictionary(m => m.Runner.Descriptor.Id, m => m.IsEnabled);
-            // Probe availability into a local list (this awaits), then swap the observable collection
-            // in one synchronous pass so no caller ever sees a half-rebuilt Models collection.
-            var rebuilt = new List<ModelOptionViewModel>();
+            // Update existing VMs in place (keyed by runner id) rather than Clear()+rebuild: installs
+            // run in parallel, and a rebuild would orphan another install's in-flight VM — its
+            // progress bar would vanish and its Installing state would be lost.
+            var existing = Models.ToDictionary(m => m.Runner.Descriptor.Id);
             foreach (var runner in _registry.All)
             {
                 if (runner.Descriptor.Category == ModelCategory.Heuristic)
@@ -194,14 +194,12 @@ public partial class MainWindowViewModel : ViewModelBase
                     Diagnostics.Log.Info(runner is Monocle.Models.Onnx.OnnxScoreRunner onnx
                         ? $"[models] {runner.Descriptor.DisplayName} unavailable — weights file not found: {onnx.ModelPath}"
                         : $"[models] {runner.Descriptor.DisplayName} unavailable (not installed / sidecar not ready)");
-                var enabled = previouslyEnabled.TryGetValue(runner.Descriptor.Id, out var e)
-                    ? e
-                    : runner.Descriptor.Id == AestheticRunner.ModelId;
-                rebuilt.Add(new ModelOptionViewModel(runner, available, enabled));
+                if (existing.TryGetValue(runner.Descriptor.Id, out var vm))
+                    vm.Available = available;
+                else
+                    Models.Add(new ModelOptionViewModel(runner, available,
+                        enabled: runner.Descriptor.Id == AestheticRunner.ModelId));
             }
-            Models.Clear();
-            foreach (var m in rebuilt)
-                Models.Add(m);
         }
         finally
         {
@@ -224,25 +222,32 @@ public partial class MainWindowViewModel : ViewModelBase
     private IReadOnlyList<ClaudeCullRunner> SelectedClaudeModels() =>
         EnabledModels().Select(m => m.Runner).OfType<ClaudeCullRunner>().ToList();
 
+    // Both pip-based install paths (sidecar deps, ONNX export) write into the same Python
+    // environment; two pips racing corrupt it. Serialize just the Python work — ONNX weight
+    // downloads don't take this gate and run fully in parallel.
+    private readonly SemaphoreSlim _pipGate = new(1, 1);
+
     /// <summary>Install a not-yet-available model from the app (#5): download + verify ONNX weights,
-    /// or pip-install the Python sidecar's deps. Refreshes availability when done.</summary>
-    [RelayCommand]
+    /// or pip-install the Python sidecar's deps. Refreshes availability when done. Concurrent
+    /// executions are allowed so several models can install at once, each showing its own progress.</summary>
+    [RelayCommand(AllowConcurrentExecutions = true)]
     private async Task InstallModelAsync(ModelOptionViewModel? model)
     {
         if (model is null || model.Installing)
             return;
         model.Installing = true;
+        model.InstallFailed = false;
+        model.InstallStatus = null;
+        using var cts = new CancellationTokenSource();
+        model.InstallCts = cts;
         try
         {
             if (model.Runner is OnnxScoreRunner { DownloadUrl: not null } onnx)
             {
                 StatusText = $"Downloading {model.Name}…";
-                var progress = new Progress<double>(f =>
-                {
-                    model.InstallProgress = f;
-                    StatusText = $"Downloading {model.Name}… {f:P0}";
-                });
-                await onnx.InstallAsync(progress);
+                // Per-row bar + % carry the detail; don't stomp the shared status bar per tick.
+                var progress = new Progress<double>(f => model.InstallProgress = f);
+                await onnx.InstallAsync(progress, cts.Token);
                 StatusText = $"{model.Name} installed.";
             }
             else if (model.Runner.Descriptor.RequiresSidecar)
@@ -253,7 +258,9 @@ public partial class MainWindowViewModel : ViewModelBase
                     CullLog.Add(line);
                     StatusText = line;
                 });
-                var ok = await SidecarInstaller.InstallDepsAsync(Append, SidecarInstaller.ParseTarget(SidecarCompute));
+                using var _ = await AcquirePipGateAsync(model, cts.Token);
+                model.InstallStatus = "Installing Python deps — progress in the Run log…";
+                var ok = await SidecarInstaller.InstallDepsAsync(Append, SidecarInstaller.ParseTarget(SidecarCompute), cts.Token);
                 // Don't tell the user to start a sidecar they already started: a running sidecar
                 // re-probes its deps per /health (and invalidates importlib's caches), so the newly
                 // installed models become available without a restart.
@@ -262,6 +269,10 @@ public partial class MainWindowViewModel : ViewModelBase
                         ? "Python deps installed — models are now available."
                         : "Python deps installed — Start the Python sidecar to use these models.")
                     : "Python deps install failed (see the Run log).";
+                model.InstallFailed = !ok;
+                model.InstallStatus = ok
+                    ? (_sidecar.Running ? null : "Deps installed — start the Python sidecar to use this model.")
+                    : "Install failed — see the Run log.";
             }
             else if (model.Runner is OnnxScoreRunner)
             {
@@ -274,26 +285,51 @@ public partial class MainWindowViewModel : ViewModelBase
                     CullLog.Add(line);
                     StatusText = line;
                 });
-                var ok = await OnnxExporter.ExportAsync(model.Runner.Descriptor.Id, Append);
+                using var _ = await AcquirePipGateAsync(model, cts.Token);
+                model.InstallStatus = "Building — progress in the Run log…";
+                var ok = await OnnxExporter.ExportAsync(model.Runner.Descriptor.Id, Append, cts.Token);
                 StatusText = ok
                     ? $"{model.Name} built — it's now available."
                     : $"{model.Name} build failed (see the Run log).";
+                model.InstallFailed = !ok;
+                model.InstallStatus = ok ? null : "Build failed — see the Run log.";
             }
             else
             {
                 StatusText = $"{model.Name} can't be installed from the app — see docs/models.md.";
             }
         }
+        catch (OperationCanceledException)
+        {
+            StatusText = $"{model.Name} install cancelled.";
+            model.InstallStatus = "Cancelled.";
+        }
         catch (Exception ex)
         {
             StatusText = $"Install failed: {ex.Message}";
+            model.InstallFailed = true;
+            model.InstallStatus = $"Install failed: {ex.Message}";
         }
         finally
         {
+            model.InstallCts = null;
             model.Installing = false;
             model.InstallProgress = 0;
             await InitModelsAsync();   // re-probe availability so the checkbox enables
         }
+    }
+
+    private async Task<IDisposable> AcquirePipGateAsync(ModelOptionViewModel model, CancellationToken ct)
+    {
+        if (_pipGate.CurrentCount == 0)
+            model.InstallStatus = "Waiting for another Python install to finish…";
+        await _pipGate.WaitAsync(ct);
+        return new PipGateRelease(_pipGate);
+    }
+
+    private sealed class PipGateRelease(SemaphoreSlim gate) : IDisposable
+    {
+        public void Dispose() => gate.Release();
     }
 
     /// <summary>Open a model's source/card link in the browser (#6).</summary>

@@ -156,6 +156,17 @@
             <Setter Property="Background" Value="{StaticResource Accent}"/>
             <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
         </Style>
+        <Style Selector="CheckBox:disabled">
+            <Setter Property="Opacity" Value="0.35"/>
+        </Style>
+
+        <!-- Per-model install status line: muted normally, reject-red with .err on failure. -->
+        <Style Selector="TextBlock.installStatus">
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+        </Style>
+        <Style Selector="TextBlock.installStatus.err">
+            <Setter Property="Foreground" Value="{StaticResource Reject}"/>
+        </Style>
 
         <!-- ===== Tabs ===== -->
         <Style Selector="TabControl">

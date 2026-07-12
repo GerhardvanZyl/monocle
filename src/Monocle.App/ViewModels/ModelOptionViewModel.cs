@@ -1,4 +1,6 @@
+using System.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 using Monocle.Core.Model;
 using Monocle.Models;
 using Monocle.Models.Onnx;
@@ -14,14 +16,26 @@ public partial class ModelOptionViewModel : ViewModelBase
     public ModelOptionViewModel(IModelRunner runner, bool available, bool enabled)
     {
         Runner = runner;
-        Available = available;
+        _available = available;
         _isEnabled = enabled && available;
     }
 
     public string Name => Runner.Descriptor.DisplayName;
     public string Description => Runner.Descriptor.Description;
     public string Tradeoffs => Runner.Descriptor.Tradeoffs;
-    public bool Available { get; }
+
+    /// <summary>Mutable so InitModelsAsync can re-probe in place — VM identity must survive a
+    /// refresh, or a parallel install's progress UI would be torn down mid-run.</summary>
+    [ObservableProperty] private bool _available;
+
+    partial void OnAvailableChanged(bool value)
+    {
+        if (!value)
+            IsEnabled = false;   // an unavailable model can never stay ticked
+        OnPropertyChanged(nameof(Header));
+        OnPropertyChanged(nameof(ShowInstall));
+        OnPropertyChanged(nameof(CanInstall));
+    }
 
     public string ResourceText => Runner.Descriptor.Resource switch
     {
@@ -38,8 +52,22 @@ public partial class ModelOptionViewModel : ViewModelBase
     [ObservableProperty] private bool _installing;
     [ObservableProperty] private double _installProgress;
 
+    /// <summary>Per-row install state ("Waiting for another Python install…", "Install failed: …");
+    /// null hides the line. Keeps each parallel install legible without fighting over the status bar.</summary>
+    [ObservableProperty] private string? _installStatus;
+    [ObservableProperty] private bool _installFailed;
+
+    /// <summary>Set by InstallModelAsync for the lifetime of the install so Cancel can reach it.</summary>
+    public CancellationTokenSource? InstallCts { get; set; }
+
+    [RelayCommand]
+    private void CancelInstall() => InstallCts?.Cancel();
+
     /// <summary>Only downloads report a fraction; the Python build streams to the Run log instead.</summary>
     public bool ShowInstallProgress => Installing && InstallProgress > 0;
+
+    /// <summary>No fraction (pip / ONNX export) → indeterminate bar while the install runs.</summary>
+    public bool InstallIndeterminate => Installing && InstallProgress <= 0;
 
     private bool HasOnnxDownload => Runner is OnnxScoreRunner { DownloadUrl: not null };
     private bool RequiresSidecar => Runner.Descriptor.RequiresSidecar;
@@ -55,7 +83,8 @@ public partial class ModelOptionViewModel : ViewModelBase
     public bool CanInstall => !Installing && (HasOnnxDownload || RequiresSidecar || CanExportOnnx);
 
     public string InstallLabel =>
-        RequiresSidecar ? "Install Python deps"
+        Installing ? "Installing…"
+        : RequiresSidecar ? "Install Python deps"
         : CanExportOnnx ? "Build (Python)"
         : "Install";
 
@@ -74,7 +103,13 @@ public partial class ModelOptionViewModel : ViewModelBase
     {
         OnPropertyChanged(nameof(CanInstall));
         OnPropertyChanged(nameof(ShowInstallProgress));
+        OnPropertyChanged(nameof(InstallIndeterminate));
+        OnPropertyChanged(nameof(InstallLabel));
     }
 
-    partial void OnInstallProgressChanged(double value) => OnPropertyChanged(nameof(ShowInstallProgress));
+    partial void OnInstallProgressChanged(double value)
+    {
+        OnPropertyChanged(nameof(ShowInstallProgress));
+        OnPropertyChanged(nameof(InstallIndeterminate));
+    }
 }
