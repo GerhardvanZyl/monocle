@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.ObjectModel;
 using System.Threading;
 using System.Threading.Tasks;
@@ -53,6 +54,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _showConsole = _settings.ShowConsole;
         _persistPips = _settings.PersistPips;
         PhotoTileViewModel.PersistPips = _settings.PersistPips;
+        _experimentalUi = _settings.ExperimentalUi;
         _sidecarCompute = SidecarComputeChoices.Contains(_settings.SidecarCompute)
             ? _settings.SidecarCompute : SidecarComputeChoices[0];
 
@@ -464,7 +466,12 @@ public partial class MainWindowViewModel : ViewModelBase
         var cols = Math.Max(1, Columns);
         PhotoRows.Clear();
         for (int i = 0; i < VisiblePhotos.Count; i += cols)
-            PhotoRows.Add(new PhotoRowViewModel(VisiblePhotos.Skip(i).Take(cols).ToList()));
+        {
+            var row = new List<PhotoTileViewModel>(cols);
+            for (int j = i; j < i + cols && j < VisiblePhotos.Count; j++)
+                row.Add(VisiblePhotos[j]);
+            PhotoRows.Add(new PhotoRowViewModel(row));
+        }
     }
 
     // ---- Filter facets + sort (#23) ----
@@ -480,10 +487,13 @@ public partial class MainWindowViewModel : ViewModelBase
     private bool IsAllFilter => Rating == RatingFilter.All && ReasonFacet is null && RatedByFacet is null;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelection))]
+    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(ShowDetailPlaceholder))]
     private PhotoTileViewModel? _selectedPhoto;
 
     public bool HasSelection => SelectedPhoto is not null;
+
+    /// <summary>Detail-pane placeholder ("Select a photo…") — onboarding UI only (#ExperimentalUi).</summary>
+    public bool ShowDetailPlaceholder => ExperimentalUi && !HasSelection;
 
     // ---- Pipeline / flowchart (#14-16, #20) ----
     [ObservableProperty] private PipelineRun? _pipeline;
@@ -553,6 +563,15 @@ public partial class MainWindowViewModel : ViewModelBase
         PhotoTileViewModel.PersistPips = value;
         foreach (var tile in Photos) tile.RefreshPipsVisibility();   // toggle takes effect on idle tiles immediately
     }
+
+    /// <summary>Opt-in onboarding UI (Labs, Settings): empty-state card, shortcuts flyout, aesthetic
+    /// hint strip, TQ/AES info glyph, detail placeholder and the numbered CULL rail. Off reproduces
+    /// the classic UI exactly; applies live via bindings, no restart.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ShowEmptyStateCard), nameof(ShowAestheticHintStrip), nameof(ShowDetailPlaceholder))]
+    private bool _experimentalUi;
+
+    partial void OnExperimentalUiChanged(bool value) { _settings.ExperimentalUi = value; _settings.Save(); }
 
     [RelayCommand] private void ClearConsole() { if (DrawerRunLog) CullLog.Clear(); else ConsoleLog.Clear(); }
     [RelayCommand] private void ToggleConsole() => ShowConsole = !ShowConsole;
@@ -642,8 +661,34 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ---- Progress (auto-refreshing, #3, #16) ----
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(ProgressText))]
+    [NotifyPropertyChangedFor(nameof(ProgressText), nameof(HasPhotos), nameof(ShowAestheticHint),
+                              nameof(ShowEmptyStateCard), nameof(ShowAestheticHintStrip))]
     private int _total;
+
+    /// <summary>True once a shoot has been scanned — drives the Browse empty-state card (onboarding).</summary>
+    public bool HasPhotos => Total > 0;
+
+    /// <summary>Browse-pane empty-state 3-step card — onboarding UI only (#ExperimentalUi).</summary>
+    public bool ShowEmptyStateCard => ExperimentalUi && !HasPhotos;
+
+    // ---- Aesthetic-score onboarding hint (dismissed for the session only, never persisted) ----
+    private bool _aestheticHintDismissed;
+
+    /// <summary>Shown above the grid until at least one frame has an aesthetic/quality score, so a
+    /// new user understands why AES reads "—" everywhere. Dismissal is session-only.</summary>
+    public bool ShowAestheticHint => Total > 0 && !_aestheticHintDismissed && !Photos.Any(p =>
+        p.Item.Scores.Any(s => (s.Kind == ScoreKind.Aesthetic || s.Kind == ScoreKind.Quality) && s.Normalized is not null));
+
+    /// <summary>Aesthetic-score hint strip above the grid — onboarding UI only (#ExperimentalUi).</summary>
+    public bool ShowAestheticHintStrip => ExperimentalUi && ShowAestheticHint;
+
+    [RelayCommand]
+    private void DismissAestheticHint()
+    {
+        _aestheticHintDismissed = true;
+        OnPropertyChanged(nameof(ShowAestheticHint));
+        OnPropertyChanged(nameof(ShowAestheticHintStrip));
+    }
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProgressText))]
     private int _analyzed;
@@ -670,10 +715,17 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Recompute the footer tallies from the current photo set.</summary>
     private void RefreshCounts()
     {
-        PickCount = Photos.Count(p => p.Item.IsPick);
-        RejectCount = Photos.Count(p => p.Item.IsReject);
-        UnratedCount = Photos.Count(p => p.Item.Stars <= 0);
-        RatedCount = Photos.Count(p => p.Item.Stars > 0);
+        int picks = 0, rejects = 0, unrated = 0, rated = 0;
+        foreach (var p in Photos)   // single pass: this runs on every batch of analysis results
+        {
+            if (p.Item.IsPick) picks++;
+            if (p.Item.IsReject) rejects++;
+            if (p.Item.Stars <= 0) unrated++; else rated++;
+        }
+        PickCount = picks;
+        RejectCount = rejects;
+        UnratedCount = unrated;
+        RatedCount = rated;
         ReviewFraction = Total == 0 ? 0 : (double)RatedCount / Total;
         OnPropertyChanged(nameof(MoveRejectsEnabled));
         if (IsRejectsView)
@@ -768,20 +820,27 @@ public partial class MainWindowViewModel : ViewModelBase
             VisiblePhotos.Clear();
             SelectedPhoto = null;
             _cache?.Dispose();   // safe: the previous scan has drained (awaited in ScanAsync)
-            _cache = new ShootCache(folder);
+            _cache = null;
 
             // Remember this folder so the next session reopens it (#2).
             _settings.LastFolder = folder; _settings.Save();
 
-            // Scan is deterministic-only now: decode → exif → metrics → heuristic rate. Probabilistic
-            // model scoring moved to the Process button. Pass no scorers.
+            // Scan just loads images: decode → exif → metrics. No rating of any sort — heuristic
+            // rating and model scoring both belong to the Process button. Pass no scorers.
             IReadOnlyList<IModelRunner> scorers = Array.Empty<IModelRunner>();
-            SetupPipeline(scorers);
+            SetupPipeline(scorers, rate: false);
             lock (_scorerSkipReasons) _scorerSkipReasons.Clear();   // re-report skips for this fresh run
 
-            var items = await Task.Run(() => _service.Load(folder, FoldPairs), ct);
+            // SQLite open + folder walk + per-file sidecar reads all belong off the UI thread.
+            var (cache, items) = await Task.Run(() =>
+            {
+                var c = new ShootCache(folder);
+                try { return (c, _service.Load(folder, FoldPairs)); }
+                catch { c.Dispose(); throw; }
+            }, ct);
+            _cache = cache;
             foreach (var item in items)
-                Photos.Add(new PhotoTileViewModel(item) { ExpectsScoring = false });
+                Photos.Add(new PhotoTileViewModel(item));
             ApplyFilter();
             Pipeline?.SetStatus("scan", StageStatus.Done);
 
@@ -792,9 +851,9 @@ public partial class MainWindowViewModel : ViewModelBase
             StatusText = $"Analyzing {Total} photos…";
 
             CullLog.Clear();   // the Run log tracks this run (scan now, not just cull)
-            RunLog($"Scan started — {Total} photos (deterministic: metrics + heuristic rating)");
+            RunLog($"Scan started — {Total} photos (load + metrics only, no rating)");
 
-            await AnalyzeAllAsync(scorers, ct);
+            await AnalyzeAllAsync(scorers, rateIfUnrated: false, claudeFollows: false, ct);
             CompletePipeline();
             RefreshStats();
 
@@ -803,6 +862,15 @@ public partial class MainWindowViewModel : ViewModelBase
             var rejects = Photos.Count(p => p.Item.IsReject);
             RunLog($"Scan complete — {Total} photos, {picks} picks, {rejects} rejects.");
             StatusText = $"Done. {Total} photos, {picks} picks, {rejects} rejects.";
+
+            // Auto-select the first frame so the Detail panel isn't blank after a scan — but never
+            // stomp a selection the user already made (e.g. a scan that finished after they clicked ahead).
+            // Onboarding UI only: classic mode leaves the grid unselected, as before.
+            if (ExperimentalUi && SelectedPhoto is null && VisiblePhotos.Count > 0)
+                SelectedPhoto = VisiblePhotos[0];
+
+            OnPropertyChanged(nameof(ShowAestheticHint));
+            OnPropertyChanged(nameof(ShowAestheticHintStrip));
         }
         catch (OperationCanceledException)
         {
@@ -820,15 +888,20 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    private void SetupPipeline(IReadOnlyList<IModelRunner> scorers)
+    private void SetupPipeline(IReadOnlyList<IModelRunner> scorers, bool rate, bool useClaude = false)
     {
         var gpu = scorers.Any(r => r.Descriptor.Resource == ResourceKind.Gpu);
-        var run = new PipelineRun(PipelineGraph.BuildAnalysis(gpu, useClaude: false));
+        var run = new PipelineRun(PipelineGraph.BuildAnalysis(gpu, useClaude));
         run.SetStatus("scan", StageStatus.Running);
-        run.Skip("claude");   // Claude cull arrives in Phase 4
+        if (!useClaude)
+            run.Skip("claude");   // no Claude model ticked — the stage isn't in this run
         run.Skip("write");    // auto-analysis rates in memory; sidecars are written on user action
 
-        _activeStages = new List<string> { "decode", "exif", "metrics", "rate" };
+        _activeStages = new List<string> { "decode", "exif", "metrics" };
+        if (rate)
+            _activeStages.Add("rate");
+        else
+            run.Skip("rate");   // a scan just loads images — no heuristic rating
         if (scorers.Count > 0)
             _activeStages.Insert(3, "aesthetic");
         else
@@ -846,23 +919,70 @@ public partial class MainWindowViewModel : ViewModelBase
             run.SetStatus(id, StageStatus.Done);
     }
 
-    private async Task AnalyzeAllAsync(IReadOnlyList<IModelRunner> scorers, CancellationToken ct)
+    private async Task AnalyzeAllAsync(IReadOnlyList<IModelRunner> scorers, bool rateIfUnrated,
+                                       bool claudeFollows, CancellationToken ct)
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
-        foreach (var t in tiles) t.JobRunning = true;   // hold every tile's pip column expanded for the run
+        // Arm every tile for THIS run: resets all per-run pip state so a new run never shows the
+        // previous run's pips, and holds the pip column expanded for the run. claudeFollows arms the
+        // Claude pip as Pending (it runs after the scorers) so it doesn't read Skipped mid-scan (#1).
+        foreach (var t in tiles)
+            t.BeginRun(decode: true, score: scorers.Count > 0, claude: claudeFollows, rate: rateIfUnrated);
         var maxConcurrency = Math.Clamp(Environment.ProcessorCount - 1, 2, 8);
 
-        // Grow the in-progress block of frames being analysed right now (not the whole queue) so it
-        // fills gradually instead of snapping to full. Capped below 1; the frame snaps Done when ready.
-        var creep = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
-        creep.Tick += (_, _) =>
+        // Workers never touch the dispatcher. Marshaling two Normal-priority InvokeAsync callbacks
+        // per photo — each doing O(n) counter/visibility work — floods the dispatcher queue, and
+        // Normal outranks Render AND Input in Avalonia, so on large or fully-cached shoots the app
+        // froze (no repaint, no clicks) until the whole run drained. Workers enqueue results here;
+        // the 80ms timer below applies them in capped batches and updates the aggregates once per
+        // batch, so photos still land on screen as they complete but the UI thread keeps breathing.
+        // Done with Bmp == null is the failure case: leave any existing thumbnail alone.
+        var updates = new ConcurrentQueue<(PhotoTileViewModel Tile, Bitmap? Bmp, bool Done)>();
+
+        void Drain(int max)
         {
+            var applied = 0;
+            while (max-- > 0 && updates.TryDequeue(out var u))
+            {
+                // Queued results from a superseded run must not touch the new shoot's grid/counters.
+                if (ct.IsCancellationRequested) { u.Bmp?.Dispose(); continue; }
+                if (!u.Done) { u.Tile.ScanFill = 0; u.Tile.Analyzing = true; continue; }
+                if (u.Bmp is not null)
+                    u.Tile.Thumbnail = u.Bmp;
+                u.Tile.Analyzing = false;
+                u.Tile.Analyzed = true;   // this run finished the frame: its pips may go Done
+                u.Tile.RefreshFromItem();
+                // If the user is looking at this frame, surface its just-computed scores and
+                // model critiques (Qwen, Q-Align, …) without waiting for a re-select (#3/#4).
+                if (ReferenceEquals(SelectedPhoto, u.Tile))
+                    RefreshDetailText(u.Tile);
+                Analyzed++;
+                if (!IsAllFilter)
+                    UpdateTileVisibility(u.Tile);
+                applied++;
+            }
+            if (applied == 0 || ct.IsCancellationRequested)
+                return;
+            var frac = Total == 0 ? 0 : (double)Analyzed / Total;
+            ProgressFraction = frac;
+            RefreshCounts();   // heuristic auto-rating lands here; keep the footer live
+            if (Pipeline is { } run)
+                foreach (var id in _activeStages)
+                    run.SetProgress(id, frac);
+        }
+
+        // One timer both drains results and creeps the in-progress fill of frames being analysed
+        // right now, so the block grows gradually instead of snapping to full.
+        var tick = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(80) };
+        tick.Tick += (_, _) =>
+        {
+            Drain(256);   // cap per tick so a burst of cached completions can't stall one frame
             foreach (var t in tiles)
                 if (t.Analyzing && t.ScanFill < 0.9)
                     t.ScanFill = Math.Min(0.9, t.ScanFill + 0.04);
         };
-        creep.Start();
+        tick.Start();
 
         try
         {
@@ -870,55 +990,29 @@ public partial class MainWindowViewModel : ViewModelBase
             new ParallelOptions { MaxDegreeOfParallelism = maxConcurrency, CancellationToken = ct },
             async (tile, token) =>
             {
+                updates.Enqueue((tile, null, false));   // mark started: pip goes Active on next tick
                 try
                 {
-                    await Dispatcher.UIThread.InvokeAsync(() => { tile.ScanFill = 0; tile.Analyzing = true; });
-                    await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated: true, scorers, token);
+                    await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated, scorers, token);
                     var previewPath = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge, token);
-                    var bmp = SafeLoadBitmap(previewPath);
-
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        // This callback may be queued behind a newer scan that already cleared the
-                        // grid; if our run was cancelled, drop it (and the bitmap) instead of
-                        // corrupting the new shoot's counters/pipeline.
-                        if (token.IsCancellationRequested) { bmp?.Dispose(); return; }
-                        tile.Thumbnail = bmp;
-                        tile.Analyzing = false;
-                        tile.RefreshFromItem();
-                        // If the user is looking at this frame, surface its just-computed scores and
-                        // model critiques (Qwen, Q-Align, …) without waiting for a re-select (#3/#4).
-                        if (ReferenceEquals(SelectedPhoto, tile))
-                            RefreshDetailText(tile);
-                        Analyzed++;
-                        var frac = Total == 0 ? 0 : (double)Analyzed / Total;
-                        ProgressFraction = frac;
-                        RefreshCounts();   // heuristic auto-rating lands here; keep the footer live
-                        if (Pipeline is { } run)
-                            foreach (var id in _activeStages)
-                                run.SetProgress(id, frac);
-                        if (!IsAllFilter)
-                            UpdateTileVisibility(tile);
-                    });
+                    updates.Enqueue((tile, SafeLoadBitmap(previewPath), true));
                 }
                 catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
                     Diagnostics.Log.Error($"Analyze failed for {tile.Title}", ex);
-                    await Dispatcher.UIThread.InvokeAsync(() =>
-                    {
-                        if (token.IsCancellationRequested) return;
-                        tile.Analyzing = false;
-                        Analyzed++;
-                        ProgressFraction = Total == 0 ? 0 : (double)Analyzed / Total;
-                    });
+                    updates.Enqueue((tile, null, true));
                 }
             });
         }
         finally
         {
-            creep.Stop();
-            foreach (var t in tiles) t.JobRunning = false;   // job done: mode A hides pips, mode B collapses to the badge
+            tick.Stop();
+            Drain(int.MaxValue);   // resumes on the dispatcher, so this runs on the UI thread
+            // Keep the pip column expanded across to the Claude leg when it follows (one continuous
+            // run); otherwise end the job so mode A hides pips / mode B collapses to the badge.
+            if (!claudeFollows)
+                foreach (var t in tiles) t.JobRunning = false;
         }
     }
 
@@ -982,20 +1076,24 @@ public partial class MainWindowViewModel : ViewModelBase
                 IsBusy = true;
                 try
                 {
-                    foreach (var tile in Photos)
-                        tile.ExpectsScoring = true;
-                    SetupPipeline(scorers);
+                    SetupPipeline(scorers, rate: true, useClaude: claude.Count > 0);
                     lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
                     RunLog($"Process — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
-                    await AnalyzeAllAsync(scorers, ct);
+                    await AnalyzeAllAsync(scorers, rateIfUnrated: true, claudeFollows: claude.Count > 0, ct);
                     CompletePipeline();
                     RefreshStats();
                     ApplyFilter();
                 }
                 finally { IsBusy = false; }
             }
+            // Claude-only Process run: the scorer leg never armed the tiles, so arm them here (decode
+            // and score render Skipped, Claude Pending) before the cull legs run.
+            else if (claude.Count > 0)
+                foreach (var t in Photos)
+                    t.BeginRun(decode: false, score: false, claude: true, rate: true);
 
-            // Folder-level: one Claude cull per ticked Claude model, each storing a per-model verdict.
+            // Claude runs after the scorers, in sequence: one leg per ticked Claude model, each storing
+            // a per-model verdict. The legs preserve the scorer pips (one continuous run, not separate).
             foreach (var model in claude)
             {
                 ct.ThrowIfCancellationRequested();
@@ -1012,6 +1110,12 @@ public partial class MainWindowViewModel : ViewModelBase
         finally
         {
             ProcessRunning = false;
+            // The scorer leg holds the pip column expanded (claudeFollows) for the Claude leg to
+            // continue; if that leg never ran (cancelled, or the cull couldn't launch), end the job
+            // here so pips don't stay stuck expanded. Idempotent with the cull leg's own cleanup.
+            foreach (var t in Photos) t.JobRunning = false;
+            OnPropertyChanged(nameof(ShowAestheticHint));
+            OnPropertyChanged(nameof(ShowAestheticHintStrip));
         }
     }
 
@@ -1048,16 +1152,12 @@ public partial class MainWindowViewModel : ViewModelBase
         CullLog.Add($"Starting cull with {currentClaudeDisplay} (locked to Monocle photo tools)…");
         StatusText = $"Culling {Total} photos with {currentClaudeDisplay}…";   // replace the stale scan result now, not at the end
         Pipeline?.SetStatus("claude", StageStatus.Running);
-        // Every frame is pending Claude's judgement. Reset progress (a prior cull may have left it at
-        // 1.0) before arming Culling so no bar flashes full; each frame's bar then fills as Claude
-        // reaches it and clears when it's rated (#1).
+        // Every frame is pending Claude's judgement. BeginClaudeLeg arms only the Claude stage and
+        // preserves the decode/score/metrics pips the scorer leg already completed, so this reads as
+        // the next step of one continuous run rather than a separate run that wipes the earlier pips.
+        // (The tiles were armed for this run by the scorer leg, or by ProcessAsync when Claude-only.)
         foreach (var tile in Photos)
-        {
-            tile.CullProgress = 0;
-            tile.Culled = false;
-            tile.Culling = true;
-            tile.JobRunning = true;   // keep the pip column expanded across the whole cull
-        }
+            tile.BeginClaudeLeg();
         _cullCts?.Cancel();
         _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
 

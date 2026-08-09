@@ -34,7 +34,7 @@ public sealed class PipelineGraph
             new() { Id = "exif",     Title = "Read EXIF",         Resource = ResourceKind.Cpu, DependsOn = new[] { "decode" } },
             new() { Id = "metrics",  Title = "Technical metrics", Resource = ResourceKind.Cpu, DependsOn = new[] { "exif" } },
             new() { Id = "aesthetic",Title = "Aesthetic models",  Resource = useGpuModels ? ResourceKind.Gpu : ResourceKind.Cpu, DependsOn = new[] { "metrics" } },
-            new() { Id = "claude",   Title = "Claude cull",       Resource = ResourceKind.ClaudeTokens, DependsOn = new[] { "aesthetic" } },
+            new() { Id = "claude",   Title = "Claude Processing",  Resource = ResourceKind.ClaudeTokens, DependsOn = new[] { "aesthetic" } },
             new() { Id = "rate",     Title = "Rate",              Resource = ResourceKind.Cpu, DependsOn = new[] { useClaude ? "claude" : "aesthetic" } },
             new() { Id = "write",    Title = "Write sidecars",    Resource = ResourceKind.Cpu, DependsOn = new[] { "rate" } },
         };

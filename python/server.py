@@ -210,6 +210,9 @@ def main():
     parser.add_argument("--port", type=int, default=8765)
     parser.add_argument("--host", default="127.0.0.1")
     args = parser.parse_args()
+    # Default listen backlog is 5; concurrent /health polls + /score from the app (and the MCP
+    # process during a cull) can overrun it, refusing connections mid-run.
+    ThreadingHTTPServer.request_queue_size = 32
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"monocle-sidecar listening on http://{args.host}:{args.port}", flush=True)
     server.serve_forever()

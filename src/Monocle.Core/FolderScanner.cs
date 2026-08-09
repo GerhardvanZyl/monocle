@@ -24,6 +24,8 @@ public static class FolderScanner
             .Select(f => f!)
             .ToList();
 
+        
+
         // Group by basename when folding; otherwise each file is its own group.
         var groups = foldPairs
             ? files.GroupBy(f => Path.GetFileNameWithoutExtension(f.Path), StringComparer.OrdinalIgnoreCase)

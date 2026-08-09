@@ -225,6 +225,29 @@
             <Setter Property="Foreground" Value="{StaticResource Accent}"/>
         </Style>
 
+        <!-- Action rows within the left rail's nav list (do something rather than navigate);
+             the trailing "▸" glyph that marks them lives in the row markup, this class just keeps
+             their label weight distinct from the ordered page rows. -->
+        <Style Selector="Button.nav.action">
+            <Setter Property="FontWeight" Value="Normal"/>
+        </Style>
+
+        <!-- Small bordered key chip used in the keyboard-shortcuts flyout. -->
+        <Style Selector="Border.keyChip">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="4"/>
+            <Setter Property="Padding" Value="5,2"/>
+            <Setter Property="MinWidth" Value="18"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="TextBlock.keyChipText">
+            <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+            <Setter Property="FontSize" Value="10.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+        </Style>
+
         <!-- ===== Right-panel tab buttons (#8) ===== -->
         <Style Selector="Button.rtab">
             <Setter Property="Background" Value="Transparent"/>

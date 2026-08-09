@@ -74,20 +74,33 @@ public sealed class SidecarClient : IDisposable
         await ScoreGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
-            if (!resp.IsSuccessStatusCode)
+            try { return await PostScoreAsync(payload, ct).ConfigureAwait(false); }
+            // Even serialized, rare transport races slip through (stdlib server drops a connection →
+            // "error occurred while sending the request", or reads an empty body → its KeyError
+            // surfaces as "'model'"). One retry recovers both; genuine model errors are not retried.
+            catch (Exception ex) when (ex is HttpRequestException or SidecarScoreException { Message: "'model'" })
             {
-                // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
-                // so the Run log explains *why* a model produced nothing instead of a generic failure.
-                var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-                throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}");
+                await Task.Delay(250, ct).ConfigureAwait(false);
+                return await PostScoreAsync(payload, ct).ConfigureAwait(false);
             }
-            return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
         }
         finally
         {
             ScoreGate.Release();
         }
+    }
+
+    private async Task<SidecarScore?> PostScoreAsync(object payload, CancellationToken ct)
+    {
+        using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
+        if (!resp.IsSuccessStatusCode)
+        {
+            // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
+            // so the Run log explains *why* a model produced nothing instead of a generic failure.
+            var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+            throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}");
+        }
+        return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
     }
 
     /// <summary>Pull the <c>error</c> field out of the sidecar's JSON error body, if present.</summary>

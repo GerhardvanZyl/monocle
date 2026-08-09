@@ -46,7 +46,6 @@ public partial class PhotoTileViewModel : ViewModelBase
     [ObservableProperty] private IBrush _statusBorder = CardBorder;
     [ObservableProperty] private IBrush _reasonDot = Brushes.Transparent;
     [ObservableProperty] private IBrush _pipelineStrip = Brushes.Transparent;
-    [ObservableProperty] private string _pipelineTip = "";
     // False until this frame's analysis task actually starts, so queued frames show a quiet Pending pip
     // instead of every tile flashing the tall in-progress block at once (#scan). Set true per-task.
     [ObservableProperty] private bool _analyzing;
@@ -59,6 +58,54 @@ public partial class PhotoTileViewModel : ViewModelBase
     /// <summary>True while a scan with at least one scorer model selected is running, so the per-photo
     /// "Score" pip is treated as an expected step rather than skipped (#7). Set by the VM per scan.</summary>
     [ObservableProperty] private bool _expectsScoring;
+
+    /// <summary>True once this run's analysis of the frame has completed (successfully or not).
+    /// Reset by <see cref="BeginRun"/> so pips always describe the current run, never a previous one.</summary>
+    [ObservableProperty] private bool _analyzed;
+    partial void OnAnalyzedChanged(bool value) => RefreshPipelineStates();
+
+    // Which stages the current run executes; everything else renders Skipped. Set by BeginRun.
+    private bool _runDecode = true;
+    private bool _runRate;
+
+    /// <summary>Arm this tile for a new run: declare which stages the run executes and clear all
+    /// per-run progress, so starting any run (scan, process, cull) never shows the previous run's
+    /// pips. Also expands the pip column (<see cref="JobRunning"/>). <paramref name="claude"/> means
+    /// Claude is part of this run (its pip reads Pending while the scorers run first, then Active
+    /// once <see cref="BeginClaudeLeg"/> starts culling) — not that culling has begun.</summary>
+    public void BeginRun(bool decode, bool score, bool claude, bool rate)
+    {
+        _runDecode = decode;
+        _runRate = rate;
+        Analyzed = false;
+        Analyzing = false;
+        ScanFill = 0;
+        CullProgress = 0;
+        Culled = false;
+        Culling = false;
+        ExpectsScoring = score;
+        ExpectsClaude = claude;
+        JobRunning = true;
+        RefreshPipelineStates();
+    }
+
+    /// <summary>Arm the Claude leg of a Process run without disturbing the decode/score/metrics pips
+    /// the scorer leg already completed, so Claude reads as the next step of one continuous run
+    /// rather than a separate run that wipes the earlier pips. Sets this frame's Claude stage live.</summary>
+    public void BeginClaudeLeg()
+    {
+        CullProgress = 0;
+        Culled = false;
+        Culling = true;
+        ExpectsClaude = true;
+        JobRunning = true;
+        RefreshPipelineStates();
+    }
+
+    /// <summary>True when Claude is part of this run: its pip reads Pending (waiting its turn) while
+    /// the scorers run, instead of Skipped (#1). Set by <see cref="BeginRun"/>/<see cref="BeginClaudeLeg"/>.</summary>
+    [ObservableProperty] private bool _expectsClaude;
+    partial void OnExpectsClaudeChanged(bool value) => RefreshPipelineStates();
 
     /// <summary>True while a Claude cull is running and this frame has not yet been re-judged (#1).
     /// Cleared per frame as Claude rates it. Drives the per-tile Claude pip (Active while culling).</summary>
@@ -141,7 +188,8 @@ public partial class PhotoTileViewModel : ViewModelBase
     // The per-photo pipeline pips (#7): one square per stage, shown as an overlay on every tile.
     // Stage order mirrors the pipeline flowchart, top → bottom (scan + write are folder-level, so the
     // six per-frame stages are Decode, EXIF, Metrics, Score, Claude, Rate).
-    public static readonly string[] PipelineStageNames = { "Decode", "EXIF", "Metrics", "Score", "Claude", "Rate" };
+    public static readonly string[] PipelineStageNames =
+        { "Decode / preview", "Read EXIF", "Technical metrics", "Aesthetic models", "Claude Processing", "Rate" };
     [ObservableProperty] private IReadOnlyList<PipState> _pipelineStates = DefaultPips();
 
     private static PipState[] DefaultPips() => new[]
@@ -222,48 +270,58 @@ public partial class PhotoTileViewModel : ViewModelBase
     {
         var stage = PipelineStatus.Of(Item, Analyzing);
         PipelineStrip = StageToBrush(stage);
-        PipelineTip = PipelineStatus.Label(stage);
     }
 
-    /// <summary>Recompute the six per-photo pipeline pips from the item's data and the live
-    /// <see cref="Analyzing"/>/<see cref="Culling"/> flags (#7, #1). Each completed stage is Done; the
-    /// frame's current stage is Active (the growing, bottom-up-filling block); not-yet-reached stages
-    /// are Pending; and a stage not part of this run (no scorer / no cull) is Skipped.</summary>
+    /// <summary>Recompute the six per-photo pipeline pips (#7, #1). Pips describe the CURRENT run
+    /// only: Done means completed in this run (never lifetime item data, which would replay the
+    /// previous run's pips); the frame's current stage is Active (the growing block); not-yet-reached
+    /// stages are Pending; and a stage not part of this run is Skipped.</summary>
     private void RefreshPipelineStates()
     {
         var s = new PipState[6];
-        var hasMetrics = Item.Metrics is not null;
         var hasScores = Item.Scores.Count > 0;
-        var isRated = Item.Stars > 0;
 
         // Decode / EXIF / Metrics all land together (one decode pass computes metrics + reads EXIF).
-        var metricsDone = hasMetrics || hasScores || isRated;
-        s[0] = metricsDone ? PipState.Done : Analyzing ? PipState.Active : PipState.Pending; // Decode
-        s[1] = metricsDone ? PipState.Done : PipState.Pending;                               // EXIF
-        s[2] = metricsDone ? PipState.Done : PipState.Pending;                               // Metrics
+        // Cached metrics arriving mid-analysis move the Active block past Decode early.
+        var metricsDone = Analyzed || (Analyzing && Item.Metrics is not null);
+        if (!_runDecode)
+            s[0] = s[1] = s[2] = PipState.Skipped;
+        else
+        {
+            s[0] = metricsDone ? PipState.Done : Analyzing ? PipState.Active : PipState.Pending; // Decode
+            s[1] = metricsDone ? PipState.Done : PipState.Pending;                               // EXIF
+            s[2] = metricsDone ? PipState.Done : PipState.Pending;                               // Metrics
+        }
 
-        // Score: only an expected step when a scorer model is enabled; otherwise it is skipped.
-        if (hasScores)
-            s[3] = PipState.Done;
-        else if (!ExpectsScoring)
-            s[3] = metricsDone ? PipState.Skipped : PipState.Pending;
+        // Score: only an expected step when a scorer model is part of this run.
+        if (!ExpectsScoring)
+            s[3] = PipState.Skipped;
+        else if (Analyzed)
+            s[3] = hasScores ? PipState.Done : PipState.Skipped;   // no score landed → model failed/skipped
         else
             s[3] = metricsDone && Analyzing ? PipState.Active : PipState.Pending;
 
-        // Claude: skipped unless a cull is running for this frame. Active (the growing vertical block)
-        // the moment the cull starts — the scan before it is done, so Claude is now this frame's live
-        // stage even while queued (it just sits at 0 fill until Claude reaches it). Solid once judged
-        // so it reads as Done after the cull moves on (#1).
+        // Claude: Skipped only when Claude isn't part of this run. When it is, the pip reads Pending
+        // while the scorers run first (it runs after them, in sequence), Active (the growing block)
+        // once its leg reaches this frame, and Done once judged so it stays solid after (#1).
         if (Culled)
             s[4] = PipState.Done;
         else if (Culling)
             s[4] = PipState.Active;
+        else if (ExpectsClaude)
+            s[4] = PipState.Pending;
         else
             s[4] = PipState.Skipped;
 
-        // Rate: terminal stage. Frames are already heuristic-rated before a cull, so this stays Done
-        // during a cull (the Claude pip alone carries the in-progress state — no extra blank box).
-        if (isRated)
+        // Rate: terminal stage. In an analysis run the rating lands with the frame's analysis; in a
+        // cull run it lands when Claude rates the frame. Scans don't rate, so the pip is Skipped there.
+        // When Claude follows the scorers, the final rating is Claude's, so hold Rate Pending (not the
+        // scorer leg's heuristic Done) until Claude finishes — keeping it after Claude in the sequence.
+        if (!_runRate)
+            s[5] = PipState.Skipped;
+        else if (ExpectsClaude)
+            s[5] = Culled ? PipState.Done : PipState.Pending;
+        else if (_runDecode ? Analyzed : Culled)
             s[5] = PipState.Done;
         else if (metricsDone && Analyzing && (hasScores || !ExpectsScoring))
             s[5] = PipState.Active;

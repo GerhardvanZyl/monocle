@@ -2,7 +2,9 @@ using System;
 using System.Collections.Generic;
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Media;
+using Avalonia.Rendering;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
 
@@ -32,8 +34,11 @@ public enum PipState
 /// NaN (a scan stage, which has no sub-step progress) the block is drawn as a solid "busy" amber so
 /// it still reads as working — without any looping animation.
 /// </summary>
-public sealed class PipelinePipsControl : Control
+public sealed class PipelinePipsControl : Control, ICustomHitTest
 {
+    // Stage names come from the tile VM that builds the States list, so they can't drift apart.
+    private static string[] StageNames => ViewModels.PhotoTileViewModel.PipelineStageNames;
+
     public static readonly StyledProperty<IReadOnlyList<PipState>?> StatesProperty =
         AvaloniaProperty.Register<PipelinePipsControl, IReadOnlyList<PipState>?>(nameof(States));
 
@@ -74,7 +79,75 @@ public sealed class PipelinePipsControl : Control
         AffectsRender<PipelinePipsControl>(StatesProperty, ProgressProperty, ExpandedProperty);
     }
 
-    public PipelinePipsControl() => IsHitTestVisible = false; // decorative overlay; clicks pass through
+    // Hit-testable so hovering a pip shows its stage tooltip; presses still bubble up to the tile's
+    // selection handlers. The custom hit test makes the whole column strip (gaps included) hoverable.
+    public bool HitTest(Point point) => Bounds.Contains(point);
+
+    protected override void OnPointerMoved(PointerEventArgs e)
+    {
+        base.OnPointerMoved(e);
+        ToolTip.SetTip(this, TipAt(e.GetPosition(this).Y));
+    }
+
+    /// <summary>Tooltip for the pip under the pointer: the pipeline step's name and its state.</summary>
+    private string? TipAt(double y)
+    {
+        if (Layout() is not var (_, gap, heights) || States is not { } states)
+            return null;
+
+        double top = Pad;
+        for (int i = 0; i < heights.Length; i++)
+        {
+            if (y < top + heights[i] + gap / 2)   // claim half the gap so the strip has no dead zones
+            {
+                var name = i < StageNames.Length ? StageNames[i] : $"Stage {i + 1}";
+                var state = states[i] switch
+                {
+                    PipState.Done => "done",
+                    PipState.Active => "running",
+                    PipState.Skipped => "skipped (not in this run)",
+                    _ => "pending",
+                };
+                return $"{name} — {state}";
+            }
+            top += heights[i] + gap;
+        }
+        return null;
+    }
+
+    /// <summary>Geometry of the current pip column: pip side, gap, and each pip's height (the
+    /// expanded block absorbs the leftover tile height). Shared by Render and hover hit-testing so
+    /// the tooltip always matches what is drawn. Null when there is nothing to draw.</summary>
+    private (double pip, double gap, double[] heights)? Layout()
+    {
+        if (States is not { Count: > 0 } states)
+            return null;
+        int n = states.Count;
+        double availH = Bounds.Height - Pad * 2;
+        if (availH <= 0)
+            return null;
+
+        // Which block expands to fill the tile height: the in-progress stage if any, else (a finished
+        // frame whose job is still running) the last Done block — so the bar stays expanded until the
+        // whole job completes. -1 = compact mode (job not running): small pips at the top.
+        int expand = -1;
+        if (Expanded)
+        {
+            for (int i = 0; i < n; i++) if (states[i] == PipState.Active) { expand = i; break; }
+            if (expand < 0) for (int i = n - 1; i >= 0; i--) if (states[i] == PipState.Done) { expand = i; break; }
+        }
+
+        // Compact done badge (mode B, job finished): halve the pips once every stage is resolved.
+        bool half = expand < 0 && AllResolved(states);
+        double pip = half ? Pip / 2 : Pip;
+        double gap = half ? Gap / 2 : Gap;
+        double expandH = Math.Max(pip, availH - (n - 1) * (pip + gap));
+
+        var heights = new double[n];
+        for (int i = 0; i < n; i++)
+            heights[i] = i == expand ? expandH : pip;
+        return (pip, gap, heights);
+    }
 
     // Stretch to the image height (VerticalAlignment=Stretch in XAML) so the in-progress block can
     // expand to fill the tile. Falling back to a fixed height only if the parent leaves us unconstrained.
@@ -91,7 +164,7 @@ public sealed class PipelinePipsControl : Control
 
     public override void Render(DrawingContext ctx)
     {
-        if (States is not { Count: > 0 } states)
+        if (Layout() is not var (pip, gap, heights) || States is not { } states)
             return;
 
         var done = Token("Accent", Color.FromRgb(0x1E, 0xB5, 0xA6));
@@ -100,35 +173,15 @@ public sealed class PipelinePipsControl : Control
         var activeStroke = new Pen(Token("Accent", Color.FromRgb(0x1E, 0xB5, 0xA6)), 1.4);
         var skipped = Token("Surface3", Color.FromRgb(0x34, 0x32, 0x2E));
 
-        int n = states.Count;
-        double availH = Bounds.Height - Pad * 2;
-        if (availH <= 0) return;
-
         // Determinate when a real fraction is supplied (the cull stage); otherwise a solid busy block.
         bool determinate = !double.IsNaN(Progress);
         double frac = determinate ? Math.Clamp(Progress, 0, 1) : 1.0;
 
-        // Which block expands to fill the tile height: the in-progress stage if any, else (a finished
-        // frame whose job is still running) the last Done block — so the bar stays expanded until the
-        // whole job completes. -1 = compact mode (job not running): small pips at the top.
-        int expand = -1;
-        if (Expanded)
-        {
-            for (int i = 0; i < n; i++) if (states[i] == PipState.Active) { expand = i; break; }
-            if (expand < 0) for (int i = n - 1; i >= 0; i--) if (states[i] == PipState.Done) { expand = i; break; }
-        }
-
-        // Compact done badge (mode B, job finished): halve the pips once every stage is resolved.
-        bool half = expand < 0 && AllResolved(states);
-        double pip = half ? Pip / 2 : Pip;
-        double gap = half ? Gap / 2 : Gap;
         double x = (Bounds.Width - pip) / 2;
-        double expandH = Math.Max(pip, availH - (n - 1) * (pip + gap));
-
         double y = Pad;
-        for (int i = 0; i < n; i++)
+        for (int i = 0; i < heights.Length; i++)
         {
-            double hgt = i == expand ? expandH : pip;
+            double hgt = heights[i];
             var rr = new RoundedRect(new Rect(x, y, pip, hgt), 2);
 
             switch (states[i])

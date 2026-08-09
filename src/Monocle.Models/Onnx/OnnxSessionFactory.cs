@@ -18,6 +18,7 @@ public static class OnnxSessionFactory
 
     public static InferenceSession Create(string modelPath)
     {
+        var name = Path.GetFileName(modelPath);
         // SessionOptions holds a native handle and is NOT owned by the session — the session copies
         // what it needs at construction, so dispose the options once it's built to avoid leaking it.
         var options = new SessionOptions
@@ -27,11 +28,31 @@ public static class OnnxSessionFactory
         try
         {
             var ep = AppendBestProvider(options);
-            var session = new InferenceSession(modelPath, options);
-            Diagnostic?.Invoke($"{Path.GetFileName(modelPath)}: running on {ep}");
-            return session;
+            try
+            {
+                var session = new InferenceSession(modelPath, options);
+                Diagnostic?.Invoke($"{name}: running on {ep}");
+                return session;
+            }
+            // A GPU provider can register fine and still fail to *initialize* a specific model
+            // (e.g. DML 80070057 on a graph with an op it can't compile — aesthetic-predictor-v2.5).
+            // Without this, every score call re-attempted the same doomed init and the model never
+            // produced anything; on CPU it just runs slower.
+            catch (Exception ex) when (!ep.StartsWith("CPU"))
+            {
+                Diagnostic?.Invoke($"{name}: {ep} failed to initialize this model ({FirstLine(ex.Message)}) — falling back to CPU.");
+            }
         }
         finally { options.Dispose(); }
+
+        var cpuOptions = new SessionOptions { GraphOptimizationLevel = GraphOptimizationLevel.ORT_ENABLE_ALL };
+        try
+        {
+            var session = new InferenceSession(modelPath, cpuOptions);
+            Diagnostic?.Invoke($"{name}: running on CPU");
+            return session;
+        }
+        finally { cpuOptions.Dispose(); }
     }
 
     /// <summary>Register the best available GPU provider, falling back to CPU, and return the name
