@@ -20,6 +20,7 @@ public sealed class AppSettings
     public bool ShowConsole { get; set; } = false;   // in-app diagnostic log panel along the bottom
     public bool PersistPips { get; set; } = false;    // keep the per-tile pipeline pip badge after a job ends (mode B)
     public bool ExperimentalUi { get; set; } = false;   // opt-in onboarding UI (empty state, shortcuts flyout, numbered CULL rail)
+    public bool OnlyScoreMissing { get; set; } = false;   // Process scope: false = re-score every ticked model on every frame (default); true = skip frames a model already scored
     public string SidecarCompute { get; set; } = "Default (CPU / CUDA)";   // torch build for sidecar deps
 
     // Claude cull instructions (AI Cull view). The knobs regenerate CullPrompt; CullPrompt is what's

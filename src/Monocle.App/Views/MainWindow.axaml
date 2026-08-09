@@ -18,6 +18,104 @@
         <vm:MainWindowViewModel/>
     </Design.DataContext>
 
+    <!-- Shared keyboard-shortcuts flyout: one copy of the shortcut list markup, referenced by both
+         the titlebar "?" button and the empty-state card's step 3 (Rate). A single Flyout instance
+         re-parents its content to whichever button opened it most recently; only one can be open
+         at a time so there's no conflict. -->
+    <Window.Resources>
+        <Flyout x:Key="ShortcutsFlyout" Placement="BottomEdgeAlignedRight">
+            <StackPanel Width="290" Spacing="12" Margin="2">
+                <TextBlock Text="KEYBOARD SHORTCUTS" FontSize="10" FontWeight="SemiBold"
+                           Foreground="{StaticResource Text3}"/>
+
+                <TextBlock Text="RATING" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}"/>
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="1"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="2"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="3"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="4"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Set stars" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="0"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Clear rating" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="P"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Pick (4★)" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="R"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="X"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Reject (1★)" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+                <TextBlock Text="NAVIGATION" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="0,4,0,0"/>
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="←"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="→"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Previous / next ( H / L )" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="↑"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="↓"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Row up / down" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+
+                <TextBlock Text="PHOTO" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="0,4,0,0"/>
+                <StackPanel Spacing="6">
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="F"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Enlarge" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="Esc"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Close enlarged" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="C"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Crop" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="V"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Switch RAW / JPG" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="["/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="]"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Rotate left / right" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </Flyout>
+    </Window.Resources>
+
     <DockPanel>
         <!-- ===== TITLEBAR ===== -->
         <Border DockPanel.Dock="Top" Height="40" Background="{StaticResource Surface1}"
@@ -61,101 +159,8 @@
                 <!-- Keyboard shortcuts (onboarding UI only) -->
                 <Button Grid.Column="5" Classes="ghost" BorderThickness="0" Width="30" Height="28" Padding="0"
                         IsVisible="{Binding ExperimentalUi}"
-                        ToolTip.Tip="Keyboard shortcuts" Content="?" FontSize="14">
-                    <Button.Flyout>
-                        <Flyout Placement="BottomEdgeAlignedRight">
-                            <StackPanel Width="290" Spacing="12" Margin="2">
-                                <TextBlock Text="KEYBOARD SHORTCUTS" FontSize="10" FontWeight="SemiBold"
-                                           Foreground="{StaticResource Text3}"/>
-
-                                <TextBlock Text="RATING" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}"/>
-                                <StackPanel Spacing="6">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="1"/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="2"/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="3"/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="4"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Set stars" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="0"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Clear rating" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="P"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Pick (4★)" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="R"/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="X"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Reject (1★)" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </StackPanel>
-
-                                <TextBlock Text="NAVIGATION" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="0,4,0,0"/>
-                                <StackPanel Spacing="6">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="←"/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="→"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Previous / next ( H / L )" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="↑"/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="↓"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Row up / down" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </StackPanel>
-
-                                <TextBlock Text="PHOTO" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="0,4,0,0"/>
-                                <StackPanel Spacing="6">
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="F"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Enlarge" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="Esc"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Close enlarged" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="C"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Crop" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="V"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Switch RAW / JPG" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                    <Grid ColumnDefinitions="Auto,*">
-                                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="["/></Border>
-                                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="]"/></Border>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="1" Text="Rotate left / right" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </StackPanel>
-                            </StackPanel>
-                        </Flyout>
-                    </Button.Flyout>
-                </Button>
+                        ToolTip.Tip="Keyboard shortcuts" Content="?" FontSize="14"
+                        Flyout="{StaticResource ShortcutsFlyout}"/>
                 <!-- Settings -->
                 <Button Grid.Column="6" Classes="ghost" Command="{Binding GoViewCommand}" CommandParameter="Settings"
                         BorderThickness="0" Width="30" Height="28" Padding="0" ToolTip.Tip="Settings"
@@ -529,47 +534,56 @@
                             BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="12"
                             MaxWidth="440" Padding="26,24" HorizontalAlignment="Center" VerticalAlignment="Center">
                         <StackPanel Spacing="16">
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Border Width="24" Height="24" CornerRadius="99" Background="{StaticResource Accent}">
-                                    <TextBlock Text="1" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentFg}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Choose a folder" FontWeight="SemiBold" FontSize="13"/>
-                                    <TextBlock Text="Paste a path above, or click Browse." Foreground="{StaticResource Text2}"
-                                               FontSize="11.5" TextWrapping="Wrap"/>
+                            <Button Classes="emptyStep" Click="OnBrowseClick" Cursor="Hand"
+                                    ToolTip.Tip="Choose a photo folder…">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Width="24" Height="24" CornerRadius="99" Background="{StaticResource Accent}">
+                                        <TextBlock Text="1" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentFg}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Choose a folder" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Paste a path above, or click Browse." Foreground="{StaticResource Text2}"
+                                                   FontSize="11.5" TextWrapping="Wrap"/>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Border Width="24" Height="24" CornerRadius="99" Background="{StaticResource Accent}">
-                                    <TextBlock Text="2" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentFg}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Scan" FontWeight="SemiBold" FontSize="13"/>
-                                    <TextBlock Text="Reads metrics and EXIF for every frame. Fast, and cached."
-                                               Foreground="{StaticResource Text2}" FontSize="11.5" TextWrapping="Wrap"/>
+                            </Button>
+                            <Button Classes="emptyStep" Command="{Binding ScanCommand}" IsEnabled="{Binding CanScan}"
+                                    Cursor="Hand" ToolTip.Tip="Scan the folder for frames">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Width="24" Height="24" CornerRadius="99" Background="{StaticResource Accent}">
+                                        <TextBlock Text="2" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentFg}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Scan" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Text="Reads metrics and EXIF for every frame. Fast, and cached."
+                                                   Foreground="{StaticResource Text2}" FontSize="11.5" TextWrapping="Wrap"/>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="12">
-                                <Border Width="24" Height="24" CornerRadius="99" Background="{StaticResource Accent}">
-                                    <TextBlock Text="3" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentFg}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <StackPanel Spacing="2" VerticalAlignment="Center">
-                                    <TextBlock Text="Rate" FontWeight="SemiBold" FontSize="13"/>
-                                    <TextBlock Foreground="{StaticResource Text2}" FontSize="11.5" TextWrapping="Wrap">
-                                        <Run Text="← →" FontFamily="{StaticResource FontMono}"/>
-                                        <Run Text=" to move · "/>
-                                        <Run Text="1–4" FontFamily="{StaticResource FontMono}"/>
-                                        <Run Text=" stars · "/>
-                                        <Run Text="P" FontFamily="{StaticResource FontMono}"/>
-                                        <Run Text=" pick · "/>
-                                        <Run Text="X" FontFamily="{StaticResource FontMono}"/>
-                                        <Run Text=" reject"/>
-                                    </TextBlock>
+                            </Button>
+                            <Button Classes="emptyStep" Flyout="{StaticResource ShortcutsFlyout}" Cursor="Hand"
+                                    ToolTip.Tip="Keyboard shortcuts">
+                                <StackPanel Orientation="Horizontal" Spacing="12">
+                                    <Border Width="24" Height="24" CornerRadius="99" Background="{StaticResource Accent}">
+                                        <TextBlock Text="3" FontSize="12" FontWeight="Bold" Foreground="{StaticResource AccentFg}"
+                                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    </Border>
+                                    <StackPanel Spacing="2" VerticalAlignment="Center">
+                                        <TextBlock Text="Rate" FontWeight="SemiBold" FontSize="13"/>
+                                        <TextBlock Foreground="{StaticResource Text2}" FontSize="11.5" TextWrapping="Wrap">
+                                            <Run Text="← →" FontFamily="{StaticResource FontMono}"/>
+                                            <Run Text=" to move · "/>
+                                            <Run Text="1–4" FontFamily="{StaticResource FontMono}"/>
+                                            <Run Text=" stars · "/>
+                                            <Run Text="P" FontFamily="{StaticResource FontMono}"/>
+                                            <Run Text=" pick · "/>
+                                            <Run Text="X" FontFamily="{StaticResource FontMono}"/>
+                                            <Run Text=" reject"/>
+                                        </TextBlock>
+                                    </StackPanel>
                                 </StackPanel>
-                            </StackPanel>
+                            </Button>
                             <Rectangle Height="1" Fill="{StaticResource BorderSoft}"/>
                             <Button Classes="ghost" HorizontalAlignment="Left" FontSize="11.5" Padding="9,5"
                                     Command="{Binding GoViewCommand}" CommandParameter="AiCull">
@@ -781,6 +795,24 @@
                                  Background="{StaticResource Surface2}" Padding="10,8"/>
 
                         <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
+
+                        <!-- Re-score scope (Task A): explicit at the moment of clicking Process, since a
+                             slow GPU/sidecar model re-run over every frame every click is expensive. -->
+                        <TextBlock Text="Scorer scope" FontSize="12" Margin="0,2,0,0"/>
+                        <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="6" Padding="2" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Button Classes="rtab" Classes.on="{Binding !OnlyScoreMissing}" Content="Re-score everything"
+                                        Padding="10,5" FontSize="11.5"
+                                        ToolTip.Tip="Every ticked model scores every frame, every click."
+                                        Command="{Binding SetScoreScopeCommand}" CommandParameter="All"/>
+                                <Button Classes="rtab" Classes.on="{Binding OnlyScoreMissing}" Content="Only score what's missing"
+                                        Padding="10,5" FontSize="11.5"
+                                        ToolTip.Tip="Per model: skip a frame that model already scored. A frame missing only one ticked model still gets scored by that model."
+                                        Command="{Binding SetScoreScopeCommand}" CommandParameter="Missing"/>
+                            </StackPanel>
+                        </Border>
+
                         <StackPanel Orientation="Horizontal" Spacing="8">
                             <Button Classes="primary" Content="Process" HorizontalAlignment="Left" MinWidth="160"
                                     Command="{Binding ProcessCommand}" IsEnabled="{Binding !CullRunning}"
@@ -884,7 +916,12 @@
                 <!-- SETTINGS -->
                 <ScrollViewer IsVisible="{Binding IsSettings}">
                     <StackPanel Margin="26,22" Spacing="18" MaxWidth="680" HorizontalAlignment="Left">
-                        <TextBlock Text="Settings" FontSize="20" FontWeight="Bold"/>
+                        <Grid ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Column="0" Text="Settings" FontSize="20" FontWeight="Bold"/>
+                            <Button Grid.Column="1" Classes="ghost" Command="{Binding CloseSettingsCommand}"
+                                    BorderThickness="0" Width="30" Height="28" Padding="0"
+                                    ToolTip.Tip="Close settings (Esc)" Content="✕" FontSize="14"/>
+                        </Grid>
                         <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
                                 BorderThickness="1" CornerRadius="9" Padding="20">
                             <StackPanel Spacing="16">
@@ -1053,7 +1090,17 @@
                                            VerticalAlignment="Center" FontSize="11"/>
                             </StackPanel>
                         </Border>
-                        <ctl:ZoomImage Source="{Binding EnlargedImage}"/>
+                        <!-- Panel layers the prominent close glyph over the image; clicking the dimmed
+                             backdrop around the photo also closes (BackdropClicked), but a click/drag
+                             on the photo itself never does (see ZoomImage.OnReleased). -->
+                        <Panel>
+                            <ctl:ZoomImage Source="{Binding EnlargedImage}" BackdropClicked="OnZoomBackdropClicked"/>
+                            <Button Classes="ghost" Content="✕" Click="OnCloseEnlargedClick"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="18"
+                                    Width="38" Height="38" Padding="0" CornerRadius="99"
+                                    Background="#992A2926" Foreground="White" FontSize="16" FontWeight="Bold"
+                                    BorderThickness="0" ToolTip.Tip="Close (Esc)"/>
+                        </Panel>
                     </DockPanel>
                 </Border>
             </Panel>

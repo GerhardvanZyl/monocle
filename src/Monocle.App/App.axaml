@@ -232,6 +232,31 @@
             <Setter Property="FontWeight" Value="Normal"/>
         </Style>
 
+        <!-- Empty-state card step rows (#8): flat, borderless, left-aligned — click targets that
+             still read as plain card rows rather than chunky buttons. -->
+        <Style Selector="Button.emptyStep">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Padding" Value="8,6"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+        </Style>
+        <Style Selector="Button.emptyStep:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SurfaceHi}"/>
+        </Style>
+        <Style Selector="Button.emptyStep:pressed /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource SurfaceHi}"/>
+        </Style>
+        <!-- FluentTheme's built-in :disabled state paints its own ContentPresenter background
+             (ButtonBackgroundDisabled) regardless of the plain Background setter above, which would
+             otherwise show as a stray grey box while Scan is unavailable — keep it flat, dim via
+             Opacity only (inherited from the base Button:disabled style). -->
+        <Style Selector="Button.emptyStep:disabled /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="Transparent"/>
+        </Style>
+
         <!-- Small bordered key chip used in the keyboard-shortcuts flyout. -->
         <Style Selector="Border.keyChip">
             <Setter Property="Background" Value="{StaticResource Surface2}"/>

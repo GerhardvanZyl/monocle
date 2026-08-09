@@ -24,10 +24,11 @@ import os
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
-# Prompt shared by both Qwen backends (transformers + llama.cpp), kept identical so the critique
-# reads the same whichever GPU path is active.
-_QWEN_PROMPT = ("Critique this photo for a culling decision in two sentences: "
-                "first what works in it, then what doesn't.")
+# Prompt shared by every critique backend (both Qwen backends, and Mage-VL), kept identical so the
+# critique reads the same whichever model/GPU path is active. Content is model-agnostic (it's just
+# an instruction, not a Qwen-specific chat directive), so it's reused rather than duplicated.
+_CRITIQUE_PROMPT = ("Critique this photo for a culling decision in two sentences: "
+                     "first what works in it, then what doesn't.")
 
 CATALOG = [
     {
@@ -40,6 +41,18 @@ CATALOG = [
                        "(Qwen2.5-VL-7B) when MONOCLE_QWEN_LLAMA_URL is set; otherwise loads "
                        "Qwen2-VL-7B in-process through transformers.",
         "tradeoffs": "Rich, flexible critique. Heavy; not a calibrated numeric score.",
+    },
+    {
+        "id": "mage-vl",
+        "name": "Mage-VL critique",
+        "kind": "critique",
+        "scale_max": 0,
+        "description": "General vision-language model (Microsoft Mage-VL, ~5B: a codec-native "
+                       "visual encoder + Qwen3-4B decoder) that writes a natural-language critique "
+                       "of the photo. It is not a quality/aesthetic scorer, so — like Qwen2.5-VL — "
+                       "it produces commentary, not a calibrated numeric score.",
+        "tradeoffs": "Rich, flexible critique. Heavy; not a calibrated numeric score. Loads through "
+                     "transformers in-process only (no llama.cpp GPU route).",
     },
 ]
 
@@ -80,15 +93,9 @@ def _deps_ready():
 _gpu_probe = None  # None=not yet probed; cached True/False so /health stays instant after the first probe
 
 
-def _qwen_ready():
-    """True only when Qwen can actually run — not merely when its packages import. The llama.cpp
-    Vulkan path needs no torch/GPU. The in-process transformers path needs a visible GPU (CPU is
-    disabled, see _load_kwargs), so probe torch.cuda once and cache it; otherwise a CPU-only box would
-    report Qwen ready and then fail every frame at score time."""
-    if os.environ.get("MONOCLE_QWEN_LLAMA_URL"):
-        return True
-    if not _deps_ready():
-        return False
+def _gpu_ready():
+    """True once a CUDA/ROCm GPU is visible to torch. Probed once and cached (shared by every
+    transformers-backed model) so /health stays instant on every call after the first."""
     global _gpu_probe
     if _gpu_probe is None:
         try:
@@ -99,9 +106,35 @@ def _qwen_ready():
     return _gpu_probe
 
 
+def _qwen_ready():
+    """True only when Qwen can actually run — not merely when its packages import. The llama.cpp
+    Vulkan path needs no torch/GPU. The in-process transformers path needs a visible GPU (CPU is
+    disabled, see _load_kwargs), so probe torch.cuda once and cache it; otherwise a CPU-only box would
+    report Qwen ready and then fail every frame at score time."""
+    if os.environ.get("MONOCLE_QWEN_LLAMA_URL"):
+        return True
+    if not _deps_ready():
+        return False
+    return _gpu_ready()
+
+
+def _mage_ready():
+    """True only when Mage-VL can actually run. There is no llama.cpp GPU route for this model
+    (see CATALOG) — it only ever loads through transformers, so apply the same lesson as
+    _qwen_ready: report ready only once deps import AND a GPU is actually visible, never merely
+    because the packages are installed, or a CPU-only box would report it ready and then fail
+    every frame at score time (CPU inference of a ~5B VLM is impractically slow)."""
+    return _deps_ready() and _gpu_ready()
+
+
 def _ready_models():
     """Model ids that are genuinely runnable right now (deps present and a usable backend)."""
-    return ["qwen2-vl"] if _qwen_ready() else []
+    ready = []
+    if _qwen_ready():
+        ready.append("qwen2-vl")
+    if _mage_ready():
+        ready.append("mage-vl")
+    return ready
 
 
 def _score_qwen_llama(image_bytes):
@@ -114,7 +147,7 @@ def _score_qwen_llama(image_bytes):
     body = json.dumps({
         "messages": [{"role": "user", "content": [
             {"type": "image_url", "image_url": {"url": data_uri}},
-            {"type": "text", "text": _QWEN_PROMPT},
+            {"type": "text", "text": _CRITIQUE_PROMPT},
         ]}],
         "max_tokens": 128,
     }).encode("utf-8")
@@ -146,7 +179,7 @@ def _score_qwen(image_bytes):
     img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     messages = [{"role": "user", "content": [
         {"type": "image", "image": img},
-        {"type": "text", "text": _QWEN_PROMPT},
+        {"type": "text", "text": _CRITIQUE_PROMPT},
     ]}]
     text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
     inputs = processor(text=[text], images=[img], return_tensors="pt").to(model.device)
@@ -158,7 +191,39 @@ def _score_qwen(image_bytes):
     return None, critique
 
 
-SCORERS = {"qwen2-vl": _score_qwen}
+def _score_mage(image_bytes):
+    """Lazy-load Mage-VL and return a short critique string (no numeric score). Always the
+    transformers path — there is no llama.cpp GPU route for this model. Mage-VL's codec-native
+    visual encoder is not a stock transformers architecture, so it needs trust_remote_code=True
+    and the generic image-text-to-text autoclass rather than a model-specific one."""
+    import torch  # noqa: F401
+    from PIL import Image
+    import io
+    from transformers import AutoModelForImageTextToText, AutoProcessor
+
+    if "mage-vl" not in _loaded:
+        _loaded["mage-vl"] = (
+            AutoModelForImageTextToText.from_pretrained(
+                "microsoft/Mage-VL", trust_remote_code=True, **_load_kwargs()),
+            AutoProcessor.from_pretrained("microsoft/Mage-VL", trust_remote_code=True),
+        )
+    model, processor = _loaded["mage-vl"]
+    img = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    messages = [{"role": "user", "content": [
+        {"type": "image", "image": img},
+        {"type": "text", "text": _CRITIQUE_PROMPT},
+    ]}]
+    text = processor.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+    inputs = processor(text=[text], images=[img], return_tensors="pt").to(model.device)
+    out = model.generate(**inputs, max_new_tokens=128)
+    # batch_decode over the full sequence echoes the prompt back; slice off the input tokens so
+    # only the model's own critique is returned.
+    trimmed = out[:, inputs.input_ids.shape[1]:]
+    critique = processor.batch_decode(trimmed, skip_special_tokens=True)[0].strip()
+    return None, critique
+
+
+SCORERS = {"qwen2-vl": _score_qwen, "mage-vl": _score_mage}
 
 
 def score_image(model_id, image_bytes, kind):
@@ -190,8 +255,25 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, {"error": "not found"})
             return
         length = int(self.headers.get("Content-Length", 0))
+        # Parse/validate the request separately from running the model, so a client/transport
+        # problem (empty or truncated body from a saturated server, missing required fields) is
+        # reported as a 400 and never confused with a genuine model failure (503, below). Before
+        # this split, an empty body -> json.loads(b"{}") -> KeyError('model') -> the blanket
+        # except surfaced it as "503 'model'", which pointed users at the model/photo instead of
+        # the transport.
         try:
-            data = json.loads(self.rfile.read(length) or b"{}")
+            raw = self.rfile.read(length) if length > 0 else b""
+            data = json.loads(raw or b"{}")
+        except (json.JSONDecodeError, UnicodeDecodeError):
+            data = None
+        if not isinstance(data, dict):
+            self._send(400, {"error": "bad request: body is not a JSON object"})
+            return
+        missing = [k for k in ("model", "image_b64") if k not in data]
+        if missing:
+            self._send(400, {"error": f"bad request: missing {', '.join(repr(m) for m in missing)}"})
+            return
+        try:
             model_id = data["model"]
             image = base64.b64decode(data["image_b64"])
             value, text = score_image(model_id, image, data.get("kind"))

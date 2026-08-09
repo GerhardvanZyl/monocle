@@ -55,6 +55,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _persistPips = _settings.PersistPips;
         PhotoTileViewModel.PersistPips = _settings.PersistPips;
         _experimentalUi = _settings.ExperimentalUi;
+        _onlyScoreMissing = _settings.OnlyScoreMissing;
         _sidecarCompute = SidecarComputeChoices.Contains(_settings.SidecarCompute)
             ? _settings.SidecarCompute : SidecarComputeChoices[0];
 
@@ -339,7 +340,9 @@ public partial class MainWindowViewModel : ViewModelBase
     private void OpenUrl(string? url) => UrlLauncher.Open(url);
 
     // ---- Inputs ----
-    [ObservableProperty] private string _folderPath = "";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanScan))]
+    private string _folderPath = "";
     [ObservableProperty] private bool _foldPairs = true;
 
     partial void OnFoldPairsChanged(bool value) { _settings.FoldPairs = value; _settings.Save(); }
@@ -367,14 +370,32 @@ public partial class MainWindowViewModel : ViewModelBase
         _ => "Browse",
     };
 
-    partial void OnViewChanged(CenterView value)
+    /// <summary>Where Settings was opened from, so <see cref="CloseSettings"/> can go back there
+    /// instead of unconditionally to Browse. Defaults to Browse, which also covers "no sensible
+    /// previous view" (e.g. Settings is the very first view somehow).</summary>
+    private CenterView _viewBeforeSettings = CenterView.Browse;
+
+    partial void OnViewChanged(CenterView oldValue, CenterView newValue)
     {
-        if (value == CenterView.Rejects) RefreshRejectList();
+        if (newValue == CenterView.Rejects) RefreshRejectList();
+        // Guard against opening Settings twice in a row (or re-entrant sets) making "previous" be
+        // Settings itself, which would leave CloseSettings with nowhere useful to go.
+        if (newValue == CenterView.Settings && oldValue != CenterView.Settings)
+            _viewBeforeSettings = oldValue;
     }
 
     [RelayCommand] private void GoView(string view)
     {
         if (Enum.TryParse<CenterView>(view, out var v)) View = v;
+    }
+
+    /// <summary>Closes Settings and returns to whichever view was active before it was opened
+    /// (✕ button and Esc). No-op if Settings isn't the current view.</summary>
+    [RelayCommand]
+    private void CloseSettings()
+    {
+        if (View != CenterView.Settings) return;
+        View = _viewBeforeSettings == CenterView.Settings ? CenterView.Browse : _viewBeforeSettings;
     }
 
     [ObservableProperty]
@@ -696,10 +717,16 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(ProgressText))]
     private double _progressFraction;
     [ObservableProperty] private string _statusText = "Pick a folder and Scan.";
-    [ObservableProperty] private bool _isBusy;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanScan))]
+    private bool _isBusy;
 
     /// <summary>Compact "X / Y analyzed · NN%" shown on the prominent toolbar progress bar (#4).</summary>
     public string ProgressText => Total == 0 ? "" : $"{Analyzed} / {Total} analyzed · {ProgressFraction:P0}";
+
+    /// <summary>Whether the empty-state card's Scan step can run right now — mirrors the toolbar
+    /// Scan button's !IsBusy plus a non-empty folder path (compiled bindings have no &amp;&amp;).</summary>
+    public bool CanScan => !IsBusy && !string.IsNullOrWhiteSpace(FolderPath);
 
     // ---- Status-bar aggregates (review progress + pick/reject/unrated tallies, design footer) ----
     [ObservableProperty] private int _pickCount;
@@ -920,10 +947,18 @@ public partial class MainWindowViewModel : ViewModelBase
     }
 
     private async Task AnalyzeAllAsync(IReadOnlyList<IModelRunner> scorers, bool rateIfUnrated,
-                                       bool claudeFollows, CancellationToken ct)
+                                       bool claudeFollows, CancellationToken ct, bool onlyMissing = false)
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
+        // Task A: per-(frame, model) skip, not per-frame — a frame missing model A but already
+        // scored by model B must still run A. Matched on ModelScore.ModelId vs Descriptor.Id (the
+        // stable identity both ShootCache and the Claude leg already key on), never DisplayName.
+        var skippedFrames = 0;
+        IReadOnlyList<IModelRunner> ScorersFor(PhotoTileViewModel tile) =>
+            onlyMissing && scorers.Count > 0
+                ? scorers.Where(r => !tile.Item.Scores.Any(s => s.ModelId == r.Descriptor.Id)).ToList()
+                : scorers;
         // Arm every tile for THIS run: resets all per-run pip state so a new run never shows the
         // previous run's pips, and holds the pip column expanded for the run. claudeFollows arms the
         // Claude pip as Pending (it runs after the scorers) so it doesn't read Skipped mid-scan (#1).
@@ -993,7 +1028,10 @@ public partial class MainWindowViewModel : ViewModelBase
                 updates.Enqueue((tile, null, false));   // mark started: pip goes Active on next tick
                 try
                 {
-                    await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated, scorers, token);
+                    var frameScorers = ScorersFor(tile);
+                    if (onlyMissing && scorers.Count > 0 && frameScorers.Count == 0)
+                        Interlocked.Increment(ref skippedFrames);   // honest progress: this frame does no scorer work below
+                    await _service.AnalyzeAsync(tile.Item, cache, rateIfUnrated, frameScorers, token);
                     var previewPath = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge, token);
                     updates.Enqueue((tile, SafeLoadBitmap(previewPath), true));
                 }
@@ -1014,6 +1052,14 @@ public partial class MainWindowViewModel : ViewModelBase
             if (!claudeFollows)
                 foreach (var t in tiles) t.JobRunning = false;
         }
+
+        // Honest accounting for "only score what's missing" (Task A): the progress bar/Analyzed
+        // count still advance once per frame (a frame is still decoded/previewed), but this states
+        // in the run log exactly how many frames did zero scorer work this pass.
+        if (onlyMissing && scorers.Count > 0 && !ct.IsCancellationRequested)
+            RunLog(skippedFrames == 0
+                ? $"Only missing: no frame already had every ticked model — scored all {tiles.Count}."
+                : $"Only missing: skipped {skippedFrames}/{tiles.Count} frames already scored by every ticked model; scored {tiles.Count - skippedFrames}.");
     }
 
     [RelayCommand]
@@ -1036,6 +1082,18 @@ public partial class MainWindowViewModel : ViewModelBase
         if (indexBefore >= 0 && VisiblePhotos.Count > 0 && !VisiblePhotos.Contains(tile))
             SelectedPhoto = VisiblePhotos[Math.Min(indexBefore, VisiblePhotos.Count - 1)];
     }
+
+    /// <summary>Process scope (Task A): false re-runs every ticked scorer on every frame each click
+    /// (the historical, still-default behaviour); true skips a frame for a given model when that
+    /// frame already carries a <see cref="ModelScore"/> from that model, so gap-filling a mostly-
+    /// scored shoot doesn't re-run a slow GPU/sidecar model over frames it already scored. Governs
+    /// the scorer leg only — the Claude cull leg always re-runs (Claude has no per-frame "already
+    /// scored" concept comparable to a numeric/critique model's cache).</summary>
+    [ObservableProperty] private bool _onlyScoreMissing;
+
+    partial void OnOnlyScoreMissingChanged(bool value) { _settings.OnlyScoreMissing = value; _settings.Save(); }
+
+    [RelayCommand] private void SetScoreScope(string scope) => OnlyScoreMissing = scope == "Missing";
 
     [RelayCommand]
     private async Task ProcessAsync()
@@ -1070,7 +1128,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 if (!_sidecar.Running) await StartSidecarAsync();
             }
 
-            // Probabilistic: run every ticked scorer for every frame, every click (re-scores on re-click).
+            // Scope (Task A): "re-score everything" runs every ticked scorer for every frame, every
+            // click (the historical default); "only score what's missing" skips a frame for a model
+            // that already has that model's score. Claude (below) is unaffected either way.
             if (scorers.Count > 0)
             {
                 IsBusy = true;
@@ -1078,8 +1138,8 @@ public partial class MainWindowViewModel : ViewModelBase
                 {
                     SetupPipeline(scorers, rate: true, useClaude: claude.Count > 0);
                     lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
-                    RunLog($"Process — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
-                    await AnalyzeAllAsync(scorers, rateIfUnrated: true, claudeFollows: claude.Count > 0, ct);
+                    RunLog($"Process ({(OnlyScoreMissing ? "only missing" : "re-score all")}) — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
+                    await AnalyzeAllAsync(scorers, rateIfUnrated: true, claudeFollows: claude.Count > 0, ct, onlyMissing: OnlyScoreMissing);
                     CompletePipeline();
                     RefreshStats();
                     ApplyFilter();

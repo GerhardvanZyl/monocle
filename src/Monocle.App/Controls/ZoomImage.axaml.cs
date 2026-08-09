@@ -1,3 +1,4 @@
+using System;
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -23,10 +24,20 @@ public partial class ZoomImage : UserControl
         set => SetValue(SourceProperty, value);
     }
 
+    /// <summary>Raised on a genuine click (press+release under <see cref="ClickTolerance"/> pixels of
+    /// movement) that started outside the photo itself — i.e. over the letterboxed/zoomed-out margin,
+    /// never over the image. A drag that starts on the photo and happens to release past its edge is
+    /// a pan, not a backdrop click, and must not raise this (checked at press time, not release time).</summary>
+    public event EventHandler? BackdropClicked;
+
+    private const double ClickTolerance = 4;
+
     private double _scale = 1;
     private double _offsetX;
     private double _offsetY;
     private bool _dragging;
+    private bool _pressedOnImage;
+    private Point _pressPoint;
     private Point _lastPointer;
     private bool _fitted;
 
@@ -37,7 +48,7 @@ public partial class ZoomImage : UserControl
         Viewport.PointerWheelChanged += OnWheel;
         Viewport.PointerPressed += OnPressed;
         Viewport.PointerMoved += OnMoved;
-        Viewport.PointerReleased += (_, _) => _dragging = false;
+        Viewport.PointerReleased += OnReleased;
         Viewport.LayoutUpdated += (_, _) => FitOnce();
     }
 
@@ -90,6 +101,12 @@ public partial class ZoomImage : UserControl
     {
         _dragging = true;
         _lastPointer = e.GetPosition(Viewport);
+        _pressPoint = _lastPointer;
+        // Decided once, at press time: whether this gesture started on the photo itself (Img) or on
+        // the backdrop around it (the rest of Viewport — letterbox bars, or empty margin once zoomed
+        // out). Where the pointer is later released doesn't change this, so a pan that starts on the
+        // photo and releases past its edge is never mistaken for a backdrop click.
+        _pressedOnImage = ReferenceEquals(e.Source, Img);
     }
 
     private void OnMoved(object? sender, PointerEventArgs e)
@@ -101,6 +118,18 @@ public partial class ZoomImage : UserControl
         _offsetY += p.Y - _lastPointer.Y;
         _lastPointer = p;
         Apply();
+    }
+
+    private void OnReleased(object? sender, PointerReleasedEventArgs e)
+    {
+        _dragging = false;
+        if (_pressedOnImage)
+            return;
+        var p = e.GetPosition(Viewport);
+        var dx = p.X - _pressPoint.X;
+        var dy = p.Y - _pressPoint.Y;
+        if (dx * dx + dy * dy <= ClickTolerance * ClickTolerance)
+            BackdropClicked?.Invoke(this, EventArgs.Empty);
     }
 
     private void Apply() =>

@@ -58,8 +58,12 @@ public sealed class SidecarClient : IDisposable
     // The scan analyses frames up to 8-wide, but the sidecar's GPU backend (llama.cpp Vulkan, or
     // in-process transformers) has a single inference slot, and the stdlib HTTP server's listen
     // backlog is only 5. Firing 8 concurrent /score requests overruns both — connections get
-    // refused ("error sending the request") or truncated mid-body (server reads {} -> KeyError
-    // 'model'). Serialise here: throughput is unchanged (the GPU runs them one at a time anyway).
+    // refused ("error sending the request") or truncated mid-body (server used to read {} and
+    // 503 a bare "'model'" KeyError; it now reports that class of failure as 400, see
+    // python/server.py do_POST). Serialise here: throughput is unchanged (the GPU runs them one
+    // at a time anyway). Not the MCP/cull process: Monocle.Mcp's scan_folder (ShootState.ScanAsync)
+    // passes scorers: null, so a cull run never calls ScoreAsync — the pressure above is entirely
+    // from the app's own concurrent scan.
     // ponytail: gate of 1; raise it if a sidecar backend ever gains real parallel slots.
     private static readonly SemaphoreSlim ScoreGate = new(1, 1);
 
@@ -71,17 +75,28 @@ public sealed class SidecarClient : IDisposable
             image_b64 = Convert.ToBase64String(jpeg),
             kind,
         };
+        // Even serialized, rare transport races slip through (stdlib server drops a connection ->
+        // HttpRequestException, or reads an empty/truncated body -> the sidecar now reports that
+        // as SidecarScoreException{StatusCode:400}, see python/server.py do_POST). Retry only that
+        // transport class structurally (by status code, not by matching message text, which broke
+        // the moment the server's wording changed) — never a genuine model failure (503).
+        //
+        // Backoff is 1s then 3s, not a flat short delay: the Qwen backend holds a single GPU
+        // inference slot with up to a 300s timeout, so when the server is mid-inference a fast
+        // retry (previously 250ms) lands while it's still saturated and fails again. 1s gives a
+        // short stall room to clear; 3s covers the tail of a slow-starting request without making
+        // every truly-down-sidecar call block for minutes (2 retries, 4s total added latency).
+        var backoffs = new[] { TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3) };
         await ScoreGate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
-            try { return await PostScoreAsync(payload, ct).ConfigureAwait(false); }
-            // Even serialized, rare transport races slip through (stdlib server drops a connection →
-            // "error occurred while sending the request", or reads an empty body → its KeyError
-            // surfaces as "'model'"). One retry recovers both; genuine model errors are not retried.
-            catch (Exception ex) when (ex is HttpRequestException or SidecarScoreException { Message: "'model'" })
+            for (var attempt = 0; ; attempt++)
             {
-                await Task.Delay(250, ct).ConfigureAwait(false);
-                return await PostScoreAsync(payload, ct).ConfigureAwait(false);
+                try { return await PostScoreAsync(payload, ct).ConfigureAwait(false); }
+                catch (Exception ex) when (attempt < backoffs.Length && IsTransportFailure(ex))
+                {
+                    await Task.Delay(backoffs[attempt], ct).ConfigureAwait(false);
+                }
             }
         }
         finally
@@ -89,6 +104,9 @@ public sealed class SidecarClient : IDisposable
             ScoreGate.Release();
         }
     }
+
+    private static bool IsTransportFailure(Exception ex) =>
+        ex is HttpRequestException or SidecarScoreException { StatusCode: 400 };
 
     private async Task<SidecarScore?> PostScoreAsync(object payload, CancellationToken ct)
     {
@@ -98,7 +116,7 @@ public sealed class SidecarClient : IDisposable
             // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
             // so the Run log explains *why* a model produced nothing instead of a generic failure.
             var body = await resp.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
-            throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}");
+            throw new SidecarScoreException(ExtractError(body) ?? $"HTTP {(int)resp.StatusCode}", (int)resp.StatusCode);
         }
         return await resp.Content.ReadFromJsonAsync<SidecarScore>(cancellationToken: ct).ConfigureAwait(false);
     }
@@ -115,5 +133,10 @@ public sealed class SidecarClient : IDisposable
     }
 }
 
-/// <summary>A scoring call the sidecar rejected, carrying the server's own explanation.</summary>
-public sealed class SidecarScoreException(string message) : Exception(message);
+/// <summary>A scoring call the sidecar rejected, carrying the server's own explanation and HTTP
+/// status so callers can tell a transport-class failure (400) apart from a genuine model failure
+/// (503) structurally, without matching on message text.</summary>
+public sealed class SidecarScoreException(string message, int? statusCode = null) : Exception(message)
+{
+    public int? StatusCode { get; } = statusCode;
+}
