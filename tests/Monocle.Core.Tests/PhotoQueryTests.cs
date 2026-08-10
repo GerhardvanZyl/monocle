@@ -80,4 +80,50 @@ public class PhotoQueryTests
         var picks = PhotoQuery.Apply(items, new PhotoFilterSpec(RatingFilter.Pick), SortKey.Technical, descending: true);
         Assert.Equal(new[] { "a", "c" }, picks.Select(i => i.BaseName));
     }
+
+    [Fact]
+    public void NullMinTechnicalIsNoOp()
+    {
+        var items = new[] { Make("a", tech: 0.1), Make("b", tech: 0.5), Make("c", tech: 0.99) };
+        Assert.All(items, i => Assert.True(PhotoQuery.Matches(i, new PhotoFilterSpec(MinTechnical: null))));
+    }
+
+    [Fact]
+    public void MinTechnicalAboveThresholdPasses()
+    {
+        var item = Make("a", tech: 0.8);
+        Assert.True(PhotoQuery.Matches(item, new PhotoFilterSpec(MinTechnical: 0.5)));
+    }
+
+    [Fact]
+    public void MinTechnicalBelowThresholdFails()
+    {
+        var item = Make("a", tech: 0.3);
+        Assert.False(PhotoQuery.Matches(item, new PhotoFilterSpec(MinTechnical: 0.5)));
+    }
+
+    [Fact]
+    public void MinTechnicalExactlyAtThresholdIsInclusive()
+    {
+        // Boundary semantics: >= threshold passes (same convention as the Star2/3/4 rating chips).
+        var item = Make("a", tech: 0.5);
+        Assert.True(PhotoQuery.Matches(item, new PhotoFilterSpec(MinTechnical: 0.5)));
+    }
+
+    [Fact]
+    public void MinTechnicalExcludesFramesWithNoMetrics()
+    {
+        // A frame that hasn't been scanned/analysed at all (Metrics == null) must fail an active TQ
+        // filter, not pass it by default — mirrors how Star2/3/4 treat an unrated (Stars==0) frame
+        // as below the bar rather than exempt from it.
+        var unscanned = new PhotoItem
+        {
+            Id = "u", BaseName = "u", FolderPath = ".",
+            Files = new[] { new PhotoFile { Path = "u.jpg", Role = FileRole.Jpg } },
+            Metrics = null,
+        };
+        Assert.False(PhotoQuery.Matches(unscanned, new PhotoFilterSpec(MinTechnical: 0.0)));
+        // But with the filter off (null), the same unscanned frame still matches — unchanged behavior.
+        Assert.True(PhotoQuery.Matches(unscanned, new PhotoFilterSpec(MinTechnical: null)));
+    }
 }

@@ -9,13 +9,18 @@ public enum RatingFilter { All, Pick, Reject, Unrated, Star2, Star3, Star4 }
 
 /// <summary>
 /// A complete filter specification: a rating filter plus optional facets
-/// (technical reason, the model that rated it, a burst group). All facets are ANDed (#23).
+/// (technical reason, the model that rated it, a burst group, a minimum technical/TQ score).
+/// All facets are ANDed (#23).
 /// </summary>
+/// <param name="MinTechnical">Minimum <see cref="TechnicalMetrics.CompositeScore"/> (0..1), inclusive.
+/// Null means no TQ filter (today's behavior). A frame with no metrics at all (not yet scanned)
+/// never satisfies a non-null threshold — see <see cref="PhotoQuery.Matches"/>.</param>
 public sealed record PhotoFilterSpec(
     RatingFilter Rating = RatingFilter.All,
     TechnicalReason? Reason = null,
     string? RatedBy = null,
-    string? BurstGroup = null);
+    string? BurstGroup = null,
+    double? MinTechnical = null);
 
 /// <summary>
 /// Pure, testable filtering + sorting over photos (#23). The UI layer maps its tiles
@@ -29,6 +34,13 @@ public static class PhotoQuery
         if (spec.Reason is { } reason && item.Reason != reason) return false;
         if (spec.RatedBy is { } by && !string.Equals(item.RatedByModel, by, StringComparison.OrdinalIgnoreCase)) return false;
         if (spec.BurstGroup is { } group && item.BurstGroupId != group) return false;
+        // Not-yet-analysed frames (no Metrics at all) never satisfy an active TQ threshold — same
+        // "absence counts as failing the bar" rule already used by the star filters (Star2/3/4 treat
+        // an unrated frame's Stars==0 as below the bar, not as passing through). Inclusive (>=), same
+        // as the star chips. Reuses the exact value PhotoTileViewModel/SortValue treat as authoritative
+        // so the filter and the displayed TQ number can never disagree.
+        if (spec.MinTechnical is { } minTq && (item.Metrics is not { } m || m.CompositeScore < minTq))
+            return false;
         return true;
     }
 

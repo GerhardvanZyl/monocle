@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Specialized;
 using System.ComponentModel;
 using System.Linq;
@@ -200,24 +201,41 @@ public partial class MainWindow : Window
             case Key.OemCloseBrackets: Vm.RotateRightCommand.Execute(null); e.Handled = true; break;
             case Key.Left or Key.H: MoveSelection(-1); e.Handled = true; break;
             case Key.Right or Key.L: MoveSelection(1); e.Handled = true; break;
-            case Key.Up: MoveSelection(-Math.Max(1, Vm.Columns)); e.Handled = true; break;
-            case Key.Down: MoveSelection(Math.Max(1, Vm.Columns)); e.Handled = true; break;
+            // In the Rejects view there is no grid (one column), so Up/Down page by one like Left/Right.
+            case Key.Up: MoveSelection(Vm.IsRejectsView ? -1 : -Math.Max(1, Vm.Columns)); e.Handled = true; break;
+            case Key.Down: MoveSelection(Vm.IsRejectsView ? 1 : Math.Max(1, Vm.Columns)); e.Handled = true; break;
         }
     }
 
+    /// <summary>Move the selection by <paramref name="delta"/> within whichever list the active
+    /// center view is showing — <see cref="MainWindowViewModel.RejectList"/> for the Rejects view,
+    /// <see cref="MainWindowViewModel.VisiblePhotos"/> (the Browse grid's filtered set) otherwise —
+    /// so paging in Rejects never touches the Browse grid's selection/index and vice versa. If the
+    /// enlarged overlay is open, also reload it for the newly selected frame so paging actually
+    /// changes the displayed photo, not merely the selection behind it.</summary>
     private void MoveSelection(int delta)
     {
-        if (Vm is null || Vm.VisiblePhotos.Count == 0)
+        if (Vm is null)
             return;
-        var index = Vm.SelectedPhoto is null ? -1 : Vm.VisiblePhotos.IndexOf(Vm.SelectedPhoto);
-        var next = Math.Clamp(index + delta, 0, Vm.VisiblePhotos.Count - 1);
-        Vm.SelectedPhoto = Vm.VisiblePhotos[next];
+        var list = Vm.IsRejectsView ? (IList<PhotoTileViewModel>)Vm.RejectList : Vm.VisiblePhotos;
+        if (list.Count == 0)
+            return;
+        var index = Vm.SelectedPhoto is null ? -1 : list.IndexOf(Vm.SelectedPhoto);
+        var next = Math.Clamp(index + delta, 0, list.Count - 1);
+        Vm.SelectedPhoto = list[next];
 
-        // Scroll the row containing the new selection into view (the ListBox virtualizes rows).
-        var cols = Math.Max(1, Vm.Columns);
-        var rowIndex = next / cols;
-        if (rowIndex >= 0 && rowIndex < Vm.PhotoRows.Count)
-            _grid?.ScrollIntoView(Vm.PhotoRows[rowIndex]);
+        if (!Vm.IsRejectsView)
+        {
+            // Scroll the row containing the new selection into view (the ListBox virtualizes rows).
+            // The Rejects view is a plain (non-virtualized) ItemsControl, so no scroll call is needed.
+            var cols = Math.Max(1, Vm.Columns);
+            var rowIndex = next / cols;
+            if (rowIndex >= 0 && rowIndex < Vm.PhotoRows.Count)
+                _grid?.ScrollIntoView(Vm.PhotoRows[rowIndex]);
+        }
+
+        if (Vm.IsEnlarged)
+            OpenFullscreen();   // reloads EnlargedImage for the new SelectedPhoto; overlay stays open
     }
 
     protected override void OnClosed(EventArgs e)

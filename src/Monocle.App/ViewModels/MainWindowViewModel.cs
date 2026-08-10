@@ -502,10 +502,35 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private SortKey _sort = SortKey.Name;
     [ObservableProperty] private bool _sortDescending;
 
+    // Minimum-TQ filter (Task A). TqFilterEnabled is a separate flag from MinTq's numeric value so
+    // "off" and "on, threshold 0.00" stay visually distinct in the toolbar (toggled via the TQ chip;
+    // the slider only edits the threshold while enabled). Composes with Rating/Reason/RatedBy — all
+    // facets stay ANDed in Spec, same as before.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MinTqDisplay))]
+    private bool _tqFilterEnabled;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(MinTqDisplay))]
+    private double _minTq = 0.5;
+
+    public string MinTqDisplay => TqFilterEnabled ? $"{MinTq:0.00}" : "off";
+
+    partial void OnTqFilterEnabledChanged(bool value) => ApplyFilter();
+    partial void OnMinTqChanged(double value) { if (TqFilterEnabled) ApplyFilter(); }
+
+    [RelayCommand]
+    private void ToggleTqFilter() => TqFilterEnabled = !TqFilterEnabled;
+
+    [RelayCommand]
+    private void ClearTqFilter() => TqFilterEnabled = false;
+
     public Array SortKeys { get; } = Enum.GetValues(typeof(SortKey));
 
-    private PhotoFilterSpec Spec => new(Rating, ReasonFacet, RatedByFacet);
-    private bool IsAllFilter => Rating == RatingFilter.All && ReasonFacet is null && RatedByFacet is null;
+    private PhotoFilterSpec Spec => new(Rating, ReasonFacet, RatedByFacet,
+        MinTechnical: TqFilterEnabled ? MinTq : (double?)null);
+    private bool IsAllFilter =>
+        Rating == RatingFilter.All && ReasonFacet is null && RatedByFacet is null && !TqFilterEnabled;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(ShowDetailPlaceholder))]

@@ -226,6 +226,25 @@
                             <TextBlock Text="{Binding UnratedCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
                         </StackPanel>
                     </Button>
+
+                    <!-- Minimum technical (TQ) filter: the chip toggles the filter on/off — its
+                         "off"/numeric readout makes the state unambiguous — and the slider only edits
+                         the threshold while the chip is on. Composes (ANDs) with the rating chips
+                         above via PhotoFilterSpec.MinTechnical. -->
+                    <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
+                    <Button Classes="chip" Classes.on="{Binding TqFilterEnabled}" Command="{Binding ToggleTqFilterCommand}"
+                            ToolTip.Tip="Minimum technical quality (TQ) filter">
+                        <StackPanel Orientation="Horizontal" Spacing="6">
+                            <TextBlock Text="TQ ≥"/>
+                            <TextBlock Text="{Binding MinTqDisplay}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.85"/>
+                        </StackPanel>
+                    </Button>
+                    <Slider Minimum="0" Maximum="1" Width="90" Value="{Binding MinTq}"
+                            IsEnabled="{Binding TqFilterEnabled}" VerticalAlignment="Center"
+                            ToolTip.Tip="Drag to set the minimum TQ threshold"/>
+                    <Button Classes="ghost" Content="✕" Padding="6,2" FontSize="10"
+                            Command="{Binding ClearTqFilterCommand}" IsVisible="{Binding TqFilterEnabled}"
+                            ToolTip.Tip="Clear TQ filter"/>
                 </StackPanel>
 
                 <!-- Thumb size + density -->
@@ -884,16 +903,24 @@
                                 <ItemsControl ItemsSource="{Binding RejectList}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:PhotoTileViewModel">
-                                            <Grid ColumnDefinitions="Auto,*,Auto" Margin="14,9" >
-                                                <Border Grid.Column="0" Width="46" Height="34" CornerRadius="5" ClipToBounds="True"
-                                                        BorderBrush="{StaticResource Reject}" BorderThickness="2" Background="{StaticResource Surface3}">
-                                                    <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
-                                                </Border>
-                                                <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="13,0,0,0"
-                                                           FontFamily="{StaticResource FontMono}" FontSize="12.5" VerticalAlignment="Center"/>
-                                                <TextBlock Grid.Column="2" Text="→ _Rejects/" FontFamily="{StaticResource FontMono}"
-                                                           FontSize="11" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                                            </Grid>
+                                            <!-- Selectable, double-clickable review row: drives the same SelectedPhoto the
+                                                 Browse grid uses, so the right-hand Detail panel and the enlarge overlay
+                                                 (F key / double-click) work identically here. Selection border reuses the
+                                                 tile's own SelectionBrush (accent when selected, transparent otherwise). -->
+                                            <Border BorderBrush="{Binding SelectionBrush}" BorderThickness="2" CornerRadius="7"
+                                                    Margin="10,3" Background="{StaticResource Surface2}" Cursor="Hand"
+                                                    PointerPressed="OnTilePressed" DoubleTapped="OnTileDoubleTapped">
+                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,7">
+                                                    <Border Grid.Column="0" Width="46" Height="34" CornerRadius="5" ClipToBounds="True"
+                                                            BorderBrush="{StaticResource Reject}" BorderThickness="2" Background="{StaticResource Surface3}">
+                                                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="13,0,0,0"
+                                                               FontFamily="{StaticResource FontMono}" FontSize="12.5" VerticalAlignment="Center"/>
+                                                    <TextBlock Grid.Column="2" Text="→ _Rejects/" FontFamily="{StaticResource FontMono}"
+                                                               FontSize="11" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                </Grid>
+                                            </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
