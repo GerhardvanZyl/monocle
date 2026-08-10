@@ -35,6 +35,7 @@ public partial class MainWindow : Window
         {
             Vm.PropertyChanged += OnVmPropertyChanged;
             Vm.ConsoleLog.CollectionChanged += OnConsoleLogChanged;
+            Vm.ScrollToTileRequested += ScrollTileIntoView;
             ApplyTileMetrics(Vm.ThumbSize);
         }
     }
@@ -182,6 +183,12 @@ public partial class MainWindow : Window
 
         switch (e.Key)
         {
+            // Undo/redo of ratings. Both act on the last edit wherever it happened, not on the
+            // current selection, and the view model no-ops them while a run is in flight.
+            case Key.Z when e.KeyModifiers.HasFlag(KeyModifiers.Control) && e.KeyModifiers.HasFlag(KeyModifiers.Shift):
+                Vm.RedoRatingCommand.Execute(null); e.Handled = true; break;
+            case Key.Z when e.KeyModifiers.HasFlag(KeyModifiers.Control):
+                Vm.UndoRatingCommand.Execute(null); e.Handled = true; break;
             case Key.D1 or Key.NumPad1: Vm.SetStarsCommand.Execute("1"); e.Handled = true; break;
             case Key.D2 or Key.NumPad2: Vm.SetStarsCommand.Execute("2"); e.Handled = true; break;
             case Key.D3 or Key.NumPad3: Vm.SetStarsCommand.Execute("3"); e.Handled = true; break;
@@ -205,6 +212,21 @@ public partial class MainWindow : Window
             case Key.Up: MoveSelection(Vm.IsRejectsView ? -1 : -Math.Max(1, Vm.Columns)); e.Handled = true; break;
             case Key.Down: MoveSelection(Vm.IsRejectsView ? 1 : Math.Max(1, Vm.Columns)); e.Handled = true; break;
         }
+    }
+
+    /// <summary>Scroll the (row-virtualized) grid to a tile an undo/redo just changed, so the user
+    /// sees which frame moved even when it is off screen. No-op outside the Browse grid, whose
+    /// Rejects counterpart is a plain non-virtualized list.</summary>
+    private void ScrollTileIntoView(PhotoTileViewModel tile)
+    {
+        if (Vm is null || Vm.IsRejectsView)
+            return;
+        var index = Vm.VisiblePhotos.IndexOf(tile);
+        if (index < 0)
+            return;
+        var rowIndex = index / Math.Max(1, Vm.Columns);
+        if (rowIndex >= 0 && rowIndex < Vm.PhotoRows.Count)
+            _grid?.ScrollIntoView(Vm.PhotoRows[rowIndex]);
     }
 
     /// <summary>Move the selection by <paramref name="delta"/> within whichever list the active

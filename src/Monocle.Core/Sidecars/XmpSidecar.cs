@@ -99,10 +99,14 @@ public static class XmpSidecar
         else
             RemoveChild(desc, "dc:subject", ns);
 
-        // Only write dc:description when Monocle actually has something to say; a null/empty
-        // value means "leave the existing caption alone" so we never wipe an On1/LR caption.
+        // Only write dc:description when Monocle actually has something to say; null means "leave
+        // the existing caption alone" so we never wipe an On1/LR caption. An explicit empty string
+        // is different: it means the caller knows the description was empty before the edit it is
+        // undoing, so leaving the undone verdict behind would be wrong.
         if (!string.IsNullOrEmpty(data.Description))
             SetLangAlt(doc, desc, data.Description);
+        else if (data.Description is "")
+            RemoveChild(desc, "dc:description", ns);
 
         BackupOnce(path);
         SaveAtomic(doc, path);

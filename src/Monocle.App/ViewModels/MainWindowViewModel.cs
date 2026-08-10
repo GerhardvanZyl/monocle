@@ -378,6 +378,8 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnViewChanged(CenterView oldValue, CenterView newValue)
     {
         if (newValue == CenterView.Rejects) RefreshRejectList();
+        // The shoot-wide revert count is O(frames), so it's computed when its page is actually open.
+        if (newValue == CenterView.AiCull) RefreshRevertState();
         // Guard against opening Settings twice in a row (or re-entrant sets) making "previous" be
         // Settings itself, which would leave CloseSettings with nowhere useful to go.
         if (newValue == CenterView.Settings && oldValue != CenterView.Settings)
@@ -468,7 +470,23 @@ public partial class MainWindowViewModel : ViewModelBase
     private void RecomputeColumns() =>
         Columns = Math.Max(1, (int)((GridWidth - 24) / Math.Max(80, TileWidth)));
 
-    partial void OnIsBusyChanged(bool value) => OnPropertyChanged(nameof(MoveRejectsEnabled));
+    partial void OnIsBusyChanged(bool value)
+    {
+        OnPropertyChanged(nameof(MoveRejectsEnabled));
+        RefreshRatingEditAvailability();
+    }
+
+    // Undo/redo/revert are gated on all three "a run is in flight" flags; see RatingEditsBlocked.
+    partial void OnProcessRunningChanged(bool value) => RefreshRatingEditAvailability();
+    partial void OnCullRunningChanged(bool value) => RefreshRatingEditAvailability();
+
+    private void RefreshRatingEditAvailability()
+    {
+        OnPropertyChanged(nameof(RatingEditsBlocked));
+        OnPropertyChanged(nameof(CanUndoRating));
+        OnPropertyChanged(nameof(CanRedoRating));
+        RefreshRevertState();
+    }
 
     // ---- Collections ----
     public ObservableCollection<PhotoTileViewModel> Photos { get; }
@@ -831,6 +849,7 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (oldValue is not null) oldValue.IsSelected = false;
         if (newValue is not null) newValue.IsSelected = true;
+        RefreshRevertState();   // the "revert to AI" affordance is per-frame
         _ = LoadDetailAsync(newValue);
     }
 
@@ -873,6 +892,9 @@ public partial class MainWindowViewModel : ViewModelBase
             SelectedPhoto = null;
             _cache?.Dispose();   // safe: the previous scan has drained (awaited in ScanAsync)
             _cache = null;
+            _history = null;     // the stack lives in that cache's db; a new shoot gets a new one
+            _itemsById = new Dictionary<string, PhotoItem>(StringComparer.Ordinal);
+            RefreshHistoryState();
 
             // Remember this folder so the next session reopens it (#2).
             _settings.LastFolder = folder; _settings.Save();
@@ -893,6 +915,20 @@ public partial class MainWindowViewModel : ViewModelBase
             _cache = cache;
             foreach (var item in items)
                 Photos.Add(new PhotoTileViewModel(item));
+
+            // The undo stack belongs to this shoot's cache. Frames get a staleness baseline from the
+            // rating just loaded off disk, but only if Monocle has never written them — see
+            // RatingHistory.SeedBeliefs for why re-seeding would defeat the whole guard.
+            _itemsById = items.ToDictionary(i => i.Id, StringComparer.Ordinal);
+            var history = new RatingHistory(cache,
+                id => _itemsById.TryGetValue(id, out var found) ? found : null,
+                i => i.BaseName);
+            _history = history;
+            var loaded = items;
+            await Task.Run(() => history.SeedBeliefs(loaded), ct);
+            RefreshHistoryState();
+            RefreshRevertState();
+
             ApplyFilter();
             Pipeline?.SetStatus("scan", StageStatus.Done);
 
@@ -1093,19 +1129,318 @@ public partial class MainWindowViewModel : ViewModelBase
         if (SelectedPhoto is not { } tile || !int.TryParse(starsText, out var stars))
             return;
         var indexBefore = VisiblePhotos.IndexOf(tile);
-        tile.Item.Stars = stars;
-        tile.Item.RatedByModel = "Manual";
-        await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
+
+        // Only the stars and the rater change on a manual rating; the technical reason, keywords and
+        // the AI headline stay as the models left them (they describe the pixels, not the verdict).
+        var current = RatingSnapshot.Capture(tile.Item);
+        var next = new RatingSnapshot
+        {
+            Stars = stars,
+            RatedByModel = "Manual",
+            Reason = current.Reason,
+            Keywords = new List<string>(current.Keywords),
+            Headline = current.Headline,
+        };
+
+        if (_history is { } history)
+        {
+            // requireFresh: false — the user is looking at this frame and means it. The write still
+            // records what the sidecar says afterwards, which is what a later undo is checked against.
+            var batch = history.NewBatch();
+            await Task.Run(() => history.Apply(tile.Item, next, $"Rate {next.StarText}", batch, requireFresh: false));
+            RefreshHistoryState();
+        }
+        else
+        {
+            next.ApplyTo(tile.Item);
+            await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
+        }
+
         tile.RefreshFromItem();
         DetailRating = FormatRating(tile.Item);
         ApplyFilter();
         RefreshStats();
+        RefreshRevertState();
 
         // Rating under a filter (e.g. Unrated) can drop the frame out of the visible set. Select
         // the frame that now occupies its slot so the culling flow auto-advances instead of the
         // next arrow key teleporting to photo #1 (IndexOf(hidden tile) == -1 clamped to 0).
         if (indexBefore >= 0 && VisiblePhotos.Count > 0 && !VisiblePhotos.Contains(tile))
             SelectedPhoto = VisiblePhotos[Math.Min(indexBefore, VisiblePhotos.Count - 1)];
+    }
+
+    // ================= Rating undo / redo + revert to AI =================
+    // The stack lives in the per-shoot SQLite cache (so it survives a restart) and every replay is
+    // guarded by SidecarStaleness: a frame whose sidecar was changed in On1/Lightroom/another
+    // session since Monocle last wrote it is skipped and reported, never overwritten.
+
+    private RatingHistory? _history;
+    private Dictionary<string, PhotoItem> _itemsById = new(StringComparer.Ordinal);
+    private int _undoCount, _redoCount;
+
+    /// <summary>Raised when an undo/redo/revert changes a frame the user isn't looking at, so the
+    /// view can scroll the (virtualized) grid to it.</summary>
+    public event Action<PhotoTileViewModel>? ScrollToTileRequested;
+
+    /// <summary>
+    /// Undo/redo and revert are disabled while a scan, Process or cull run is in flight — the
+    /// deliberate choice over making them concurrency-safe. Those runs mutate the very fields an
+    /// undo restores (stars, keywords, rationale) from up to eight worker threads, the Claude leg
+    /// writes the same sidecars from a separate process, and a new scan disposes the ShootCache the
+    /// history lives in. Any of those racing a replay would leave the history describing a state
+    /// that never existed.
+    /// </summary>
+    public bool RatingEditsBlocked => IsBusy || ProcessRunning || CullRunning;
+
+    public bool CanUndoRating => _undoCount > 0 && !RatingEditsBlocked;
+    public bool CanRedoRating => _redoCount > 0 && !RatingEditsBlocked;
+
+    [ObservableProperty] private string _undoLabel = "Nothing to undo";
+    [ObservableProperty] private string _redoLabel = "Nothing to redo";
+
+    /// <summary>Re-read the stack's depth and the label of what the next Ctrl+Z / Ctrl+Shift+Z would
+    /// act on. Cheap (two indexed SQLite reads) and only fires on user actions, not per frame.</summary>
+    private void RefreshHistoryState()
+    {
+        if (_history is { } history)
+        {
+            try
+            {
+                (_undoCount, _redoCount) = history.Counts();
+                UndoLabel = history.NextUndoLabel() is { } u ? $"Undo {u}" : "Nothing to undo";
+                RedoLabel = history.NextRedoLabel() is { } r ? $"Redo {r}" : "Nothing to redo";
+            }
+            catch (Exception ex)
+            {
+                Diagnostics.Log.Warn($"[history] state refresh failed: {ex.Message}");
+            }
+        }
+        else
+        {
+            _undoCount = _redoCount = 0;
+            UndoLabel = "Nothing to undo";
+            RedoLabel = "Nothing to redo";
+        }
+        OnPropertyChanged(nameof(CanUndoRating));
+        OnPropertyChanged(nameof(CanRedoRating));
+    }
+
+    /// <summary>Ctrl+Z — undo the most recent rating change wherever it happened, not on the current
+    /// selection, then select and scroll to the frame it changed.</summary>
+    [RelayCommand]
+    private Task UndoRatingAsync() => ReplayRatingAsync(undo: true);
+
+    /// <summary>Ctrl+Shift+Z — redo the change Ctrl+Z last took back.</summary>
+    [RelayCommand]
+    private Task RedoRatingAsync() => ReplayRatingAsync(undo: false);
+
+    private async Task ReplayRatingAsync(bool undo)
+    {
+        var verb = undo ? "Undo" : "Redo";
+        if (_history is not { } history)
+            return;
+        if (RatingEditsBlocked)
+        {
+            StatusText = $"{verb} is unavailable while a scan or Process run is in flight.";
+            return;
+        }
+        if (undo ? !CanUndoRating : !CanRedoRating)
+        {
+            StatusText = undo ? "Nothing to undo." : "Nothing to redo.";
+            return;
+        }
+
+        var result = await Task.Run(() => undo ? history.Undo() : history.Redo());
+
+        foreach (var item in result.Changed)
+            TileFor(item)?.RefreshFromItem();
+        ApplyFilter();
+        RefreshStats();
+        RefreshHistoryState();
+        RefreshRevertState();
+
+        // Show the user what moved: select the affected frame and scroll the grid to it.
+        if (result.Changed.Count > 0 && TileFor(result.Changed[0]) is { } focus)
+        {
+            SelectedPhoto = focus;
+            RefreshDetailText(focus);
+            if (VisiblePhotos.Contains(focus))
+                ScrollToTileRequested?.Invoke(focus);
+        }
+
+        foreach (var skip in result.Skipped)
+            RunLog($"{verb} skipped {skip.Title}: {skip.Reason}");
+
+        StatusText = (result.Changed.Count, result.Skipped.Count) switch
+        {
+            (0, 0) => $"Nothing to {verb.ToLowerInvariant()}.",
+            (0, 1) => $"{verb} refused — {result.Skipped[0].Title}: {result.Skipped[0].Reason}.",
+            (0, var s) => $"{verb} refused for all {s} frames — they changed outside Monocle (see the Run log).",
+            (var c, 0) => $"{verb}: {result.Label} on {Frames(c)}.",
+            var (c, s) => $"{verb}: {result.Label} on {Frames(c)}; skipped {s} changed outside Monocle (see the Run log).",
+        };
+    }
+
+    private static string Frames(int n) => n == 1 ? "1 frame" : $"{n} frames";
+
+    private PhotoTileViewModel? TileFor(PhotoItem item) =>
+        Photos.FirstOrDefault(p => ReferenceEquals(p.Item, item));
+
+    // ---- Revert to the AI's rating ----
+
+    /// <summary>What reverting the selected frame would do, e.g. "4★ → 2★ (Claude Sonnet 4.6)".</summary>
+    [ObservableProperty] private string _revertPreview = "";
+
+    [ObservableProperty] private bool _canRevertSelected;
+
+    /// <summary>Frames whose current rating differs from what the models scored (shoot-wide revert).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RevertAllEnabled), nameof(RevertAllSummary))]
+    private int _revertableCount;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(RevertAllEnabled))]
+    private bool _revertAllConfirmed;
+
+    /// <summary>Deliberately gated behind the same "I understand" confirmation as moving rejects:
+    /// this rewrites a sidecar for every frame in the shoot.</summary>
+    public bool RevertAllEnabled => RevertAllConfirmed && RevertableCount > 0 && !RatingEditsBlocked;
+
+    public string RevertAllSummary =>
+        RevertableCount == 0
+            ? "No frame's rating differs from what the models scored — nothing to revert."
+            : $"Would rewrite the sidecars of {Frames(RevertableCount)} back to the rating the models produced, " +
+              "discarding the manual rating on each. Frames no model has scored are left alone, and so is any " +
+              "frame whose sidecar changed outside Monocle. Nothing changes until you confirm.";
+
+    /// <summary>Recompute the revert affordances: the selected frame's preview line and the
+    /// shoot-wide count. Runs the real rating engine over a copy of each frame, so it is only
+    /// refreshed on user actions and when the AI Cull page is open, never per analysis batch.</summary>
+    private void RefreshRevertState()
+    {
+        if (SelectedPhoto is { } tile && AiRating.Resolve(tile.Item) is { } ai)
+        {
+            var current = RatingSnapshot.Capture(tile.Item);
+            CanRevertSelected = !current.SameAs(ai) && !RatingEditsBlocked;
+            RevertPreview = current.SameAs(ai)
+                ? $"Already at the AI rating ({ai.StarText})"
+                : AiRating.Describe(tile.Item, ai);
+        }
+        else
+        {
+            CanRevertSelected = false;
+            RevertPreview = SelectedPhoto is null ? "" : "No AI verdict for this frame yet";
+        }
+
+        if (IsAiCull)
+        {
+            var n = 0;
+            foreach (var candidate in Photos)
+                if (AiRating.Resolve(candidate.Item) is { } verdict &&
+                    !RatingSnapshot.Capture(candidate.Item).SameAs(verdict))
+                    n++;
+            RevertableCount = n;
+        }
+        OnPropertyChanged(nameof(RevertAllEnabled));
+    }
+
+    /// <summary>Discard the selected frame's manual rating and restore what the models scored.</summary>
+    [RelayCommand]
+    private async Task RevertSelectedToAiAsync()
+    {
+        if (SelectedPhoto is not { } tile || _history is not { } history)
+            return;
+        if (RatingEditsBlocked)
+        {
+            StatusText = "Revert is unavailable while a scan or Process run is in flight.";
+            return;
+        }
+        if (AiRating.Resolve(tile.Item) is not { } ai)
+        {
+            StatusText = $"{tile.Title} has no AI verdict to revert to — run Process first.";
+            return;
+        }
+
+        var was = FormatRating(tile.Item);
+        var batch = history.NewBatch();
+        var failure = await Task.Run(() => history.Apply(tile.Item, ai, "Revert to AI", batch, requireFresh: true));
+
+        tile.RefreshFromItem();
+        ApplyFilter();
+        RefreshStats();
+        RefreshHistoryState();
+        RefreshDetailText(tile);
+        RefreshRevertState();
+
+        StatusText = failure switch
+        {
+            null => $"Reverted {tile.Title} to the AI rating ({ai.StarText}, {ai.RatedByModel}).",
+            "already matches" => $"{tile.Title} already matches the AI rating.",
+            _ => $"Did not revert {tile.Title}: {failure}.",
+        };
+        if (failure is not null and not "already matches")
+            RunLog($"Revert skipped {tile.Title} ({was}): {failure}");
+    }
+
+    /// <summary>
+    /// Shoot-wide revert. Partially applied by design: each frame is checked and written on its own,
+    /// so one frame that changed in On1 (or fails to write) neither aborts the pass nor forces the
+    /// rest to be rolled back — rolling successful frames back would be another destructive write.
+    /// The pass is "consistent" in the sense that every frame ends in one of three reported states:
+    /// reverted (with an undo entry in the shared batch), skipped with a reason and no entry at all,
+    /// or untouched because no model ever scored it.
+    /// </summary>
+    [RelayCommand]
+    private async Task RevertAllToAiAsync()
+    {
+        if (_history is not { } history || !RevertAllEnabled)
+            return;
+
+        var tiles = Photos.ToList();
+        var noVerdict = 0;
+        var result = new RatingApplyResult { Label = "Revert to AI" };
+        IsBusy = true;
+        try
+        {
+            await Task.Run(() =>
+            {
+                var batch = history.NewBatch();
+                foreach (var tile in tiles)
+                {
+                    if (AiRating.Resolve(tile.Item) is not { } ai)
+                    {
+                        noVerdict++;   // never AI-scored: must not be "reverted" to anything
+                        continue;
+                    }
+                    var failure = history.Apply(tile.Item, ai, "Revert to AI", batch, requireFresh: true);
+                    if (failure is null)
+                        result.Changed.Add(tile.Item);
+                    else if (failure != "already matches")
+                        result.Skipped.Add(new SkippedFrame(tile.Title, failure));
+                }
+            });
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+
+        foreach (var item in result.Changed)
+            TileFor(item)?.RefreshFromItem();
+        RevertAllConfirmed = false;
+        ApplyFilter();
+        RefreshStats();
+        RefreshHistoryState();
+        RefreshRevertState();
+        if (SelectedPhoto is { } sel)
+            RefreshDetailText(sel);
+
+        foreach (var skip in result.Skipped)
+            RunLog($"Revert skipped {skip.Title}: {skip.Reason}");
+        RunLog($"Revert to AI — {result.Changed.Count} reverted, {result.Skipped.Count} skipped, {noVerdict} with no AI verdict.");
+        StatusText = result.Skipped.Count == 0
+            ? $"Reverted {Frames(result.Changed.Count)} to the AI rating."
+            : $"Reverted {Frames(result.Changed.Count)}; skipped {result.Skipped.Count} changed outside Monocle (see the Run log).";
     }
 
     /// <summary>Process scope (Task A): false re-runs every ticked scorer on every frame each click
@@ -1423,6 +1758,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private async Task ReloadRatingsAsync()
     {
         var tiles = Photos.ToList();
+        var history = _history;
         await Task.Run(() =>
         {
             foreach (var tile in tiles)
@@ -1435,9 +1771,14 @@ public partial class MainWindowViewModel : ViewModelBase
                 tile.Item.RatedByModel = null;
                 SidecarService.Load(tile.Item);
             }
+            // The cull wrote these sidecars from the spawned MCP process, so Monocle's belief about
+            // what is on disk is out of date by its own doing. Re-baseline from disk, or every
+            // culled frame would look externally edited and refuse a later undo.
+            history?.RebaselineFromDisk(tiles.Select(t => t.Item));
         });
         foreach (var tile in tiles)
             tile.RefreshFromItem();
+        RefreshRevertState();
         // Claude's verdict was written to the sidecar by the MCP process; now that it's read back
         // into the in-memory item, surface it (and any model critiques) in the detail pane (#2).
         if (SelectedPhoto is { } sel)

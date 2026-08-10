@@ -58,6 +58,18 @@
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="Reject (1★)" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
                     </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="Ctrl+Z"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Undo last rating" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="Ctrl+Shift+Z"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Redo rating" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
                 </StackPanel>
 
                 <TextBlock Text="NAVIGATION" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="0,4,0,0"/>
@@ -840,6 +852,26 @@
                                     Command="{Binding StopProcessCommand}" IsVisible="{Binding ProcessRunning}"/>
                         </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
+
+                        <!-- Shoot-wide revert to the AI's ratings. Lives here rather than one click
+                             from the grid because it rewrites a sidecar for every frame; the
+                             confirmation mirrors the "Move rejects to _Rejects" flow (summary,
+                             "I understand" tick, button disabled until ticked). -->
+                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,10"/>
+                        <TextBlock Text="Revert manual ratings to the AI" FontSize="12" FontWeight="SemiBold"/>
+                        <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderStrong}"
+                                BorderThickness="1" CornerRadius="9" Padding="16">
+                            <StackPanel Spacing="13">
+                                <TextBlock Text="{Binding RevertAllSummary}" TextWrapping="Wrap" FontSize="12.5"
+                                           Foreground="{StaticResource Text2}"/>
+                                <CheckBox IsChecked="{Binding RevertAllConfirmed}"
+                                          Content="I understand — discard the manual ratings and rewrite the sidecars"
+                                          FontSize="13"/>
+                                <Button Classes="primary" HorizontalAlignment="Left"
+                                        Content="{Binding RevertableCount, StringFormat='Revert {0} frames to the AI rating'}"
+                                        Command="{Binding RevertAllToAiCommand}" IsEnabled="{Binding RevertAllEnabled}"/>
+                            </StackPanel>
+                        </Border>
                     </StackPanel>
                 </ScrollViewer>
 
@@ -1185,6 +1217,25 @@
                                                 ToolTip.Tip="Clear rating"/>
                                     </StackPanel>
                                 </Grid>
+                                <!-- Undo / redo of ratings + revert to the AI's verdict. Undo acts on the
+                                     last rating change anywhere in the shoot, not on this frame, and
+                                     selects the frame it changed. All three are disabled while a scan or
+                                     Process run is in flight (they write the same sidecars). -->
+                                <Grid ColumnDefinitions="Auto,Auto,*">
+                                    <Button Grid.Column="0" Classes="ghost" Content="↶ Undo" Padding="8,4" Margin="0,0,4,0"
+                                            Command="{Binding UndoRatingCommand}" IsEnabled="{Binding CanUndoRating}"
+                                            ToolTip.Tip="{Binding UndoLabel}"/>
+                                    <Button Grid.Column="1" Classes="ghost" Content="↷ Redo" Padding="8,4" Margin="0,0,4,0"
+                                            Command="{Binding RedoRatingCommand}" IsEnabled="{Binding CanRedoRating}"
+                                            ToolTip.Tip="{Binding RedoLabel}"/>
+                                    <Button Grid.Column="2" Classes="ghost" Content="Revert to AI" Padding="8,4"
+                                            HorizontalAlignment="Right"
+                                            Command="{Binding RevertSelectedToAiCommand}" IsEnabled="{Binding CanRevertSelected}"
+                                            ToolTip.Tip="Discard the manual rating and restore what the models scored"/>
+                                </Grid>
+                                <TextBlock Text="{Binding RevertPreview}" Foreground="{StaticResource Text3}"
+                                           TextWrapping="Wrap" FontSize="11"/>
+
                                 <TextBlock Text="{Binding DetailRating}" Foreground="{StaticResource Text2}" TextWrapping="Wrap" FontSize="11"/>
                                 <TextBlock Text="{Binding DetailExif}" Foreground="{StaticResource Text3}" TextWrapping="Wrap" FontSize="11"/>
 

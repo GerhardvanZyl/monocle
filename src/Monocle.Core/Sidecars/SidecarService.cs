@@ -23,14 +23,27 @@ public static class SidecarService
     /// <summary>Persist the item's rating, keywords, notes and rationale to all its files. The AI
     /// headline is merged into each file's existing description so a verdict from a different model is
     /// appended rather than overwritten; only the same model's line is replaced (#5).</summary>
-    public static void Save(PhotoItem item)
+    public static void Save(PhotoItem item) => Save(item, null);
+
+    /// <summary>
+    /// As <see cref="Save(PhotoItem)"/>, but with an exact AI-headline block per file name
+    /// (<paramref name="headlineOverrides"/>) instead of the merge. Undo/redo uses this: the
+    /// merge is additive by design (#5), so replaying it would leave the undone model's verdict
+    /// line behind — and a reopened shoot adopts the last such line as the frame's rater. An
+    /// override restores the description exactly as the file had it before the edit; an empty or
+    /// null override clears the AI block (leaving the user's notes block intact).
+    /// </summary>
+    public static void Save(PhotoItem item, IReadOnlyDictionary<string, string?>? headlineOverrides)
     {
         var exif = new ExifReader();
         foreach (var file in item.Files)
         {
             // Read the existing description first so MergeHeadline can keep other models' comments.
             var existing = TryReadDescription(file.Path);
-            var xmp = BuildXmp(item, existing);
+            string? headlineOverride = null;
+            var hasOverride = headlineOverrides is not null &&
+                              headlineOverrides.TryGetValue(Path.GetFileName(file.Path), out headlineOverride);
+            var xmp = BuildXmp(item, existing, hasOverride, headlineOverride);
             // Compose the display orientation from THIS file's own EXIF base: a RAW and its JPG can
             // carry different embedded orientations, so mirroring one composed value to both could
             // rotate one of them incorrectly when On1/Lightroom reads it back (#26).
@@ -85,7 +98,32 @@ public static class SidecarService
         item.Crop = xmp.Crop;
     }
 
-    private static XmpData BuildXmp(PhotoItem item, string? existingDescription)
+    /// <summary>Read what each of the frame's sidecars currently says — the star rating (the
+    /// staleness baseline) and the AI headline block (the exact text an undo restores) — keyed by
+    /// file name so a moved shoot still matches. An unreadable sidecar reads as empty rather than
+    /// throwing, so one damaged file never aborts a rating write.</summary>
+    public static Dictionary<string, SidecarRatingState> ReadRatingStates(PhotoItem item)
+    {
+        var states = new Dictionary<string, SidecarRatingState>(StringComparer.OrdinalIgnoreCase);
+        foreach (var file in item.Files)
+        {
+            var name = Path.GetFileName(file.Path);
+            try
+            {
+                var xmp = XmpSidecar.Read(file.Path);
+                var (headline, _) = NotesFormat.Parse(xmp.Description);
+                states[name] = new SidecarRatingState(xmp.Rating, headline);
+            }
+            catch
+            {
+                states[name] = new SidecarRatingState(null, null);
+            }
+        }
+        return states;
+    }
+
+    private static XmpData BuildXmp(PhotoItem item, string? existingDescription,
+                                    bool overrideHeadline = false, string? headlineOverride = null)
     {
         var keywords = new List<string>(item.Keywords);
 
@@ -95,15 +133,21 @@ public static class SidecarService
         if (item.IsReject && !keywords.Contains(MonocleKeywords.Reject, StringComparer.OrdinalIgnoreCase))
             keywords.Add(MonocleKeywords.Reject);
 
-        // Merge this model's verdict into the existing AI headline (keep other models', replace own) (#5).
+        // Merge this model's verdict into the existing AI headline (keep other models', replace own) (#5),
+        // unless the caller supplied the exact block to restore (undo/redo).
         var (existingAi, _) = NotesFormat.Parse(existingDescription);
-        var headline = NotesFormat.MergeHeadline(existingAi, item.RatedByModel, CurrentVerdict(item));
+        var headline = overrideHeadline
+            ? headlineOverride
+            : NotesFormat.MergeHeadline(existingAi, item.RatedByModel, CurrentVerdict(item));
+        var composed = NotesFormat.Compose(headline, item.UserNotes);
         return new XmpData
         {
             Rating = item.Stars > 0 ? item.Stars : null,
             Label = LabelFor(item.Reason),
             Keywords = keywords,
-            Description = NotesFormat.Compose(headline, item.UserNotes),
+            // Null means "leave any existing caption alone"; on a restore an empty string means
+            // "the description was empty before this edit", which must actually clear it.
+            Description = overrideHeadline ? composed ?? "" : composed,
             // Orientation is set per-file in Save (each file's own EXIF base).
             Crop = item.Crop,
         };
