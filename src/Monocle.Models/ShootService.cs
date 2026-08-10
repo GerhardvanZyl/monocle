@@ -50,12 +50,7 @@ public sealed class ShootService
         IReadOnlyList<IModelRunner>? scorers = null, CancellationToken ct = default)
     {
         var fp = item.Fingerprint;
-        // Metrics and model scores are computed on the rotated+cropped view, so in-app edits must
-        // invalidate them exactly like previews (whose key already carries rotation + crop).
-        // Unedited frames keep the plain fingerprint so pre-existing caches stay valid.
-        var afp = item.RotationQuarters == 0 && item.Crop is null
-            ? fp
-            : $"{fp}|r{item.RotationQuarters}|c{CropTag(item.Crop)}";
+        var afp = AnalysisFingerprint(item);
         DecodeResult? decoded = null;
 
         // --- Metrics + EXIF (from cache, else decode) ---
@@ -174,6 +169,28 @@ public sealed class ShootService
     /// <summary>Stable cache tag for a crop rectangle.</summary>
     private static string CropTag(CropRect? crop) =>
         crop is { } c ? $"{c.X:F3}_{c.Y:F3}_{c.W:F3}_{c.H:F3}" : "";
+
+    /// <summary>The fingerprint metrics/scores are cached under: the plain file fingerprint for an
+    /// unedited frame, or one that also carries rotation + crop once the user has edited it (they're
+    /// computed on the rotated+cropped view, so an edit must invalidate them exactly like previews).</summary>
+    public static string AnalysisFingerprint(PhotoItem item) =>
+        item.RotationQuarters == 0 && item.Crop is null
+            ? item.Fingerprint
+            : $"{item.Fingerprint}|r{item.RotationQuarters}|c{CropTag(item.Crop)}";
+
+    /// <summary>Attach any model scores already cached for this frame's current fingerprint, without
+    /// running any scorer. Used by the cull (Monocle.Mcp), which must never trigger scoring itself —
+    /// Process is the only thing that scores; this only reads what a previous Process run produced,
+    /// so a weighted composite can reflect real model output without the cull spending GPU/tokens.</summary>
+    public void AttachCachedScores(PhotoItem item, ShootCache cache)
+    {
+        var afp = AnalysisFingerprint(item);
+        foreach (var score in cache.GetScores(item.Id, afp))
+        {
+            item.Scores.RemoveAll(s => s.ModelId == score.ModelId);
+            item.Scores.Add(score);
+        }
+    }
 
     /// <summary>Persist the item's rating, keywords, notes and rationale to its sidecars.</summary>
     public void Save(PhotoItem item) => SidecarService.Save(item);

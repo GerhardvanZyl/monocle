@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using Monocle.App.Controls;
 using Monocle.Core.Model;
 using Monocle.Models;
+using Monocle.Models.Scoring;
 
 namespace Monocle.App.ViewModels;
 
@@ -222,6 +223,15 @@ public partial class PhotoTileViewModel : ViewModelBase
     /// <summary>0..1 score used to fill the tile's "TQ" bar via a Width multiply binding.</summary>
     public bool HasTechnical => Item.Metrics is not null;
 
+    // ---- Configurable weighted scoring (#weights) ----
+    // Mirrors the PersistPips pattern above: one global config, pushed here by the VM whenever it
+    // changes, then re-applied to every tile via RefreshFromItem. Weighted display only replaces the
+    // raw TQ/AES once the matching axis is actually configured (AppSettings' dictionary non-empty) —
+    // an untouched settings file must render exactly as it always has.
+    public static ScoreWeights Weights = new();
+    public static bool TechnicalWeighted;
+    public static bool AestheticWeighted;
+
     /// <summary>Recompute all display properties from the underlying item.</summary>
     public void RefreshFromItem()
     {
@@ -231,29 +241,30 @@ public partial class PhotoTileViewModel : ViewModelBase
         StarsFilled = new string('★', s);
         StarsEmpty = new string('☆', 4 - s);
 
-        if (Item.Metrics is { } m)
+        var composite = ScoreCompositor.Compute(Item, Weights);
+
+        if (TechnicalWeighted)
+            SetTechnical(composite.Technical);
+        else if (Item.Metrics is { } m)
+            SetTechnical(m.CompositeScore);
+        else
+            SetTechnical(null);
+
+        if (AestheticWeighted)
         {
-            var tq = m.CompositeScore;
-            TechnicalText = $"T {tq:0.00}";
-            TechnicalFraction = Math.Clamp(tq, 0, 1);
-            TechnicalScoreText = $"{tq:0.00}";
-            TechnicalColor = tq >= 0.78 ? PickBrush : tq >= 0.55 ? StarBrush : RejectBrush;
+            AestheticText = composite.Aesthetic is { } wa ? $"A {wa:0.00}" : "";
+            AestheticScoreText = composite.Aesthetic is { } wa2 ? $"{wa2:0.00}" : "—";
         }
         else
         {
-            TechnicalText = "";
-            TechnicalFraction = 0;
-            TechnicalScoreText = "—";
-            TechnicalColor = Brushes.Transparent;
+            var aesthetic = Item.Scores
+                .Where(s => s.Kind is ScoreKind.Aesthetic or ScoreKind.Quality && s.Normalized is not null)
+                .Select(s => s.Normalized!.Value)
+                .DefaultIfEmpty(double.NaN)
+                .Average();
+            AestheticText = double.IsNaN(aesthetic) ? "" : $"A {aesthetic:0.00}";
+            AestheticScoreText = double.IsNaN(aesthetic) ? "—" : $"{aesthetic * 10:0.0}";
         }
-
-        var aesthetic = Item.Scores
-            .Where(s => s.Kind is ScoreKind.Aesthetic or ScoreKind.Quality && s.Normalized is not null)
-            .Select(s => s.Normalized!.Value)
-            .DefaultIfEmpty(double.NaN)
-            .Average();
-        AestheticText = double.IsNaN(aesthetic) ? "" : $"A {aesthetic:0.00}";
-        AestheticScoreText = double.IsNaN(aesthetic) ? "—" : $"{aesthetic * 10:0.0}";
 
         ModelsText = string.Join(", ", Item.Scores.Select(s => s.ModelDisplayName).Distinct());
 
@@ -264,6 +275,26 @@ public partial class PhotoTileViewModel : ViewModelBase
         RefreshPipelineStrip();
         RefreshPipelineStates();
         OnPropertyChanged(nameof(ShowPips));   // scores/metrics landing can flip the mode-B done badge on
+    }
+
+    /// <summary>Shared by the raw and weighted Technical display paths: null renders as "—" (never
+    /// "0.00" — a missing axis must not read as a genuinely terrible frame).</summary>
+    private void SetTechnical(double? tq)
+    {
+        if (tq is { } v)
+        {
+            TechnicalText = $"T {v:0.00}";
+            TechnicalFraction = Math.Clamp(v, 0, 1);
+            TechnicalScoreText = $"{v:0.00}";
+            TechnicalColor = v >= 0.78 ? PickBrush : v >= 0.55 ? StarBrush : RejectBrush;
+        }
+        else
+        {
+            TechnicalText = "";
+            TechnicalFraction = 0;
+            TechnicalScoreText = "—";
+            TechnicalColor = Brushes.Transparent;
+        }
     }
 
     private void RefreshPipelineStrip()

@@ -23,30 +23,44 @@ public sealed class PhotoTools(ShootState state)
     {
         var folder = string.IsNullOrWhiteSpace(path) ? Directory.GetCurrentDirectory() : path;
         var items = await state.ScanAsync(folder);
-        var summary = items.Select(i => new
+        var summary = items.Select(i =>
         {
-            id = i.Id,
-            name = i.BaseName,
-            pair = i.IsPair,
-            stars = i.Stars,
-            technical = i.Metrics?.CompositeScore,
-            sharpness = i.Metrics?.SharpnessBestTile,
-            iso = i.Iso,
+            var composite = state.Composite(i);
+            return new
+            {
+                id = i.Id,
+                name = i.BaseName,
+                pair = i.IsPair,
+                stars = i.Stars,
+                technical = i.Metrics?.CompositeScore,
+                sharpness = i.Metrics?.SharpnessBestTile,
+                iso = i.Iso,
+                // The user's weighted Technical/Aesthetic composites (0..1; null = no configured
+                // contributor produced a value for this frame) — see get_metrics for the hard-limit
+                // rules these are checked against.
+                technical_composite = composite.Technical,
+                aesthetic_composite = composite.Aesthetic,
+            };
         });
         return JsonSerializer.Serialize(summary, Json);
     }
 
     [McpServerTool(Name = "get_metrics")]
-    [Description("Get the full technical metrics for one frame by id.")]
+    [Description("Get the full technical metrics for one frame by id, plus its weighted " +
+                  "technical_composite/aesthetic_composite (0..1; null when no configured model " +
+                  "contributed for this frame) — check these against any hard limits given in your instructions.")]
     public string GetMetrics([Description("Frame id from scan_folder.")] string id)
     {
         var item = state.Get(id);
         if (item?.Metrics is not { } m)
             return "{\"error\":\"unknown id or not analysed\"}";
+        var composite = state.Composite(item);
         return JsonSerializer.Serialize(new
         {
             m.CompositeScore, m.SharpnessBestTile, m.SharpnessWhole, m.MeanBrightness,
             m.Contrast, m.HighlightClip, m.ShadowClip, m.Iso,
+            technical_composite = composite.Technical,
+            aesthetic_composite = composite.Aesthetic,
         }, Json);
     }
 

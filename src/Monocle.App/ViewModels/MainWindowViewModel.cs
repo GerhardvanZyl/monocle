@@ -17,6 +17,7 @@ using Monocle.Models.Aesthetic;
 using Monocle.Models.Heuristic;
 using Monocle.Models.Onnx;
 using Monocle.Models.Sidecar;
+using Monocle.Models.Scoring;
 using Monocle.Models.Stats;
 using Monocle.Pipeline;
 
@@ -37,7 +38,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public MainWindowViewModel()
     {
-        _registry = BuildRegistry(_sidecar);
+        _registry = DefaultModelCatalog.BuildRegistry(_sidecar);
         Photos = new ObservableCollection<PhotoTileViewModel>();
         VisiblePhotos = new ObservableCollection<PhotoTileViewModel>();
         PhotoRows = new ObservableCollection<PhotoRowViewModel>();
@@ -71,9 +72,20 @@ public partial class MainWindowViewModel : ViewModelBase
                      ("aesthetics", "Aesthetics"), ("artistic", "Artistic / mood"),
                  })
             CullCriteria.Add(new CullCriterionViewModel(key, label, ticked.Contains(key), OnCullCriteriaToggled));
+
+        // Threshold rules must be loaded before the initial CullPrompt is built below, since a
+        // regenerated (or freshly-defaulted) prompt renders them as hard limits.
+        foreach (var r in _settings.ThresholdRules)
+            ThresholdRules.Add(new ThresholdRuleViewModel(
+                string.Equals(r.Axis, "technical", StringComparison.OrdinalIgnoreCase), r.Below, r.MaxStars, OnThresholdRuleChanged));
+
         _cullPrompt = string.IsNullOrWhiteSpace(_settings.CullPrompt)
-            ? CullLauncher.BuildCullBody(_cullKeepTarget, CullCriteria.Where(c => c.IsEnabled).Select(c => c.Key).ToArray())
+            ? CullLauncher.BuildCullBody(_cullKeepTarget, CullCriteria.Where(c => c.IsEnabled).Select(c => c.Key).ToArray(), CurrentThresholdRules())
             : _settings.CullPrompt;
+
+        // Configurable weighted scoring (AI Cull view): one row per eligible model (#weights).
+        BuildWeightRows();
+
         if (!string.IsNullOrWhiteSpace(_settings.LastFolder) && System.IO.Directory.Exists(_settings.LastFolder))
             _folderPath = _settings.LastFolder;
         ThemeManager.Apply(_theme, _accent);
@@ -119,20 +131,6 @@ public partial class MainWindowViewModel : ViewModelBase
             try { await StartSidecarAsync(); }   // also refreshes the model list when done
             catch (Exception ex) { Diagnostics.Log.Warn($"[sidecar] autostart failed: {ex.Message}"); }
         }
-    }
-
-    private static ModelRegistry BuildRegistry(SidecarManager sidecar)
-    {
-        var registry = new ModelRegistry()
-            .Register(new HeuristicRunner())
-            .Register(new AestheticRunner());
-        foreach (var onnx in OnnxModelCatalog.BuildRunners(OnnxModelCatalog.DefaultModelsDir()))
-            registry.Register(onnx);
-        foreach (var runner in SidecarModelCatalog.BuildRunners(sidecar))
-            registry.Register(runner);
-        foreach (var claude in ClaudeCullRunner.Catalog)
-            registry.Register(claude);
-        return registry;
     }
 
     [ObservableProperty] private bool _sidecarStarting;
@@ -591,7 +589,7 @@ public partial class MainWindowViewModel : ViewModelBase
     private void RegenerateCullPrompt()
     {
         var criteria = CullCriteria.Where(c => c.IsEnabled).Select(c => c.Key).ToArray();
-        CullPrompt = CullLauncher.BuildCullBody(CullKeepTarget, criteria);   // OnCullPromptChanged persists it
+        CullPrompt = CullLauncher.BuildCullBody(CullKeepTarget, criteria, CurrentThresholdRules());   // OnCullPromptChanged persists it
     }
 
     /// <summary>Regenerate the prompt from the current knobs (discards hand edits, keeps the knobs).</summary>
@@ -607,6 +605,129 @@ public partial class MainWindowViewModel : ViewModelBase
         foreach (var c in CullCriteria)
             c.IsEnabled = DefaultCullCriteria.Contains(c.Key);   // per-change toggles regenerate; final call ensures it
         RegenerateCullPrompt();
+    }
+
+    // ---- Configurable weighted scoring (AI Cull view): Technical/Aesthetic composites (#weights) ----
+    // Two tables (one per axis) list every eligible contributor — the pixel-derived TQ (always
+    // present, anchors Technical), every numeric Technical/Aesthetic-kind model, and any
+    // Quality-kind model in BOTH tables with independent weights. A row's Weight is persisted the
+    // instant it changes; the tile footer only switches from raw TQ/AES to the weighted composite
+    // once an axis's dictionary in AppSettings is non-empty (i.e. the user — or Reset to defaults —
+    // has actually touched that table), so nothing changes on screen until asked for.
+    public ObservableCollection<WeightRowViewModel> TechnicalWeightRows { get; } = new();
+    public ObservableCollection<WeightRowViewModel> AestheticWeightRows { get; } = new();
+
+    private void BuildWeightRows()
+    {
+        var defaults = ScoreCompositor.DefaultWeights(_registry.All.Select(r => r.Descriptor));
+
+        TechnicalWeightRows.Add(new WeightRowViewModel(ScoreCompositor.PixelTechnicalId, "Pixel technical quality (TQ)",
+            EffectiveWeight(_settings.TechnicalWeights, defaults.Technical, ScoreCompositor.PixelTechnicalId),
+            OnWeightRowChanged));
+
+        foreach (var d in _registry.All.Select(r => r.Descriptor).Where(d => d.ScaleMax is not null))
+        {
+            if (d.OutputKind is ScoreKind.Technical or ScoreKind.Quality)
+                TechnicalWeightRows.Add(new WeightRowViewModel(d.Id, d.DisplayName,
+                    EffectiveWeight(_settings.TechnicalWeights, defaults.Technical, d.Id), OnWeightRowChanged));
+            if (d.OutputKind is ScoreKind.Aesthetic or ScoreKind.Quality)
+                AestheticWeightRows.Add(new WeightRowViewModel(d.Id, d.DisplayName,
+                    EffectiveWeight(_settings.AestheticWeights, defaults.Aesthetic, d.Id), OnWeightRowChanged));
+        }
+
+        RefreshWeightShares();
+        ApplyWeightsToTiles();
+    }
+
+    private static double EffectiveWeight(IReadOnlyDictionary<string, double> persisted,
+        IReadOnlyDictionary<string, double> defaults, string id) =>
+        persisted.TryGetValue(id, out var w) ? w : defaults.GetValueOrDefault(id);
+
+    private void OnWeightRowChanged()
+    {
+        _settings.TechnicalWeights = TechnicalWeightRows.ToDictionary(r => r.ModelId, r => r.Weight);
+        _settings.AestheticWeights = AestheticWeightRows.ToDictionary(r => r.ModelId, r => r.Weight);
+        _settings.Save();
+        RefreshWeightShares();
+        ApplyWeightsToTiles();
+    }
+
+    /// <summary>Recompute each row's share (0..1) of its table's total weight, so the number next to
+    /// the slider means something.</summary>
+    private void RefreshWeightShares()
+    {
+        RefreshShares(TechnicalWeightRows);
+        RefreshShares(AestheticWeightRows);
+
+        static void RefreshShares(IReadOnlyCollection<WeightRowViewModel> rows)
+        {
+            var total = rows.Sum(r => Math.Max(0, r.Weight));
+            foreach (var r in rows)
+                r.Share = total > 0 ? Math.Max(0, r.Weight) / total : 0;
+        }
+    }
+
+    /// <summary>Push the current effective weights (+ whether each axis is "configured") to every
+    /// tile so the footer picks the raw or weighted display, then refresh what's already on screen.</summary>
+    private void ApplyWeightsToTiles()
+    {
+        PhotoTileViewModel.Weights = new ScoreWeights
+        {
+            Technical = TechnicalWeightRows.ToDictionary(r => r.ModelId, r => r.Weight),
+            Aesthetic = AestheticWeightRows.ToDictionary(r => r.ModelId, r => r.Weight),
+        };
+        PhotoTileViewModel.TechnicalWeighted = _settings.TechnicalWeights.Count > 0;
+        PhotoTileViewModel.AestheticWeighted = _settings.AestheticWeights.Count > 0;
+        foreach (var p in Photos)
+            p.RefreshFromItem();
+    }
+
+    /// <summary>Effective weights for the current cull run, handed to Monocle.Mcp (a separate process
+    /// with no access to AppSettings) via <see cref="CullLauncher.WriteMcpConfig"/> so scan_folder /
+    /// get_metrics can report the SAME composite the tile footer and threshold rules use (#weights).</summary>
+    private ScoreWeights BuildEffectiveWeights() => PhotoTileViewModel.Weights;
+
+    /// <summary>Reset every row in both tables back to its default weight (still "configured" —
+    /// Reset writes concrete values, it doesn't blank the tables back to the unconfigured/raw state).</summary>
+    [RelayCommand]
+    private void ResetWeightDefaults()
+    {
+        var defaults = ScoreCompositor.DefaultWeights(_registry.All.Select(r => r.Descriptor));
+        foreach (var row in TechnicalWeightRows)
+            row.Weight = defaults.Technical.GetValueOrDefault(row.ModelId);
+        foreach (var row in AestheticWeightRows)
+            row.Weight = defaults.Aesthetic.GetValueOrDefault(row.ModelId);
+    }
+
+    // ---- Cull threshold rules: "[axis] below [value] -> rating at most [N] stars" (#weights) ----
+    public ObservableCollection<ThresholdRuleViewModel> ThresholdRules { get; } = new();
+
+    private IReadOnlyList<(string Axis, double Below, int MaxStars)> CurrentThresholdRules() =>
+        ThresholdRules.Select(r => (r.Axis, r.Below, r.MaxStars)).ToList();
+
+    private void OnThresholdRuleChanged()
+    {
+        _settings.ThresholdRules = ThresholdRules
+            .Select(r => new ThresholdRuleSetting { Axis = r.Axis, Below = r.Below, MaxStars = r.MaxStars })
+            .ToList();
+        _settings.Save();
+        RegenerateCullPrompt();   // rules are a knob like criteria/keepTarget: regenerating rewrites the hard-limits section
+    }
+
+    [RelayCommand]
+    private void AddThresholdRule()
+    {
+        ThresholdRules.Add(new ThresholdRuleViewModel(true, 0.35, 1, OnThresholdRuleChanged));
+        OnThresholdRuleChanged();
+    }
+
+    [RelayCommand]
+    private void RemoveThresholdRule(ThresholdRuleViewModel? rule)
+    {
+        if (rule is null)
+            return;
+        ThresholdRules.Remove(rule);
+        OnThresholdRuleChanged();
     }
 
     // ---- In-app console / diagnostic log panel (toggled in Settings) ----
@@ -1597,7 +1718,7 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             Folder = FolderPath,
             Prompt = CullLauncher.ComposeCullPrompt(FolderPath, CullPrompt),
-            McpConfigPath = CullLauncher.WriteMcpConfig(),
+            McpConfigPath = CullLauncher.WriteMcpConfig(BuildEffectiveWeights()),
             Model = currentClaudeModelId,
         };
         var service = new ClaudeCullService { Executable = CullLauncher.ResolveClaude() };

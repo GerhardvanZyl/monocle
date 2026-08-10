@@ -29,6 +29,20 @@ public sealed class AppSettings
     public string CullCriteria { get; set; } = "sharpness,exposure,composition,aesthetics"; // CSV of ticked keys
     public string CullPrompt { get; set; } = "";                                  // editable instruction body (no folder)
 
+    // Configurable weighted scoring (AI Cull view): combines every model's normalised output into a
+    // Technical and an Aesthetic composite (#weights). Keyed by ModelDescriptor.Id (never
+    // DisplayName) so a model rename never resets a user's tuning, and an id for a since-uninstalled
+    // model just sits unused rather than being lost — reinstalling the same model restores its weight.
+    // Empty (the default for a settings file with none of these fields, or before the user has ever
+    // touched a weight) means "not configured yet": the tile footer and cull prompt fall back to the
+    // existing raw display/behaviour rather than a weighted one nobody asked for.
+    public Dictionary<string, double> TechnicalWeights { get; set; } = new();
+    public Dictionary<string, double> AestheticWeights { get; set; } = new();
+
+    /// <summary>Short editable rule list ("[axis] below [value] -> rating at most [N] stars") that
+    /// becomes hard limits in the Claude cull prompt (see <see cref="CullLauncher.BuildCullBody"/>).</summary>
+    public List<ThresholdRuleSetting> ThresholdRules { get; set; } = new();
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Monocle", "settings.json");
@@ -55,4 +69,14 @@ public sealed class AppSettings
         }
         catch { /* best-effort: a failed settings write must not surface to the user */ }
     }
+}
+
+/// <summary>One "[axis] below [value] -> rating at most [N] stars" hard limit. Axis is a plain
+/// string ("technical" | "aesthetic") rather than an enum so it round-trips through JSON without a
+/// converter and stays readable if a user inspects the settings file by hand.</summary>
+public sealed class ThresholdRuleSetting
+{
+    public string Axis { get; set; } = "technical";
+    public double Below { get; set; } = 0.35;
+    public int MaxStars { get; set; } = 1;
 }
