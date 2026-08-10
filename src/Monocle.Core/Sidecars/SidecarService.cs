@@ -20,6 +20,24 @@ public static class SidecarService
         _ => null,
     };
 
+    /// <summary>
+    /// Inverse of <see cref="LabelFor"/>: recovers the technical reason from the colour label last
+    /// written to disk. The label is fully Monocle-managed — <see cref="XmpSidecar.Write"/> always
+    /// overwrites it from <c>LabelFor(item.Reason)</c>, never merges it — so it is always in lockstep
+    /// with whatever reason keywords that same save wrote. Reading it back on <see cref="Load"/> is
+    /// what lets <see cref="BuildManagedKeywords"/> tell "no reason" apart from "reason unknown this
+    /// session" (a manually/AI-rated frame that never re-ran the heuristic rater): any label Monocle
+    /// doesn't own, or none at all, means no known reason.
+    /// </summary>
+    private static TechnicalReason ReasonForLabel(string? label) => label switch
+    {
+        "Red" => TechnicalReason.Sharpness,
+        "Blue" => TechnicalReason.Exposure,
+        "Purple" => TechnicalReason.Noise,
+        "Yellow" => TechnicalReason.Multiple,
+        _ => TechnicalReason.None,
+    };
+
     /// <summary>Persist the item's rating, keywords, notes and rationale to all its files. The AI
     /// headline is merged into each file's existing description so a verdict from a different model is
     /// appended rather than overwritten; only the same model's line is replaced (#5).</summary>
@@ -69,6 +87,10 @@ public static class SidecarService
         var xmp = XmpSidecar.Read(primary.Path);
         if (xmp.Rating is { } r)
             item.Stars = r;
+        // Recover the reason from the colour label (the inverse of what Save writes) so a frame
+        // loaded without being re-rated this session still knows whether its reason keywords are
+        // current — see ReasonForLabel.
+        item.Reason = ReasonForLabel(xmp.Label);
         item.Keywords.Clear();
         item.Keywords.AddRange(xmp.Keywords);
         var (headline, notes) = NotesFormat.Parse(xmp.Description);
@@ -125,13 +147,7 @@ public static class SidecarService
     private static XmpData BuildXmp(PhotoItem item, string? existingDescription,
                                     bool overrideHeadline = false, string? headlineOverride = null)
     {
-        var keywords = new List<string>(item.Keywords);
-
-        // Pick/reject keyword travels in the sidecar because On1 flags don't (FEATURES §2).
-        if (item.IsPick && !keywords.Contains(MonocleKeywords.Pick, StringComparer.OrdinalIgnoreCase))
-            keywords.Add(MonocleKeywords.Pick);
-        if (item.IsReject && !keywords.Contains(MonocleKeywords.Reject, StringComparer.OrdinalIgnoreCase))
-            keywords.Add(MonocleKeywords.Reject);
+        var keywords = BuildManagedKeywords(item);
 
         // Merge this model's verdict into the existing AI headline (keep other models', replace own) (#5),
         // unless the caller supplied the exact block to restore (undo/redo).
@@ -152,6 +168,60 @@ public static class SidecarService
             Crop = item.Crop,
         };
     }
+
+    /// <summary>
+    /// Build the outgoing keyword list from the item's <em>current</em> state rather than trusting
+    /// whatever <see cref="PhotoItem.Keywords"/> already holds: <c>item.Keywords</c> is populated
+    /// verbatim from the on-disk sidecar at load time (see <see cref="Load"/>), so it can carry
+    /// managed flags (Pick/reject, technical-reason tags) left over from a previous rating. Every
+    /// managed keyword (<see cref="MonocleKeywords.IsManaged"/>) is rebuilt from scratch here so a
+    /// re-rate never leaves a stale flag behind (the contract <see cref="MonocleKeywords"/>
+    /// documents); every other keyword (user, On1, Lightroom) passes through untouched, in order.
+    /// </summary>
+    private static List<string> BuildManagedKeywords(PhotoItem item)
+    {
+        var keywords = new List<string>();
+
+        foreach (var k in item.Keywords)
+        {
+            if (!MonocleKeywords.IsManaged(k))
+            {
+                keywords.Add(k);
+            }
+            else if (MonocleKeywords.Reasons.Contains(k) && MatchesCurrentReason(k, item.Reason)
+                     && !keywords.Contains(k, StringComparer.OrdinalIgnoreCase))
+            {
+                // Reason tags are only added by the raters (outside Core); this layer's job is to
+                // keep one that's still consistent with the item's current fault and drop one that
+                // isn't (e.g. "soft" surviving a re-rate to a clean frame).
+                keywords.Add(k);
+            }
+        }
+
+        // Pick/reject keyword travels in the sidecar because On1 flags don't (FEATURES §2).
+        // Structurally mutually exclusive: exactly one, or neither, is ever added — never both,
+        // regardless of how IsPick/IsReject happen to be defined.
+        if (item.IsPick)
+            keywords.Add(MonocleKeywords.Pick);
+        else if (item.IsReject)
+            keywords.Add(MonocleKeywords.Reject);
+
+        return keywords;
+    }
+
+    /// <summary>Whether a technical-reason keyword is still consistent with the item's current
+    /// <see cref="TechnicalReason"/>. <c>Multiple</c> can't be disambiguated back into the specific
+    /// fault keywords that composed it, so any reason tag already present is trusted; every other
+    /// value maps to exactly the tag(s) it can produce.</summary>
+    private static bool MatchesCurrentReason(string keyword, TechnicalReason reason) => reason switch
+    {
+        TechnicalReason.Sharpness => keyword.Equals("soft", StringComparison.OrdinalIgnoreCase),
+        TechnicalReason.Exposure => keyword.Equals("overexposed", StringComparison.OrdinalIgnoreCase)
+                                  || keyword.Equals("underexposed", StringComparison.OrdinalIgnoreCase),
+        TechnicalReason.Noise => keyword.Equals("noisy", StringComparison.OrdinalIgnoreCase),
+        TechnicalReason.Multiple => true,
+        _ => false,   // None: an unfaulted frame keeps no reason tag.
+    };
 
     /// <summary>The composed display orientation to record for one file, or null to leave the
     /// sidecar's orientation untouched (preserves any externally-written value for un-rotated frames).</summary>
