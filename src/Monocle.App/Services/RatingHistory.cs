@@ -190,7 +190,10 @@ public sealed class RatingHistory
         next.ApplyTo(item);
         try
         {
-            SidecarService.Save(item, headlineOverrides);
+            // Always RatingChange: this method exists only to change a rating, and the outside-edit
+            // question is already settled above by SidecarStaleness — a replay that got here has
+            // been checked against Monocle's belief, and a direct keystroke deliberately overrides.
+            SidecarService.Save(item, SidecarSaveKind.RatingChange, headlineOverrides);
         }
         catch (Exception ex)
         {

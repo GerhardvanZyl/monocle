@@ -44,7 +44,8 @@ public static class XmpSidecar
         if (descriptions is null || descriptions.Count == 0)
             return data;
 
-        var keywords = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var keywords = new List<string>();
         foreach (XmlNode desc in descriptions)
         {
             if (data.Rating is null && int.TryParse(SelectText(desc, "xmp:Rating", ns), out var rating))
@@ -55,16 +56,19 @@ public static class XmpSidecar
             data.Crop ??= ReadCrop(desc, ns);
             data.Description ??= SelectLangAlt(desc, "dc:description", ns);
             foreach (XmlNode li in desc.SelectNodes("dc:subject/rdf:Bag/rdf:li", ns) ?? Empty())
-                if (!string.IsNullOrWhiteSpace(li.InnerText) && keywords.Add(li.InnerText.Trim()))
-                    data.Keywords.Add(li.InnerText.Trim());
+                if (!string.IsNullOrWhiteSpace(li.InnerText) && seen.Add(li.InnerText.Trim()))
+                    keywords.Add(li.InnerText.Trim());
         }
+        data.Keywords = keywords;
 
         return data;
     }
 
     /// <summary>
     /// Merge <paramref name="data"/> into the sidecar for <paramref name="imagePath"/> and save.
-    /// Only the fields Monocle manages are overwritten; everything else is preserved.
+    /// Only the fields Monocle manages are overwritten; everything else is preserved. A field
+    /// <paramref name="data"/> leaves null is not authored at all — see <see cref="XmpData"/> — so a
+    /// caller that has nothing to say about the rating cannot destroy one written elsewhere.
     /// </summary>
     public static void Write(string imagePath, XmpData data)
     {
@@ -78,26 +82,32 @@ public static class XmpSidecar
         var ns = NsManager(doc);
         var desc = EnsureDescription(doc, ns);
 
-        if (data.Rating is { } r)
-            SetSimple(doc, desc, NsXmp, "xmp", "Rating", r.ToString());
+        // The rating, its colour label and the managed keyword flags are one unit: a write either
+        // authors all three or leaves all three exactly as the file has them, so a save that has
+        // nothing to say about the rating cannot destroy one another application made (#11).
+        if (data.WritesRatingFields)
+        {
+            if (data.Rating is { } r)
+                SetSimple(doc, desc, NsXmp, "xmp", "Rating", r.ToString());
 
-        if (!string.IsNullOrEmpty(data.Label))
-            SetSimple(doc, desc, NsXmp, "xmp", "Label", data.Label);
-        else
-            RemoveProperty(desc, "xmp", "Label", ns);
+            if (!string.IsNullOrEmpty(data.Label))
+                SetSimple(doc, desc, NsXmp, "xmp", "Label", data.Label);
+            else
+                RemoveProperty(desc, "xmp", "Label", ns);
+
+            // Merge, never clobber: keep any keywords On1/Lightroom wrote and re-apply Monocle's
+            // managed set (user keywords + current Pick/reject), dropping stale managed flags.
+            var merged = MergeKeywords(ReadBag(desc, ns), data.Keywords);
+            if (merged.Count > 0)
+                SetBag(doc, desc, ns, merged);
+            else
+                RemoveChild(desc, "dc:subject", ns);
+        }
 
         if (data.Orientation is { } orientation)
             SetSimple(doc, desc, NsTiff, "tiff", "Orientation", orientation.ToString());
 
         WriteCrop(doc, desc, ns, data.Crop);
-
-        // Merge, never clobber: keep any keywords On1/Lightroom wrote and re-apply Monocle's
-        // managed set (user keywords + current Pick/reject), dropping stale managed flags.
-        var merged = MergeKeywords(ReadBag(desc, ns), data.Keywords);
-        if (merged.Count > 0)
-            SetBag(doc, desc, ns, merged);
-        else
-            RemoveChild(desc, "dc:subject", ns);
 
         // Only write dc:description when Monocle actually has something to say; null means "leave
         // the existing caption alone" so we never wipe an On1/LR caption. An explicit empty string

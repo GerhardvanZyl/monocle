@@ -1274,7 +1274,8 @@ public partial class MainWindowViewModel : ViewModelBase
         else
         {
             next.ApplyTo(tile.Item);
-            await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
+            // sidecar write off the UI thread; RatingChange because the user just set the stars
+            await Task.Run(() => _service.Save(tile.Item, SidecarSaveKind.RatingChange));
         }
 
         tile.RefreshFromItem();
@@ -1914,9 +1915,34 @@ public partial class MainWindowViewModel : ViewModelBase
         if (SelectedPhoto is not { } tile)
             return;
         tile.Item.UserNotes = string.IsNullOrWhiteSpace(NotesText) ? null : NotesText.Trim();
-        await Task.Run(() => _service.Save(tile.Item));   // sidecar write off the UI thread
-        StatusText = $"Saved notes for {tile.Title}.";
+        // sidecar write off the UI thread; NonRatingEdit so saving a note can never push a stale
+        // in-memory rating over one made in On1/Lightroom since this shoot was opened.
+        var outside = await Task.Run(() => _service.Save(tile.Item, SidecarSaveKind.NonRatingEdit));
+        AfterNonRatingSave(tile, outside);
+        StatusText = Append($"Saved notes for {tile.Title}.", outside);
     }
+
+    /// <summary>
+    /// Re-sync the UI after a non-rating save. When the save found the frame rated differently on
+    /// disk it left that rating alone and copied it into the item, so the tile (and the detail
+    /// pane's rating line) are now the stale ones and must be refreshed from the item.
+    /// </summary>
+    private void AfterNonRatingSave(PhotoTileViewModel tile, string? outside)
+    {
+        if (outside is null)
+            return;
+        Diagnostics.Log.Info($"[sidecar] kept an outside rating on {tile.Title}: {outside}");
+        tile.RefreshFromItem();
+        if (ReferenceEquals(SelectedPhoto, tile))
+            DetailRating = FormatRating(tile.Item);
+        ApplyFilter();
+        RefreshStats();
+        RefreshRevertState();
+    }
+
+    /// <summary>Append the "kept an outside rating" note to a status line, when there is one.</summary>
+    private static string Append(string status, string? outside) =>
+        outside is null ? status : $"{status} Rating left as another app set it — {outside}.";
 
     [RelayCommand]
     private void ToggleVariant()
@@ -1938,14 +1964,17 @@ public partial class MainWindowViewModel : ViewModelBase
         if (SelectedPhoto is not { } tile || _cache is not { } cache)
             return;
         tile.Item.RotationQuarters = (((tile.Item.RotationQuarters + delta) % 4) + 4) % 4;
-        await Task.Run(() => _service.Save(tile.Item));   // sidecar write + .bak off the UI thread
+        // sidecar write + .bak off the UI thread; NonRatingEdit — rotating a frame says nothing
+        // about its rating, so it must not overwrite one changed outside Monocle (#26).
+        var outside = await Task.Run(() => _service.Save(tile.Item, SidecarSaveKind.NonRatingEdit));
+        AfterNonRatingSave(tile, outside);
         var thumbPath = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge);
         // A re-scan during the await disposes/replaces _cache; don't push a stale thumbnail then.
         if (_cache != cache)
             return;
         tile.Thumbnail = SafeLoadBitmap(thumbPath);
         await LoadDetailAsync(tile);
-        StatusText = $"Rotated {tile.Title}.";
+        StatusText = Append($"Rotated {tile.Title}.", outside);
     }
 
     [RelayCommand]
@@ -2242,13 +2271,16 @@ public partial class MainWindowViewModel : ViewModelBase
         if (_cache is not { } cache)
             return;
         tile.Item.Crop = crop;
-        await Task.Run(() => _service.Save(tile.Item));   // sidecar write + .bak off the UI thread
+        // sidecar write + .bak off the UI thread; NonRatingEdit — a crop is not a verdict (#25).
+        var outside = await Task.Run(() => _service.Save(tile.Item, SidecarSaveKind.NonRatingEdit));
+        AfterNonRatingSave(tile, outside);
         var thumb = await _service.GetPreviewAsync(tile.Item, cache, ShootService.ThumbLongEdge);
         if (_cache != cache)   // a re-scan replaced the cache during the await
             return;
         tile.Thumbnail = SafeLoadBitmap(thumb);
         await LoadDetailAsync(tile);
-        StatusText = crop is null ? $"Cleared crop for {tile.Title}." : $"Cropped {tile.Title}.";
+        StatusText = Append(
+            crop is null ? $"Cleared crop for {tile.Title}." : $"Cropped {tile.Title}.", outside);
     }
 
     // ---- Reject management page (#8) ----

@@ -92,7 +92,7 @@ public class CacheAndServiceTests : IDisposable
 
         // Add a note, save, and confirm sidecars land.
         item.UserNotes = "test note for training";
-        svc.Save(item);
+        svc.Save(item, SidecarSaveKind.NonRatingEdit);
         var xmp = XmpSidecar.Read(item.Files[0].Path);
         Assert.Contains("test note for training", xmp.Description);
 

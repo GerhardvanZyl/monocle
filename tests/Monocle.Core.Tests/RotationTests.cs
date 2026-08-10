@@ -72,7 +72,7 @@ public class RotationTests : IDisposable
             RotationQuarters = 1,
         };
 
-        SidecarService.Save(item);
+        SidecarService.Save(item, SidecarSaveKind.NonRatingEdit);
 
         // The sidecar records the composed orientation (90° = 6).
         Assert.Equal(6, XmpSidecar.Read(jpg).Orientation);

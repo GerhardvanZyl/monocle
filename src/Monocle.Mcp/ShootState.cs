@@ -1,6 +1,7 @@
 using Monocle.Core;
 using Monocle.Core.Cache;
 using Monocle.Core.Model;
+using Monocle.Core.Sidecars;
 using Monocle.Models;
 using Monocle.Models.Scoring;
 using Monocle.Models.Sidecar;
@@ -79,10 +80,10 @@ public sealed class ShootState : IDisposable
         return await _service.GetPreviewAsync(item, _cache!, longEdge, ct);
     }
 
-    public void Save(PhotoItem item)
+    public string? Save(PhotoItem item, SidecarSaveKind kind)
     {
         EnsureWithinRoot(item);
-        _service.Save(item);
+        return _service.Save(item, kind);
     }
 
     // Defense in depth: ScanAsync guards the folder, but re-check every file at read/write time so a

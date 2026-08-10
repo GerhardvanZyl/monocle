@@ -60,7 +60,7 @@ public class CropTests : IDisposable
             Files = new[] { new PhotoFile { Path = jpg, Role = FileRole.Jpg } },
             Crop = crop,
         };
-        SidecarService.Save(item);
+        SidecarService.Save(item, SidecarSaveKind.NonRatingEdit);
 
         var xmp = XmpSidecar.Read(jpg);
         Assert.NotNull(xmp.Crop);
@@ -88,11 +88,11 @@ public class CropTests : IDisposable
             Files = new[] { new PhotoFile { Path = jpg, Role = FileRole.Jpg } },
             Crop = new CropRect(0.1, 0.1, 0.5, 0.5),
         };
-        SidecarService.Save(item);
+        SidecarService.Save(item, SidecarSaveKind.NonRatingEdit);
         Assert.NotNull(XmpSidecar.Read(jpg).Crop);
 
         item.Crop = null;
-        SidecarService.Save(item);
+        SidecarService.Save(item, SidecarSaveKind.NonRatingEdit);
         Assert.Null(XmpSidecar.Read(jpg).Crop);
     }
 

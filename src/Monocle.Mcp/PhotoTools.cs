@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Text.Json;
 using Monocle.Core.Model;
+using Monocle.Core.Sidecars;
 using ModelContextProtocol.Protocol;
 using ModelContextProtocol.Server;
 
@@ -91,7 +92,7 @@ public sealed class PhotoTools(ShootState state)
         item.RatedByModel = model ?? "Claude";
         if (!string.IsNullOrWhiteSpace(rationale))
             item.Rationale["headline"] = rationale!;
-        state.Save(item);
+        state.Save(item, SidecarSaveKind.RatingChange);
         return JsonSerializer.Serialize(new { id, item.Stars, pick = item.IsPick, reject = item.IsReject }, Json);
     }
 
@@ -105,8 +106,10 @@ public sealed class PhotoTools(ShootState state)
         if (item is null)
             return "{\"error\":\"unknown id\"}";
         item.UserNotes = string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-        state.Save(item);
-        return "{\"ok\":true}";
+        // Notes only: this must never push the cull's in-memory rating onto a frame the user (or
+        // On1) rated in the meantime — the run may have been reading this shoot for a long while.
+        var outside = state.Save(item, SidecarSaveKind.NonRatingEdit);
+        return JsonSerializer.Serialize(new { ok = true, outsideRating = outside }, Json);
     }
 
     [McpServerTool(Name = "list_burst_groups")]

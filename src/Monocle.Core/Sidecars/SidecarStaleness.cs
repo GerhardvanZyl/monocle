@@ -56,5 +56,7 @@ public static class SidecarStaleness
         return belief;
     }
 
-    private static string Describe(int? rating) => rating is { } r ? $"{r}★" : "unrated";
+    /// <summary>How a star rating (or the absence of one) is named in the messages both this guard
+    /// and <see cref="SidecarService.Save(PhotoItem, SidecarSaveKind)"/> show the user.</summary>
+    public static string Describe(int? rating) => rating is { } r ? $"{r}★" : "unrated";
 }

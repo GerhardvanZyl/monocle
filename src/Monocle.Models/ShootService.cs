@@ -192,8 +192,10 @@ public sealed class ShootService
         }
     }
 
-    /// <summary>Persist the item's rating, keywords, notes and rationale to its sidecars.</summary>
-    public void Save(PhotoItem item) => SidecarService.Save(item);
+    /// <summary>Persist the item's rating, keywords, notes and rationale to its sidecars.
+    /// <paramref name="kind"/> decides whether this save may author the rating-bearing fields;
+    /// returns a note about an outside rating it found and kept, or null.</summary>
+    public string? Save(PhotoItem item, SidecarSaveKind kind) => SidecarService.Save(item, kind);
 
     private static void ApplyExif(PhotoItem item, ExifInfo e)
     {

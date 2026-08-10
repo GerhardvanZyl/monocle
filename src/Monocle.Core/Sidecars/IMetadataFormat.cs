@@ -16,7 +16,14 @@ public interface IMetadataFormat
     bool CanHandle(string folder);
 
     void Load(PhotoItem item);
-    void Save(PhotoItem item);
+
+    /// <summary>
+    /// Persist the item. <paramref name="kind"/> says whether the save is about the rating: any
+    /// back-end shares the problem that another application may have re-rated the frame since it was
+    /// loaded, so a save made for some other reason must not be the thing that decides the rating.
+    /// Returns null, or a description of an outside rating that was found and kept.
+    /// </summary>
+    string? Save(PhotoItem item, SidecarSaveKind kind);
 }
 
 /// <summary>The default format: standard XMP sidecars (On1- and Lightroom-readable).</summary>
@@ -27,7 +34,7 @@ public sealed class XmpMetadataFormat : IMetadataFormat
     public bool CanHandle(string folder) => true; // the universal default
 
     public void Load(PhotoItem item) => SidecarService.Load(item);
-    public void Save(PhotoItem item) => SidecarService.Save(item);
+    public string? Save(PhotoItem item, SidecarSaveKind kind) => SidecarService.Save(item, kind);
 }
 
 /// <summary>
