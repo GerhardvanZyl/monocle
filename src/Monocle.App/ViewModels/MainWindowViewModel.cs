@@ -1837,11 +1837,41 @@ public partial class MainWindowViewModel : ViewModelBase
         }
     }
 
-    /// <summary>The running build's version, shown under Settings &gt; About. Stamped by the
-    /// BumpPatchVersion target in Monocle.App.csproj, which increments the patch on every build —
-    /// so the number on screen identifies exactly which build the user is looking at.</summary>
-    public string AppVersionText =>
-        $"Monocle {typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "dev"}";
+    /// <summary>
+    /// Version + build time of the binary that is actually running. The version comes from the
+    /// BumpPatchVersion target in Monocle.App.csproj (patch increments every build); the build time
+    /// is the assembly file's own write time, which needs no build plumbing and — unlike the
+    /// version — is still meaningful for a binary built before any of this existed.
+    /// <para>
+    /// It goes in the window title rather than only under Settings because the question it answers
+    /// ("am I looking at my rebuild, or the publish from last week?") has to be answerable without
+    /// clicking anything.
+    /// </para>
+    /// </summary>
+    public static string BuildStamp { get; } = ComposeBuildStamp();
+
+    private static string ComposeBuildStamp()
+    {
+        var assembly = typeof(MainWindowViewModel).Assembly;
+        var version = assembly.GetName().Version?.ToString(3) ?? "dev";
+        // Assembly.Location is empty for a single-file publish, where the exe IS the binary; for a
+        // normal build prefer it over ProcessPath, because the apphost .exe is not always rewritten
+        // when only the managed dll changes and would report a stale time.
+        var binary = string.IsNullOrEmpty(assembly.Location) ? Environment.ProcessPath : assembly.Location;
+        var built = binary is not null && System.IO.File.Exists(binary)
+            ? System.IO.File.GetLastWriteTime(binary).ToString("d MMM HH:mm")
+            : "unknown";
+        return $"{version} · built {built}";
+    }
+
+    public string WindowTitle => $"Monocle {BuildStamp}";
+
+    /// <summary>Shown under Settings &gt; About, with the path of the running binary — which is the
+    /// thing that actually explains a "nothing changed" rebuild (a stale publish/ exe, not a stale
+    /// build).</summary>
+    public string AppVersionText => $"Monocle {BuildStamp}";
+
+    public string AppExePath => Environment.ProcessPath ?? "unknown";
 
     // ---- Resuming a cull that ended early (usage limit, API error, stop) ----
     // Nothing is checkpointed: a frame is done when it carries this model's ModelScore, and those

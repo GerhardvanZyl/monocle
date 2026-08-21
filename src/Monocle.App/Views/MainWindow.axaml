@@ -12,7 +12,7 @@
         Background="{StaticResource Bg}"
         FontFamily="{StaticResource FontSans}"
         Icon="/Assets/robot-neon.png"
-        Title="Monocle">
+        Title="{Binding WindowTitle}">
 
     <Design.DataContext>
         <vm:MainWindowViewModel/>
@@ -1191,7 +1191,11 @@
                             <StackPanel Spacing="7">
                                 <TextBlock Text="About" FontWeight="SemiBold" FontSize="13"/>
                                 <TextBlock Text="{Binding AppVersionText}" FontSize="13"
-                                           FontFamily="{StaticResource FontMono}" IsHitTestVisible="True"/>
+                                           FontFamily="{StaticResource FontMono}"/>
+                                <SelectableTextBlock Text="{Binding AppExePath}" FontSize="11"
+                                                     FontFamily="{StaticResource FontMono}" TextWrapping="Wrap"
+                                                     Foreground="{StaticResource Text3}"
+                                                     ToolTip.Tip="The binary you are actually running. A version older than your last build means this is not the exe you just rebuilt."/>
                                 <TextBlock FontSize="11.5" Foreground="{StaticResource Text3}" TextWrapping="Wrap"
                                            Text="Local-first photo viewing, rating and culling. Ratings and notes are written as standard Adobe XMP sidecars, so the same shoot stays usable from On1 Photo RAW and Lightroom."/>
                             </StackPanel>
