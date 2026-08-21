@@ -8,7 +8,31 @@
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\robot-neon.ico</ApplicationIcon>
     <AvaloniaUseCompiledBindingsByDefault>true</AvaloniaUseCompiledBindingsByDefault>
+    <!-- Keep InformationalVersion equal to Version; the SDK otherwise appends "+<commit sha>". -->
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+    <VersionFile>$(MSBuildProjectDirectory)\..\..\version.txt</VersionFile>
   </PropertyGroup>
+
+  <!-- Auto-incrementing patch version, shown under Settings > About. version.txt at the repo root
+       is the counter: every build reads it, bumps the patch, writes it back and stamps the new
+       number into the assembly it is about to produce, so no two builds carry the same version.
+       BeforeBuild ordering matters — CoreGenerateAssemblyInfo runs later, so the properties set
+       inside this target are the ones that reach the attributes. Skipped for design-time builds
+       (the IDE runs those constantly and they produce no binary to distinguish). -->
+  <Target Name="BumpPatchVersion" BeforeTargets="BeforeBuild"
+          Condition="'$(DesignTimeBuild)' != 'true' And Exists('$(VersionFile)')">
+    <ReadLinesFromFile File="$(VersionFile)">
+      <Output TaskParameter="Lines" PropertyName="StoredVersion" />
+    </ReadLinesFromFile>
+    <PropertyGroup>
+      <Version>$(StoredVersion.Split('.')[0]).$(StoredVersion.Split('.')[1]).$([MSBuild]::Add($(StoredVersion.Split('.')[2]), 1))</Version>
+      <AssemblyVersion>$(Version)</AssemblyVersion>
+      <FileVersion>$(Version)</FileVersion>
+      <InformationalVersion>$(Version)</InformationalVersion>
+    </PropertyGroup>
+    <WriteLinesToFile File="$(VersionFile)" Lines="$(Version)" Overwrite="true" WriteOnlyWhenDifferent="false" />
+    <Message Importance="high" Text="Monocle version $(Version)" />
+  </Target>
 
   <ItemGroup>
     <AvaloniaResource Include="Assets\**" />

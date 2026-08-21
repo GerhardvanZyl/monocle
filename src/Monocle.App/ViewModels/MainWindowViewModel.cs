@@ -1065,6 +1065,7 @@ public partial class MainWindowViewModel : ViewModelBase
             await AnalyzeAllAsync(scorers, rateIfUnrated: false, claudeFollows: false, ct);
             CompletePipeline();
             RefreshStats();
+            RestoreCullResume(folder);   // needs the cached model scores AnalyzeAllAsync just attached
 
             ApplyFilter();   // apply the chosen sort now that every frame is analysed
             var picks = Photos.Count(p => p.Item.IsPick);
@@ -1210,6 +1211,12 @@ public partial class MainWindowViewModel : ViewModelBase
                 updates.Enqueue((tile, null, false));   // mark started: pip goes Active on next tick
                 try
                 {
+                    // Restore whatever a previous run already scored for this frame BEFORE deciding
+                    // what to run. A scan passes no scorers at all, so without this a reopened shoot
+                    // silently lost every model verdict (critique card, weighted composites, revert-
+                    // to-AI and the cull's resume point) until the user re-ran Process; and "only
+                    // score what's missing" re-ran models whose results were cached all along.
+                    _service.AttachCachedScores(tile.Item, cache);
                     var frameScorers = ScorersFor(tile);
                     if (onlyMissing && scorers.Count > 0 && frameScorers.Count == 0)
                         Interlocked.Increment(ref skippedFrames);   // honest progress: this frame does no scorer work below
@@ -1642,6 +1649,9 @@ public partial class MainWindowViewModel : ViewModelBase
                 await RunClaudeCullAsync(model, ct);
             }
 
+            // A cull leg reports cancellation instead of throwing (it leaves resumable work, not a
+            // failure), so the last leg being stopped would otherwise land on "Process complete."
+            ct.ThrowIfCancellationRequested();
             StatusText = "Process complete.";
         }
         catch (OperationCanceledException)
@@ -1674,7 +1684,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
     /// <summary>Run a folder-level Claude cull with a specific ticked Claude model, storing its verdict
     /// as its own per-model score (Task 5) so multiple models' verdicts coexist on a frame.</summary>
-    private async Task RunClaudeCullAsync(ClaudeCullRunner runner, CancellationToken outerCt)
+    /// <param name="resume">Continue an interrupted run: the prompt is scoped to the frames that
+    /// still have no verdict from this model, so the second pass doesn't re-spend tokens on the
+    /// first pass's work or overwrite a rating the user made in between.</param>
+    private async Task RunClaudeCullAsync(ClaudeCullRunner runner, CancellationToken outerCt, bool resume = false)
     {
         if (_cache is null || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
         {
@@ -1689,9 +1702,20 @@ public partial class MainWindowViewModel : ViewModelBase
         var currentClaudeModelId = runner.ClaudeModelId;
         var currentClaudeDisplay = runner.Descriptor.DisplayName;
 
+        // Scoped to the unrated remainder on a resume; the whole shoot otherwise.
+        var remainingBefore = CullResume.Remaining(Photos.Select(p => p.Item), currentClaudeModelId);
+        if (resume && remainingBefore.Count == 0)
+        {
+            ClearCullResume();
+            StatusText = $"Nothing left to cull — every frame already has a {currentClaudeDisplay} verdict.";
+            return;
+        }
+
         CullRunning = true;
         ShowConsole = true; DrawerRunLog = true;   // surface the run log (now a drawer tab) while culling
-        CullLog.Add($"Starting cull with {currentClaudeDisplay} (locked to Monocle photo tools)…");
+        CullLog.Add(resume
+            ? $"Resuming cull with {currentClaudeDisplay} — {remainingBefore.Count} of {Total} frames still need a verdict…"
+            : $"Starting cull with {currentClaudeDisplay} (locked to Monocle photo tools)…");
         StatusText = $"Culling {Total} photos with {currentClaudeDisplay}…";   // replace the stale scan result now, not at the end
         Pipeline?.SetStatus("claude", StageStatus.Running);
         // Every frame is pending Claude's judgement. BeginClaudeLeg arms only the Claude stage and
@@ -1700,8 +1724,11 @@ public partial class MainWindowViewModel : ViewModelBase
         // (The tiles were armed for this run by the scorer leg, or by ProcessAsync when Claude-only.)
         foreach (var tile in Photos)
             tile.BeginClaudeLeg();
+        // Own lifetime so a new scan can't abort a cull, but linked to the Process run's token so
+        // stopping Process actually kills the CLI instead of only skipping the remaining legs.
         _cullCts?.Cancel();
-        _cullCts = new CancellationTokenSource();   // own lifetime: a new scan must not abort a cull
+        _cullCts?.Dispose();
+        _cullCts = CancellationTokenSource.CreateLinkedTokenSource(outerCt);
 
         // Creep the bar of any frame Claude has started (progress > 0) smoothly toward a cap below 1.0,
         // so it visibly fills between the discrete tool steps without ever looping or completing early (#1).
@@ -1718,7 +1745,8 @@ public partial class MainWindowViewModel : ViewModelBase
         var options = new ClaudeCullOptions
         {
             Folder = FolderPath,
-            Prompt = CullLauncher.ComposeCullPrompt(FolderPath, CullPrompt),
+            Prompt = CullLauncher.ComposeCullPrompt(FolderPath,
+                resume ? CullPrompt + CullResume.Instruction(remainingBefore) : CullPrompt),
             McpConfigPath = CullLauncher.WriteMcpConfig(BuildEffectiveWeights()),
             Model = currentClaudeModelId,
         };
@@ -1727,7 +1755,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         try
         {
-            var result = await service.RunAsync(options, ev => Dispatcher.UIThread.Post(() =>
+            var outcome = await service.RunAsync(options, ev => Dispatcher.UIThread.Post(() =>
             {
                 switch (ev.Kind)
                 {
@@ -1771,21 +1799,30 @@ public partial class MainWindowViewModel : ViewModelBase
                             tile?.AdvanceCull(0.7);
                         break;
                     case ClaudeEventKind.Result:
-                        CullLog.Add($"Done — {ev.NumTurns} turns, {ev.DurationMs} ms, ${ev.CostUsd:0.0000}.");
+                        // is_error is how the CLI reports a usage limit / max-turns / API failure.
+                        // Reading it as "Done" is what used to make an out-of-tokens run look finished.
+                        CullLog.Add($"{(ev.IsError ? "Ended early" : "Done")} — {ev.NumTurns} turns, {ev.DurationMs} ms, ${ev.CostUsd:0.0000}.");
+                        if (ev.IsError && !string.IsNullOrWhiteSpace(ev.Text))
+                            CullLog.Add(ev.Text!.Trim());
                         break;
                 }
             }), _cullCts.Token);
 
-            Pipeline?.SetStatus("claude", StageStatus.Done);
+            // Skipped, not Done, when it ended early: the stage would otherwise sit Running forever
+            // in the flowchart on any error or stop (there is no Failed status).
+            Pipeline?.SetStatus("claude",
+                outcome.Kind == CullOutcomeKind.Completed ? StageStatus.Done : StageStatus.Skipped);
             await ReloadRatingsAsync();
-            if (result is { } r)
-                StatusText = $"Cull done: {r.NumTurns} turns, ${r.CostUsd:0.0000}.";
+            ApplyCullOutcome(runner, outcome);
         }
         catch (Exception ex)
         {
+            // Launch failures (claude.exe missing, a broken pipe) never reach ClaudeCullService's
+            // classifier; treat them as an interruption too, so partial work stays resumable.
             Diagnostics.Log.Error("Cull failed", ex);
-            CullLog.Add($"Cull failed: {ex.Message}");
-            StatusText = "Cull failed — is Claude Code installed and signed in?";
+            CullLog.Add($"Cull failed: {ex.Message} — is Claude Code installed and signed in?");
+            Pipeline?.SetStatus("claude", StageStatus.Skipped);
+            ApplyCullOutcome(runner, new ClaudeCullOutcome(CullOutcomeKind.Interrupted, null, ex.Message));
         }
         finally
         {
@@ -1797,6 +1834,134 @@ public partial class MainWindowViewModel : ViewModelBase
                 tile.JobRunning = false;
             }
             try { System.IO.File.Delete(options.McpConfigPath); } catch { /* best-effort temp cleanup */ }
+        }
+    }
+
+    /// <summary>The running build's version, shown under Settings &gt; About. Stamped by the
+    /// BumpPatchVersion target in Monocle.App.csproj, which increments the patch on every build —
+    /// so the number on screen identifies exactly which build the user is looking at.</summary>
+    public string AppVersionText =>
+        $"Monocle {typeof(MainWindowViewModel).Assembly.GetName().Version?.ToString(3) ?? "dev"}";
+
+    // ---- Resuming a cull that ended early (usage limit, API error, stop) ----
+    // Nothing is checkpointed: a frame is done when it carries this model's ModelScore, and those
+    // are cached per shoot, so the remaining work is recomputed rather than replayed from a list
+    // that could be stale by the time the user comes back to it.
+
+    /// <summary>Why the last cull stopped and how much is left, or null when there is nothing to
+    /// resume. Bound by the "Interrupted cull" banner on the AI Cull page.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CanResumeCull))]
+    private string? _cullResumeNote;
+
+    public bool CanResumeCull => CullResumeNote is not null;
+
+    private string? _resumeModelId;
+
+    /// <summary>Record the run's ending: clear the resume offer when Claude actually finished,
+    /// otherwise arm it (and persist it, so "retry later" survives closing the app).</summary>
+    private void ApplyCullOutcome(ClaudeCullRunner runner, ClaudeCullOutcome outcome)
+    {
+        var remaining = CullResume.Remaining(Photos.Select(p => p.Item), runner.ClaudeModelId);
+        if (outcome.Kind == CullOutcomeKind.Completed || remaining.Count == 0)
+        {
+            // Completed with frames still unrated means Claude chose to leave them (e.g. it judged
+            // a burst as a group) — that is a finished run, not something to nag the user about.
+            ClearCullResume();
+            StatusText = outcome.Result is { } r
+                ? $"Cull done: {r.NumTurns} turns, ${r.CostUsd:0.0000}."
+                : "Cull done.";
+            return;
+        }
+
+        var stopped = outcome.Kind == CullOutcomeKind.Cancelled;
+        var why = stopped ? "Stopped" : $"Interrupted — {outcome.Reason}";
+        _resumeModelId = runner.ClaudeModelId;
+        CullResumeNote = $"{runner.Descriptor.DisplayName} — {why}. " +
+                         $"{Frames(remaining.Count)} still have no verdict; Resume picks up from there.";
+        _settings.PendingCullFolder = FolderPath;
+        _settings.PendingCullModelId = runner.ClaudeModelId;
+        _settings.PendingCullNote = CullResumeNote;
+        _settings.Save();
+
+        CullLog.Add($"{why}. {remaining.Count} of {Total} frames still need a verdict from " +
+                    $"{runner.Descriptor.DisplayName} — use “Resume cull” to continue without re-rating the rest.");
+        StatusText = stopped
+            ? $"Cull stopped — {Frames(remaining.Count)} left. Resume continues where it stopped."
+            : $"Cull interrupted — {Frames(remaining.Count)} left. Resume continues where it stopped.";
+    }
+
+    private void ClearCullResume()
+    {
+        _resumeModelId = null;
+        CullResumeNote = null;
+        if (_settings.PendingCullFolder is null && _settings.PendingCullModelId is null)
+            return;
+        _settings.PendingCullFolder = null;
+        _settings.PendingCullModelId = null;
+        _settings.PendingCullNote = null;
+        _settings.Save();
+    }
+
+    /// <summary>Re-offer a cull left unfinished in an earlier session, if this is the same folder and
+    /// frames are still missing that model's verdict. Called after a scan, once the cached model
+    /// scores are back on the items — without those the remaining set would look like the whole shoot.</summary>
+    private void RestoreCullResume(string folder)
+    {
+        _resumeModelId = null;
+        CullResumeNote = null;
+        if (_settings.PendingCullModelId is not { } modelId ||
+            !string.Equals(_settings.PendingCullFolder, folder, StringComparison.OrdinalIgnoreCase))
+            return;
+
+        var remaining = CullResume.Remaining(Photos.Select(p => p.Item), modelId);
+        if (remaining.Count == 0)
+        {
+            ClearCullResume();
+            return;
+        }
+        _resumeModelId = modelId;
+        CullResumeNote = _settings.PendingCullNote ??
+                         $"An earlier cull was interrupted; {Frames(remaining.Count)} still have no verdict.";
+        RunLog(CullResumeNote);
+    }
+
+    /// <summary>Continue the interrupted cull over just the frames it never reached.</summary>
+    [RelayCommand]
+    private async Task ResumeCullAsync()
+    {
+        if (ProcessRunning || CullRunning)
+            return;
+        if (_resumeModelId is not { } modelId ||
+            ClaudeCullRunner.Catalog.FirstOrDefault(r => r.ClaudeModelId == modelId) is not { } runner)
+        {
+            ClearCullResume();
+            return;
+        }
+        if (_cache is null || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
+        {
+            StatusText = "Scan a folder before culling.";
+            return;
+        }
+
+        _processCts?.Dispose();
+        _processCts = new CancellationTokenSource();
+        ProcessRunning = true;
+        try
+        {
+            SetupPipeline(Array.Empty<IModelRunner>(), rate: false, useClaude: true);
+            foreach (var t in Photos)
+                t.BeginRun(decode: false, score: false, claude: true, rate: false);
+            await RunClaudeCullAsync(runner, _processCts.Token, resume: true);
+        }
+        catch (OperationCanceledException)
+        {
+            StatusText = "Cull stopped.";
+        }
+        finally
+        {
+            ProcessRunning = false;
+            foreach (var t in Photos) t.JobRunning = false;
         }
     }
 

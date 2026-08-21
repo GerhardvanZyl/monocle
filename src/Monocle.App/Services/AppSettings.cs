@@ -43,6 +43,13 @@ public sealed class AppSettings
     /// becomes hard limits in the Claude cull prompt (see <see cref="CullLauncher.BuildCullBody"/>).</summary>
     public List<ThresholdRuleSetting> ThresholdRules { get; set; } = new();
 
+    // A cull that ended early (usage limit, an API error, a stop) leaves frames unrated. Only the
+    // folder + model are remembered: which frames still need a verdict is recomputed from the
+    // per-shoot score cache when the folder is reopened, so a resume can't act on a stale list.
+    public string? PendingCullFolder { get; set; }
+    public string? PendingCullModelId { get; set; }
+    public string? PendingCullNote { get; set; }
+
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
         "Monocle", "settings.json");

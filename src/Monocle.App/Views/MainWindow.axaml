@@ -934,6 +934,23 @@
                         </StackPanel>
                         <ProgressBar Minimum="0" Maximum="1" Value="{Binding ProgressFraction}" Height="6"/>
 
+                        <!-- A cull that ran out of tokens, hit an API error or was stopped leaves
+                             frames unrated. Resume re-runs it over only those frames, so the
+                             tokens already spent aren't spent again. -->
+                        <Border IsVisible="{Binding CanResumeCull}" Background="{StaticResource Surface2}"
+                                BorderBrush="{StaticResource BorderStrong}" BorderThickness="1"
+                                CornerRadius="9" Padding="14">
+                            <StackPanel Spacing="10">
+                                <TextBlock Text="Interrupted cull" FontWeight="SemiBold" FontSize="12.5"/>
+                                <TextBlock Text="{Binding CullResumeNote}" TextWrapping="Wrap" FontSize="12"
+                                           Foreground="{StaticResource Text2}"/>
+                                <Button Classes="primary" HorizontalAlignment="Left" Content="Resume cull"
+                                        ToolTip.Tip="Continue the interrupted run over just the frames it never rated."
+                                        Command="{Binding ResumeCullCommand}"
+                                        IsEnabled="{Binding !ProcessRunning}"/>
+                            </StackPanel>
+                        </Border>
+
                         <!-- Shoot-wide revert to the AI's ratings. Lives here rather than one click
                              from the grid because it rewrites a sidecar for every frame; the
                              confirmation mirrors the "Move rejects to _Rejects" flow (summary,
@@ -1165,6 +1182,18 @@
                                     <ComboBox Grid.Column="1" ItemsSource="{Binding SidecarComputeChoices}"
                                               SelectedItem="{Binding SidecarCompute}" Width="200" VerticalAlignment="Center"/>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+                        <!-- About. The patch number auto-increments on every build (see the
+                             BumpPatchVersion target), so this identifies the exact build. -->
+                        <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="9" Padding="20">
+                            <StackPanel Spacing="7">
+                                <TextBlock Text="About" FontWeight="SemiBold" FontSize="13"/>
+                                <TextBlock Text="{Binding AppVersionText}" FontSize="13"
+                                           FontFamily="{StaticResource FontMono}" IsHitTestVisible="True"/>
+                                <TextBlock FontSize="11.5" Foreground="{StaticResource Text3}" TextWrapping="Wrap"
+                                           Text="Local-first photo viewing, rating and culling. Ratings and notes are written as standard Adobe XMP sidecars, so the same shoot stays usable from On1 Photo RAW and Lightroom."/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

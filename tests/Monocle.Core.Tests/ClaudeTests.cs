@@ -134,6 +134,84 @@ public class ClaudeTests
         Assert.Contains("overall image quality", bare);
     }
 
+    // ---- Ending early / resuming (an out-of-tokens run must not read as a finished one) ----
+
+    private static ClaudeEvent ResultEvent(bool isError, string? text = null) =>
+        new() { Kind = ClaudeEventKind.Result, IsError = isError, Text = text, NumTurns = 3 };
+
+    [Fact]
+    public void Classify_treats_a_clean_result_as_completed()
+    {
+        var outcome = ClaudeCullOutcome.Classify(cancelled: false, exitCode: 0, ResultEvent(false, "Done."), stderr: null);
+        Assert.Equal(CullOutcomeKind.Completed, outcome.Kind);
+        Assert.Null(outcome.Reason);
+    }
+
+    [Fact]
+    public void Classify_treats_a_usage_limit_result_as_interrupted_and_keeps_the_message()
+    {
+        // This is exactly what running out of tokens looks like: exit 0, is_error, the reason in `result`.
+        var outcome = ClaudeCullOutcome.Classify(cancelled: false, exitCode: 0,
+            ResultEvent(true, "Claude AI usage limit reached"), stderr: null);
+        Assert.Equal(CullOutcomeKind.Interrupted, outcome.Kind);
+        Assert.Equal("Claude AI usage limit reached", outcome.Reason);
+    }
+
+    [Fact]
+    public void Classify_falls_back_to_stderr_then_exit_code_when_there_is_no_result()
+    {
+        var fromStderr = ClaudeCullOutcome.Classify(false, 1, null, "boom\nauth required\n");
+        Assert.Equal(CullOutcomeKind.Interrupted, fromStderr.Kind);
+        Assert.Contains("auth required", fromStderr.Reason);
+
+        var fromExit = ClaudeCullOutcome.Classify(false, 127, null, "   ");
+        Assert.Equal(CullOutcomeKind.Interrupted, fromExit.Kind);
+        Assert.Contains("127", fromExit.Reason);
+    }
+
+    [Fact]
+    public void Classify_reports_a_stop_as_cancelled_not_a_failure()
+    {
+        var outcome = ClaudeCullOutcome.Classify(cancelled: true, exitCode: -1, null, null);
+        Assert.Equal(CullOutcomeKind.Cancelled, outcome.Kind);
+    }
+
+    [Fact]
+    public void Remaining_is_the_frames_without_a_verdict_from_that_model()
+    {
+        var rated = Frame("a");
+        rated.Scores.Add(MainWindowViewModel.ClaudeVerdictScore("claude-haiku-4-5", "Haiku", 3, "ok"));
+        var byAnotherModel = Frame("b");
+        byAnotherModel.Scores.Add(MainWindowViewModel.ClaudeVerdictScore("claude-opus-4-8", "Opus", 4, "ok"));
+        var untouched = Frame("c");
+
+        var remaining = CullResume.Remaining(new[] { rated, byAnotherModel, untouched }, "claude-haiku-4-5");
+
+        Assert.Equal(new[] { "b", "c" }, remaining);   // another model's verdict is not this one's
+    }
+
+    [Fact]
+    public void Instruction_names_the_remaining_frames_and_caps_the_list()
+    {
+        Assert.Equal("", CullResume.Instruction(System.Array.Empty<string>()));
+
+        var few = CullResume.Instruction(new[] { "DSC_1.NEF", "DSC_2.NEF" });
+        Assert.Contains("RESUMED RUN", few);
+        Assert.Contains("DSC_1.NEF, DSC_2.NEF", few);
+        Assert.DoesNotContain("further frames", few);
+
+        var many = Enumerable.Range(0, CullResume.MaxNamesInPrompt + 5).Select(i => $"F{i}").ToList();
+        var capped = CullResume.Instruction(many);
+        Assert.Contains("5 further frames", capped);
+        Assert.DoesNotContain($"F{CullResume.MaxNamesInPrompt + 1}", capped);
+    }
+
+    private static Monocle.Core.Model.PhotoItem Frame(string name) => new()
+    {
+        Id = $"/photos::{name}", BaseName = name, FolderPath = "/photos",
+        Files = new List<Monocle.Core.Model.PhotoFile>(),
+    };
+
     [Fact]
     public void ComposeCullPrompt_prepends_current_folder()
     {
