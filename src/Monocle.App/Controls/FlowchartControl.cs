@@ -29,6 +29,7 @@ public sealed class FlowchartControl : Control
 
     private static readonly Color Green = Color.Parse("#4CAF50");
     private static readonly Color Blue = Color.Parse("#4DA3FF");
+    private static readonly Color Orange = Color.Parse("#E0902A");
 
     // Render runs on the UI thread and re-fires on every SetProgress during analysis; cache brushes
     // and pens by colour/thickness so each redraw doesn't churn a fresh allocation per draw call.
@@ -139,6 +140,7 @@ public sealed class FlowchartControl : Control
             StageStatus.Done => (Color.Parse("#16331A"), Green, Color.Parse("#CFEFD0")),
             StageStatus.Running => (Color.Parse("#13314F"), Blue, Colors.White),
             StageStatus.Skipped => (Color.Parse("#161616"), Color.Parse("#333"), Color.Parse("#555")),
+            StageStatus.Interrupted => (Color.Parse("#33240E"), Orange, Color.Parse("#F0D4A6")),
             _ => (Color.Parse("#262626"), Color.Parse("#555"), Color.Parse("#AAAAAA")),
         };
 
@@ -157,13 +159,15 @@ public sealed class FlowchartControl : Control
         var tag = Text(resText, 10, resColor);
         ctx.DrawText(tag, new Point(box.Right - tag.Width - 10, box.Y + 8));
 
-        // Per-stage progress bar while running (#15).
-        if (state.Status == StageStatus.Running)
+        // Per-stage progress bar while running (#15) — and after an interruption, frozen where it
+        // stopped, so the flowchart shows how far a resumable run got instead of blanking it.
+        if (state.Status is StageStatus.Running or StageStatus.Interrupted)
         {
             var barY = box.Bottom - 8;
             var trackW = box.Width - 24;
             ctx.DrawRectangle(Br(Color.Parse("#0A0A0A")), null, new Rect(box.X + 12, barY, trackW, 4), 2, 2);
-            ctx.DrawRectangle(Br(Blue), null, new Rect(box.X + 12, barY, trackW * state.Progress, 4), 2, 2);
+            ctx.DrawRectangle(Br(state.Status == StageStatus.Interrupted ? Orange : Blue), null,
+                              new Rect(box.X + 12, barY, trackW * state.Progress, 4), 2, 2);
         }
     }
 

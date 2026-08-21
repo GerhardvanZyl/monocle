@@ -2,7 +2,10 @@ using Monocle.Core.Model;
 
 namespace Monocle.Pipeline;
 
-public enum StageStatus { Pending, Running, Done, Skipped }
+/// <summary>Stage lifecycle. <c>Interrupted</c> is a run that stopped part-way and can be
+/// resumed — it keeps its progress (unlike <c>Skipped</c>, which never ran and counts for
+/// nothing) so the flowchart can show where it got to.</summary>
+public enum StageStatus { Pending, Running, Done, Skipped, Interrupted }
 
 /// <summary>One node in the architecture/decision flowchart (#14): a processing stage, the
 /// resource it consumes (#20), and the stages it depends on (incoming green edges, #15).</summary>

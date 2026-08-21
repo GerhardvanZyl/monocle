@@ -1717,13 +1717,21 @@ public partial class MainWindowViewModel : ViewModelBase
             ? $"Resuming cull with {currentClaudeDisplay} — {remainingBefore.Count} of {Total} frames still need a verdict…"
             : $"Starting cull with {currentClaudeDisplay} (locked to Monocle photo tools)…");
         StatusText = $"Culling {Total} photos with {currentClaudeDisplay}…";   // replace the stale scan result now, not at the end
-        Pipeline?.SetStatus("claude", StageStatus.Running);
+        // Start the stage bar at what the interrupted pass already achieved, not at zero.
+        Pipeline?.SetProgress("claude", CullFraction(remainingBefore.Count));
         // Every frame is pending Claude's judgement. BeginClaudeLeg arms only the Claude stage and
         // preserves the decode/score/metrics pips the scorer leg already completed, so this reads as
         // the next step of one continuous run rather than a separate run that wipes the earlier pips.
         // (The tiles were armed for this run by the scorer leg, or by ProcessAsync when Claude-only.)
+        // …except, on a resume, the frames the first pass already rated: those stay filled and settled
+        // instead of dropping back to pending, so the grid resumes rather than restarts.
+        var stillPending = remainingBefore.ToHashSet(StringComparer.Ordinal);
         foreach (var tile in Photos)
+        {
             tile.BeginClaudeLeg();
+            if (resume && !stillPending.Contains(tile.Item.BaseName))
+                tile.CompleteCull();
+        }
         // Own lifetime so a new scan can't abort a cull, but linked to the Process run's token so
         // stopping Process actually kills the CLI instead of only skipping the remaining legs.
         _cullCts?.Cancel();
@@ -1751,7 +1759,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Model = currentClaudeModelId,
         };
         var service = new ClaudeCullService { Executable = CullLauncher.ResolveClaude() };
-        var rated = 0;
+        var rated = Total - remainingBefore.Count;   // resumed runs continue this count, not restart it
 
         try
         {
@@ -1808,10 +1816,6 @@ public partial class MainWindowViewModel : ViewModelBase
                 }
             }), _cullCts.Token);
 
-            // Skipped, not Done, when it ended early: the stage would otherwise sit Running forever
-            // in the flowchart on any error or stop (there is no Failed status).
-            Pipeline?.SetStatus("claude",
-                outcome.Kind == CullOutcomeKind.Completed ? StageStatus.Done : StageStatus.Skipped);
             await ReloadRatingsAsync();
             ApplyCullOutcome(runner, outcome);
         }
@@ -1821,7 +1825,6 @@ public partial class MainWindowViewModel : ViewModelBase
             // classifier; treat them as an interruption too, so partial work stays resumable.
             Diagnostics.Log.Error("Cull failed", ex);
             CullLog.Add($"Cull failed: {ex.Message} — is Claude Code installed and signed in?");
-            Pipeline?.SetStatus("claude", StageStatus.Skipped);
             ApplyCullOutcome(runner, new ClaudeCullOutcome(CullOutcomeKind.Interrupted, null, ex.Message));
         }
         finally
@@ -1898,6 +1901,7 @@ public partial class MainWindowViewModel : ViewModelBase
             // Completed with frames still unrated means Claude chose to leave them (e.g. it judged
             // a burst as a group) — that is a finished run, not something to nag the user about.
             ClearCullResume();
+            Pipeline?.SetStatus("claude", StageStatus.Done);
             StatusText = outcome.Result is { } r
                 ? $"Cull done: {r.NumTurns} turns, ${r.CostUsd:0.0000}."
                 : "Cull done.";
@@ -1906,6 +1910,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         var stopped = outcome.Kind == CullOutcomeKind.Cancelled;
         var why = stopped ? "Stopped" : $"Interrupted — {outcome.Reason}";
+        MarkClaudeInterrupted(remaining.Count);
         _resumeModelId = runner.ClaudeModelId;
         CullResumeNote = $"{runner.Descriptor.DisplayName} — {why}. " +
                          $"{Frames(remaining.Count)} still have no verdict; Resume picks up from there.";
@@ -1919,6 +1924,19 @@ public partial class MainWindowViewModel : ViewModelBase
         StatusText = stopped
             ? $"Cull stopped — {Frames(remaining.Count)} left. Resume continues where it stopped."
             : $"Cull interrupted — {Frames(remaining.Count)} left. Resume continues where it stopped.";
+    }
+
+    private double CullFraction(int remaining) => Total == 0 ? 0 : (double)(Total - remaining) / Total;
+
+    /// <summary>Freeze the Claude stage at the point the run stopped: orange, with its bar left at
+    /// the fraction already rated. Skipped would blank it, and Running would leave it spinning
+    /// forever (there is no Failed status — an interrupted cull is resumable, not failed).</summary>
+    private void MarkClaudeInterrupted(int remaining)
+    {
+        if (Pipeline is not { } run)
+            return;
+        run.SetProgress("claude", CullFraction(remaining));   // SetProgress marks it Running…
+        run.SetStatus("claude", StageStatus.Interrupted);     // …and only Done overwrites Progress
     }
 
     private void ClearCullResume()
@@ -1953,6 +1971,7 @@ public partial class MainWindowViewModel : ViewModelBase
         _resumeModelId = modelId;
         CullResumeNote = _settings.PendingCullNote ??
                          $"An earlier cull was interrupted; {Frames(remaining.Count)} still have no verdict.";
+        MarkClaudeInterrupted(remaining.Count);
         RunLog(CullResumeNote);
     }
 

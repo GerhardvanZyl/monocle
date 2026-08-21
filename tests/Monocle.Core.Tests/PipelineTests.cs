@@ -36,6 +36,23 @@ public class PipelineTests
     }
 
     [Fact]
+    public void InterruptedStageKeepsWhereItStopped()
+    {
+        // An interrupted cull is resumable, so the flowchart must keep the bar it reached — Done
+        // would fill it to 1 and Skipped would blank it and drop it out of the overall total.
+        var run = new PipelineRun(PipelineGraph.BuildAnalysis(false, true));
+        run.SetProgress("claude", 0.4);
+        run.SetStatus("claude", StageStatus.Interrupted);
+
+        Assert.Equal(0.4, run.State("claude").Progress, 3);
+        Assert.Equal(StageStatus.Interrupted, run.State("claude").Status);
+
+        var withInterrupted = run.OverallProgress;
+        run.Skip("claude");
+        Assert.NotEqual(withInterrupted, run.OverallProgress, 3);   // skipped drops out; interrupted counts
+    }
+
+    [Fact]
     public void EdgeCompleteWhenSourceDone()
     {
         var run = new PipelineRun(PipelineGraph.BuildAnalysis(false, false));
