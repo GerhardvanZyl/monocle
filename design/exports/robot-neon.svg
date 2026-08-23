@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="120" height="120" viewBox="0 0 120 120">
+  <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+  <g fill="none" stroke="#2ee6cf" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" filter="url(#neon-glow)">
+    <line x1="60" y1="24" x2="60" y2="15"></line>
+    <rect x="28" y="32" width="64" height="56" rx="15"></rect>
+    <path d="M40,52 q6,6 12,0"></path>
+    <circle cx="74" cy="50" r="11"></circle>
+    <line x1="82" y1="58" x2="89" y2="65"></line>
+    <path d="M60,70 q-11,10 -19,2 q7,2 14,-3"></path>
+    <path d="M60,70 q11,10 19,2 q-7,2 -14,-3"></path>
+  </g>
+  <circle cx="60" cy="13" r="3" fill="#2ee6cf" filter="url(#neon-glow)"></circle>
+  <defs>
+    <filter id="neon-glow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="3" result="blur1"></feGaussianBlur>
+      <feGaussianBlur stdDeviation="6" result="blur2"></feGaussianBlur>
+      <feMerge><feMergeNode in="blur2"></feMergeNode><feMergeNode in="blur1"></feMergeNode><feMergeNode in="SourceGraphic"></feMergeNode></feMerge>
+    </filter>
+  </defs>
+</svg>

@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1c1b18; --surface-1:#232220; --surface-2:#2b2926; --surface-3:#34322e; --surface-hi:#3d3a35;
+  --border:#36332e; --border-strong:#46423b;
+  --text-1:#f1eee8; --text-2:#aaa49a; --text-3:#7a736a;
+  --accent:#1eb5a6; --accent-fg:#04211e;
+}
+[data-theme="light"]{
+  --bg:#ece8e1; --surface-1:#fdfbf7; --surface-2:#f4f1ea; --surface-3:#eae5dc; --surface-hi:#e2ddd2;
+  --border:#e3ddd2; --border-strong:#d2cbbd;
+  --text-1:#211e19; --text-2:#5d564c; --text-3:#8b8378;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+[data-on="1"]{background:var(--surface-3)!important;color:var(--text-1)!important}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:7px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+.icard{transition:transform .14s ease}
+.icard:hover{transform:translateY(-3px)}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="min-height:100vh;background:var(--bg);color:var(--text-1);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased">
+
+  <!-- HEADER -->
+  <div style="max-width:1180px;margin:0 auto;padding:44px 40px 18px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+    <div>
+      <div style="display:flex;align-items:center;gap:13px">
+        <div style="width:40px;height:40px;border-radius:12px;background:#f4ede0;display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -4px rgba(0,0,0,.4)">
+          <svg width="30" height="30" viewBox="0 0 120 120" fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M40,52 q6,6 12,0"></path>
+            <circle cx="74" cy="50" r="15"></circle>
+            <line x1="85" y1="61" x2="93" y2="69"></line>
+            <path d="M42,74 q18,15 36,0"></path>
+          </svg>
+        </div>
+        <div style="font-size:27px;font-weight:700;letter-spacing:-.02em">The Critic</div>
+        <span style="font:600 10px/1 'IBM Plex Mono';letter-spacing:.1em;color:var(--text-3);border:1px solid var(--border);padding:5px 9px;border-radius:99px;align-self:center">25 VARIANTS · #22</span>
+      </div>
+      <div style="color:var(--text-2);font-size:14px;margin-top:11px;max-width:640px;line-height:1.5">The squinting, monocle-wearing face from concept #22 — explored across <b style="color:var(--text-1)">expressions</b>, <b style="color:var(--text-1)">rendering treatments</b>, and <b style="color:var(--text-1)">personas</b>. The discerning eye that judges every frame.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div style="font:600 10px/1 'IBM Plex Mono';letter-spacing:.1em;color:var(--text-3)">PREVIEW ON</div>
+      <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:3px;gap:3px">
+        <button data-on="{{ darkOn }}" onClick="{{ setDark }}" style="padding:6px 15px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Dark</button>
+        <button data-on="{{ lightOn }}" onClick="{{ setLight }}" style="padding:6px 15px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Light</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1180px;margin:0 auto;padding:14px 40px 70px;display:flex;flex-direction:column;gap:30px">
+
+    <!-- ============ EXPRESSIONS ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">EXPRESSIONS</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">01–08 · same line face, new mood</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 01 Wink & Grin -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <path d="M42,74 q18,16 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">01</span><span style="font-size:13.5px;font-weight:600">Wink &amp; Grin</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">The original — playful, approving</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">BASELINE</span>
+          </div>
+        </div>
+
+        <!-- 02 Skeptic -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M37,42 q9,-9 18,-2"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <path d="M46,82 q14,-5 28,0"></path>
+              </g>
+              <circle cx="46" cy="53" r="4" fill="#2a2722"></circle>
+              <circle cx="74" cy="51" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">02</span><span style="font-size:13.5px;font-weight:600">Skeptic</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Raised brow, unconvinced</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 03 Deadpan -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <line x1="48" y1="82" x2="74" y2="82"></line>
+              </g>
+              <circle cx="46" cy="52" r="4" fill="#2a2722"></circle>
+              <circle cx="74" cy="50" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">03</span><span style="font-size:13.5px;font-weight:600">Deadpan</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Flat line, utterly unimpressed</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 04 Delighted -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,54 q6,-8 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <path d="M40,72 q20,22 40,0"></path>
+              </g>
+              <circle cx="74" cy="52" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">04</span><span style="font-size:13.5px;font-weight:600">Delighted</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">A keeper! Both eyes beaming</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 05 Pondering -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M38,44 L53,47"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <path d="M48,82 q4,-5 8,0 t8,0 t8,0" stroke-width="4"></path>
+              </g>
+              <circle cx="46" cy="53" r="4" fill="#2a2722"></circle>
+              <circle cx="71" cy="47" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">05</span><span style="font-size:13.5px;font-weight:600">Pondering</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Furrowed, weighing the shot</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 06 Whoa -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M37,40 q9,-5 17,-1"></path>
+                <circle cx="46" cy="54" r="6"></circle>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <circle cx="60" cy="83" r="6"></circle>
+              </g>
+              <circle cx="46" cy="54" r="2.2" fill="#2a2722"></circle>
+              <circle cx="74" cy="50" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">06</span><span style="font-size:13.5px;font-weight:600">Whoa</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Eyes wide, pleasantly surprised</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 07 Smirk -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M37,43 q9,-6 17,1"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <path d="M44,80 q15,11 31,-4"></path>
+              </g>
+              <circle cx="46" cy="54" r="4" fill="#2a2722"></circle>
+              <circle cx="74" cy="50" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">07</span><span style="font-size:13.5px;font-weight:600">Smirk</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">One brow up, sly half-smile</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 08 Approving -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M42,74 q18,16 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="3.5" fill="#2a2722"></circle>
+              <path d="M90,28 l5,6 l12,-15" fill="none" stroke="#1eb5a6" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"></path>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">08</span><span style="font-size:13.5px;font-weight:600">Approving</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Wink-grin with a teal cull check</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ TREATMENTS ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">TREATMENTS</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">09–17 · one face, many finishes</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 09 Solid Teal -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#1eb5a6"></rect>
+              <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3.2" stroke-dasharray="0.1 7"></path>
+                <path d="M42,74 q18,16 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="3.6" fill="#ffffff"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">09</span><span style="font-size:13.5px;font-weight:600">Solid Teal</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">White face on brand fill</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 10 Gradient -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <defs><linearGradient id="v10" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ec8b6"></stop><stop offset="1" stop-color="#3f7bef"></stop></linearGradient></defs>
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#v10)"></rect>
+              <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="3.2" stroke-dasharray="0.1 7"></path>
+                <path d="M42,74 q18,16 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="3.6" fill="#ffffff"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">10</span><span style="font-size:13.5px;font-weight:600">Gradient</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Teal→blue wash behind the face</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 11 Glass Dome -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.34))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <defs>
+                <radialGradient id="v11t" cx=".3" cy=".25" r="1"><stop offset="0" stop-color="#3a3833"></stop><stop offset="1" stop-color="#1a1916"></stop></radialGradient>
+                <radialGradient id="v11h" cx=".4" cy=".34" r=".75"><stop offset="0" stop-color="#eafffb"></stop><stop offset=".5" stop-color="#3ed2c2"></stop><stop offset="1" stop-color="#0c6c62"></stop></radialGradient>
+              </defs>
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#v11t)"></rect>
+              <circle cx="60" cy="60" r="42" fill="url(#v11h)"></circle>
+              <ellipse cx="48" cy="40" rx="14" ry="8" fill="#ffffff" opacity=".6"></ellipse>
+              <g fill="none" stroke="#0a3b36" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M42,56 q6,6 12,0"></path>
+                <circle cx="76" cy="54" r="13"></circle>
+                <line x1="86" y1="63" x2="93" y2="70"></line>
+                <path d="M46,76 q16,14 32,0"></path>
+              </g>
+              <circle cx="76" cy="54" r="3.2" fill="#0a3b36"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">11</span><span style="font-size:13.5px;font-weight:600">Glass Head</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Convex glass bead, etched face</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 12 Sticker -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="6" y="6" width="108" height="108" rx="30" fill="#ffffff"></rect>
+              <rect x="14" y="14" width="92" height="92" rx="24" fill="#1eb5a6"></rect>
+              <g fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,54 q6,7 12,0"></path>
+                <circle cx="74" cy="51" r="14"></circle>
+                <line x1="84" y1="61" x2="91" y2="68"></line>
+                <path d="M43,75 q17,15 34,0"></path>
+              </g>
+              <circle cx="74" cy="51" r="4" fill="#ffffff"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">12</span><span style="font-size:13.5px;font-weight:600">Sticker</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Thick die-cut border, bold lines</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 13 Geometric -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#e2982f"></rect>
+              <g fill="none" stroke="#2a1c05" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M38,46 L54,46"></path>
+                <path d="M74,35 L89,50 L74,65 L59,50 Z"></path>
+                <line x1="85" y1="61" x2="94" y2="70"></line>
+                <path d="M42,74 L60,86 L78,74"></path>
+              </g>
+              <rect x="42" y="49" width="8" height="8" fill="#2a1c05"></rect>
+              <circle cx="74" cy="50" r="3.6" fill="#2a1c05"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">13</span><span style="font-size:13.5px;font-weight:600">Geometric</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Straight cuts, diamond lens</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 14 Duotone -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <defs><linearGradient id="v14" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1eb5a6"></stop><stop offset=".5" stop-color="#1eb5a6"></stop><stop offset=".5" stop-color="#9072ee"></stop><stop offset="1" stop-color="#9072ee"></stop></linearGradient></defs>
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#v14)"></rect>
+              <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M42,74 q18,16 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="3.6" fill="#ffffff"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">14</span><span style="font-size:13.5px;font-weight:600">Duotone</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Split teal / violet field</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 15 Engraved -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <defs><linearGradient id="v15" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34322e"></stop><stop offset="1" stop-color="#211f1c"></stop></linearGradient></defs>
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#v15)"></rect>
+              <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="5">
+                <g transform="translate(0,1.5)" stroke="#000000" stroke-opacity=".45"><path d="M40,53 q6,6 12,0"></path><circle cx="74" cy="50" r="15"></circle><line x1="85" y1="61" x2="93" y2="69"></line><path d="M42,74 q18,16 36,0"></path></g>
+                <g transform="translate(0,-1.3)" stroke="#ffffff" stroke-opacity=".2"><path d="M40,53 q6,6 12,0"></path><circle cx="74" cy="50" r="15"></circle><line x1="85" y1="61" x2="93" y2="69"></line><path d="M42,74 q18,16 36,0"></path></g>
+                <g stroke="#26241f"><path d="M40,53 q6,6 12,0"></path><circle cx="74" cy="50" r="15"></circle><line x1="85" y1="61" x2="93" y2="69"></line><path d="M42,74 q18,16 36,0"></path></g>
+              </g>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">15</span><span style="font-size:13.5px;font-weight:600">Engraved</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Debossed into graphite</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 16 Neon -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+              <g fill="none" stroke="#2ee6cf" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #2ee6cf) drop-shadow(0 0 9px #1aa794)">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="15"></circle>
+                <line x1="85" y1="61" x2="93" y2="69"></line>
+                <path d="M94,70 Q99,86 81,91" stroke-width="2.4" stroke-dasharray="0.1 6"></path>
+                <path d="M42,74 q18,16 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="3" fill="#2ee6cf" style="filter:drop-shadow(0 0 4px #2ee6cf)"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">16</span><span style="font-size:13.5px;font-weight:600">Neon</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Glowing tube on near-black</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 17 Monoline -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <g fill="none" stroke="var(--text-1)" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,53 q6,6 12,0"></path>
+                <circle cx="74" cy="50" r="16"></circle>
+                <line x1="86" y1="62" x2="95" y2="71"></line>
+                <path d="M96,72 Q102,90 82,95" stroke-width="2" stroke-dasharray="0.1 6"></path>
+                <path d="M42,74 q18,17 36,0"></path>
+              </g>
+              <circle cx="74" cy="50" r="2.6" fill="var(--text-1)"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">17</span><span style="font-size:13.5px;font-weight:600">Monoline</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Hairline, inherits text color</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">BARE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PERSONAS ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">PERSONAS</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">18–25 · accessories &amp; framing</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 18 Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,49 q6,6 12,0"></path>
+                <circle cx="74" cy="46" r="15"></circle>
+                <line x1="85" y1="57" x2="93" y2="65"></line>
+                <path d="M94,66 Q99,82 81,87" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <path d="M60,68 q-12,12 -22,3 q9,2 17,-4"></path>
+                <path d="M60,68 q12,12 22,3 q-9,2 -17,-4"></path>
+                <path d="M52,86 q8,5 16,0"></path>
+              </g>
+              <circle cx="74" cy="46" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">18</span><span style="font-size:13.5px;font-weight:600">Gentleman</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Handlebar moustache, distinguished</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 19 Top Hat -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#1eb5a6"></rect>
+              <g fill="none" stroke="#04211e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="34" y1="34" x2="86" y2="34"></line>
+                <path d="M48,34 L48,16 q0,-4 4,-4 L68,12 q4,0 4,4 L72,34"></path>
+                <path d="M44,60 q6,6 12,0"></path>
+                <circle cx="78" cy="58" r="14"></circle>
+                <line x1="88" y1="68" x2="95" y2="75"></line>
+                <path d="M46,82 q16,14 32,0"></path>
+              </g>
+              <circle cx="78" cy="58" r="3.4" fill="#04211e"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">19</span><span style="font-size:13.5px;font-weight:600">Top Hat</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Formal, ready to judge the gala</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 20 Bowtie -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M40,46 q6,6 12,0"></path>
+                <circle cx="74" cy="43" r="14"></circle>
+                <line x1="84" y1="53" x2="91" y2="60"></line>
+                <path d="M44,66 q16,14 32,0"></path>
+              </g>
+              <circle cx="74" cy="43" r="3.3" fill="#2a2722"></circle>
+              <g fill="#ef6a4c" stroke="#2a2722" stroke-width="3" stroke-linejoin="round">
+                <path d="M60,96 L44,88 L44,104 Z"></path>
+                <path d="M60,96 L76,88 L76,104 Z"></path>
+              </g>
+              <circle cx="60" cy="96" r="4" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">20</span><span style="font-size:13.5px;font-weight:600">Bow Tie</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Dapper little dresser</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 21 Monobrow -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#f4ede0"></rect>
+              <g fill="none" stroke="#2a2722" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M34,42 q26,-12 52,2" stroke-width="6"></path>
+                <circle cx="74" cy="56" r="15"></circle>
+                <line x1="85" y1="67" x2="93" y2="75"></line>
+                <path d="M94,76 Q99,90 83,94" stroke-width="3" stroke-dasharray="0.1 7"></path>
+                <line x1="48" y1="84" x2="74" y2="84"></line>
+              </g>
+              <circle cx="46" cy="58" r="4" fill="#2a2722"></circle>
+              <circle cx="74" cy="56" r="3.5" fill="#2a2722"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">21</span><span style="font-size:13.5px;font-weight:600">Monobrow</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">One mighty brow, deeply serious</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 22 The Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#9072ee"></rect>
+              <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M30,38 q24,-16 56,-2 q2,8 -10,10 q-26,4 -46,0 q-4,-4 0,-8 Z"></path>
+                <line x1="74" y1="30" x2="82" y2="22"></line>
+                <path d="M42,60 q6,6 12,0"></path>
+                <circle cx="76" cy="58" r="13"></circle>
+                <line x1="86" y1="68" x2="93" y2="75"></line>
+                <path d="M46,80 q15,13 30,0"></path>
+              </g>
+              <circle cx="82" cy="21" r="3.4" fill="#ffffff"></circle>
+              <circle cx="76" cy="58" r="3.3" fill="#ffffff"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">22</span><span style="font-size:13.5px;font-weight:600">The Artist</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Beret on, an eye for composition</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 23 Eyes Only -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div>
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <g fill="none" stroke="var(--text-1)" stroke-width="4" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M30,42 q9,-8 18,-2"></path>
+                <path d="M72,40 q10,-7 19,1"></path>
+                <path d="M30,58 q9,7 18,0"></path>
+                <circle cx="82" cy="60" r="18"></circle>
+                <line x1="96" y1="74" x2="104" y2="83"></line>
+                <path d="M105,84 Q110,100 90,104" stroke-width="2.6" stroke-dasharray="0.1 7"></path>
+              </g>
+              <circle cx="82" cy="60" r="3.4" fill="var(--text-1)"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">23</span><span style="font-size:13.5px;font-weight:600">Eyes Only</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">No head — brows, wink, lens</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">BARE</span>
+          </div>
+        </div>
+
+        <!-- 24 Profile -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#1c1b18"></rect>
+              <path d="M86,24 C58,22 38,38 38,58 C38,66 30,66 30,72 C30,77 37,76 38,80 C40,94 56,102 76,98 C92,95 98,80 98,58 C98,38 100,26 86,24 Z" fill="#1eb5a6"></path>
+              <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="64" cy="54" r="14"></circle>
+                <line x1="74" y1="64" x2="82" y2="72"></line>
+                <path d="M83,73 Q88,89 70,93" stroke-width="3" stroke-dasharray="0.1 7"></path>
+              </g>
+              <circle cx="64" cy="54" r="3.4" fill="#ffffff"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">24</span><span style="font-size:13.5px;font-weight:600">Profile</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Silhouette bust, lens in white</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+
+        <!-- 25 AI Critic -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))">
+            <svg width="120" height="120" viewBox="0 0 120 120">
+              <rect x="2" y="2" width="116" height="116" rx="28" fill="#232220"></rect>
+              <g fill="none" stroke="#1eb5a6" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="60" y1="24" x2="60" y2="14"></line>
+                <rect x="28" y="34" width="64" height="54" rx="14"></rect>
+                <path d="M40,58 q6,6 12,0"></path>
+                <circle cx="74" cy="56" r="11"></circle>
+                <line x1="82" y1="64" x2="89" y2="71"></line>
+                <line x1="48" y1="76" x2="72" y2="76"></line>
+              </g>
+              <circle cx="60" cy="12" r="3.4" fill="#1eb5a6"></circle>
+              <circle cx="74" cy="56" r="3" fill="#1eb5a6"></circle>
+            </svg>
+          </div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:7px;width:100%">
+            <div style="display:flex;align-items:center;gap:8px"><span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-3)">25</span><span style="font-size:13.5px;font-weight:600">AI Critic</span></div>
+            <div style="font-size:11.5px;color:var(--text-3);text-align:center;line-height:1.4">Robot judge — the automated cull</div>
+            <span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.09em;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:4px 8px;border-radius:99px">SQUIRCLE</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { dark: true };
+  renderVals() {
+    const dark = this.state.dark;
+    return {
+      theme: dark ? "dark" : "light",
+      darkOn: dark ? 1 : 0,
+      lightOn: dark ? 0 : 1,
+      setDark: () => this.setState({ dark: true }),
+      setLight: () => this.setState({ dark: false }),
+    };
+  }
+}
+</script>
+</body>
+</html>

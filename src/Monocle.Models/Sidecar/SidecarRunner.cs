@@ -5,7 +5,8 @@ namespace Monocle.Models.Sidecar;
 /// <summary>Static description of a sidecar-hosted model (shown in the picker before it starts).</summary>
 public sealed record SidecarModelInfo(
     string Id, string Name, string Kind, ScoreKind OutputKind, ModelCategory Category,
-    string Description, string Tradeoffs, string? InfoUrl = null);
+    string Description, string Tradeoffs, string? InfoUrl = null,
+    ResourceKind Resource = ResourceKind.Gpu, double? ScaleMin = null, double? ScaleMax = null);
 
 /// <summary>
 /// Exposes a Python-sidecar model through the model seam (#1, #28). Available only while the
@@ -30,10 +31,10 @@ public sealed class SidecarRunner : IModelRunner
         Category = _info.Category,
         Description = _info.Description,
         Tradeoffs = _info.Tradeoffs,
-        Resource = ResourceKind.Gpu,
+        Resource = _info.Resource,
         OutputKind = _info.OutputKind,
         RequiresSidecar = true,
-        ScaleMax = _info.OutputKind == ScoreKind.Quality ? 5 : null,
+        ScaleMax = _info.ScaleMax,
         InfoUrl = _info.InfoUrl,
     };
 
@@ -64,9 +65,13 @@ public sealed class SidecarRunner : IModelRunner
             ModelDisplayName = _info.Name,
             Kind = _info.OutputKind,
             Value = result.Value,
+            // A zero max means "not a numeric model" (the critique models report 0/0), so the score
+            // carries no scale rather than a nonsensical one. ScaleMin matters for the metrics whose
+            // range doesn't start at zero: without it LIQE's 1-5 normalises 1.0 to 0.2 instead of 0.
             ScaleMax = result.ScaleMax > 0 ? result.ScaleMax : null,
+            ScaleMin = result.ScaleMax > 0 ? result.ScaleMin : null,
             Text = result.Text,
-            Resource = ResourceKind.Gpu,
+            Resource = _info.Resource,
         };
         return score;   // ShootService attaches + caches the returned score
     }
@@ -129,5 +134,10 @@ public static class SidecarModelCatalog
         e.Kind == "critique" ? ModelCategory.MllmCritique : ModelCategory.NumericIqa,
         e.Description ?? "Reported by the Python sidecar.",
         e.Tradeoffs ?? "Sidecar only; see the sidecar's catalog for details.",
-        e.InfoUrl);
+        e.InfoUrl,
+        // Where it runs is the sidecar's answer, not ours: the same metric is GPU on one machine and
+        // CPU on the next, and for pyiqa it can even differ per metric on one machine.
+        string.Equals(e.Resource, "cpu", StringComparison.OrdinalIgnoreCase) ? ResourceKind.Cpu : ResourceKind.Gpu,
+        e.ScaleMax > 0 ? e.ScaleMin : null,
+        e.ScaleMax > 0 ? e.ScaleMax : null);
 }

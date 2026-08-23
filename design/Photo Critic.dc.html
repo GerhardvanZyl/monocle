@@ -1,0 +1,966 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1c1b18; --surface-1:#232220; --surface-2:#2b2926; --surface-3:#34322e; --surface-hi:#3d3a35;
+  --border:#36332e; --border-strong:#46423b;
+  --text-1:#f1eee8; --text-2:#aaa49a; --text-3:#7a736a;
+  --accent:#1eb5a6; --accent-fg:#04211e;
+  --accent-soft:color-mix(in oklab, var(--accent) 18%, transparent);
+  --accent-line:color-mix(in oklab, var(--accent) 45%, transparent);
+  --pick:#46c97e; --reject:#ef6a4c; --star:#f2b53f;
+  --lab-red:#ef6a4c; --lab-blue:#5d97f6; --lab-purple:#b483f2; --lab-yellow:#e8c34a;
+  --shadow:0 10px 30px -6px rgba(0,0,0,.5); --shadow-sm:0 2px 8px rgba(0,0,0,.3);
+  --radius:9px; --radius-sm:6px; --radius-lg:13px;
+}
+[data-theme="light"]{
+  --bg:#ece8e1; --surface-1:#fdfbf7; --surface-2:#f4f1ea; --surface-3:#eae5dc; --surface-hi:#e2ddd2;
+  --border:#e3ddd2; --border-strong:#d2cbbd;
+  --text-1:#211e19; --text-2:#5d564c; --text-3:#8b8378;
+  --shadow:0 10px 30px -8px rgba(60,52,40,.22); --shadow-sm:0 2px 8px rgba(60,52,40,.12);
+}
+[data-accent="teal"]{--accent:#1eb5a6;--accent-fg:#04211e;}
+[data-accent="blue"]{--accent:#5089f4;--accent-fg:#ffffff;}
+[data-accent="amber"]{--accent:#e2982f;--accent-fg:#2a1c05;}
+[data-accent="violet"]{--accent:#9072ee;--accent-fg:#ffffff;}
+[data-scale="s"]{zoom:.9}
+[data-scale="l"]{zoom:1.12}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--bg)}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:7px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--text-3);background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+[data-on="1"]{background:var(--accent-soft)!important;color:var(--accent)!important}
+[data-pcstate="pick"]{box-shadow:inset 0 0 0 2px var(--pick)}
+[data-pcstate="reject"]{box-shadow:inset 0 0 0 2px var(--reject)}
+[data-sel="1"]{outline:2px solid var(--accent);outline-offset:2px}
+[data-lab="red"]{background:var(--lab-red)!important}
+[data-lab="blue"]{background:var(--lab-blue)!important}
+[data-lab="purple"]{background:var(--lab-purple)!important}
+[data-lab="yellow"]{background:var(--lab-yellow)!important}
+@keyframes pc-pulse{0%,100%{opacity:.45}50%{opacity:1}}
+@keyframes pc-fade{from{opacity:0;transform:translateY(5px)}to{opacity:1;transform:none}}
+@keyframes pc-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+input[type=range]{accent-color:var(--accent)}
+::selection{background:var(--accent-soft)}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" data-accent="{{ accent }}" data-scale="{{ scaleKey }}" style="height:100vh;width:100vw;overflow:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--text-1);font-family:'IBM Plex Sans',system-ui,sans-serif;font-size:13px;-webkit-font-smoothing:antialiased">
+
+  <!-- TITLEBAR -->
+  <div style="height:40px;flex:0 0 40px;display:flex;align-items:center;gap:12px;padding:0 8px 0 14px;background:var(--surface-1);border-bottom:1px solid var(--border);user-select:none">
+    <div style="display:flex;align-items:center;gap:9px;font-weight:600;letter-spacing:.01em">
+      <div style="width:22px;height:22px;border-radius:7px;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 1px var(--border) inset">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="var(--accent-fg)" stroke-width="2"><circle cx="12" cy="12" r="9"></circle><path d="M12 3v18M3 12h18M5.6 5.6l12.8 12.8M18.4 5.6L5.6 18.4"></path></svg>
+      </div>
+      <span>Photo&nbsp;Critic</span>
+    </div>
+    <div style="width:1px;height:18px;background:var(--border)"></div>
+    <div style="display:flex;align-items:center;gap:6px;color:var(--text-3);font-family:'IBM Plex Mono';font-size:11.5px;min-width:0">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+      <span style="color:var(--text-2)">~/Pictures/</span><span style="color:var(--text-1)">2024-06-08_Rivera_Wedding</span>
+    </div>
+    <div style="flex:1"></div>
+    <button onClick="{{ toggleTheme }}" title="Toggle theme" style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text-2);cursor:pointer;border-radius:var(--radius-sm)" style-hover="background:var(--surface-3);color:var(--text-1)">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"></path></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z"></path></svg></sc-if>
+    </button>
+    <div style="display:flex;align-items:center;gap:5px;padding:0 4px">
+      <sc-for list="{{ swatches }}" as="w" hint-placeholder-count="4">
+        <button onClick="{{ w.onClick }}" title="{{ w.name }}" style="width:15px;height:15px;border-radius:50%;border:2px solid var(--surface-1);cursor:pointer;background:{{ w.hex }};box-shadow:0 0 0 {{ w.ring }} var(--text-1)"></button>
+      </sc-for>
+    </div>
+    <button onClick="{{ goSettings }}" title="Settings" style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text-2);cursor:pointer;border-radius:var(--radius-sm)" style-hover="background:var(--surface-3);color:var(--text-1)">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>
+    </button>
+    <div style="width:1px;height:18px;background:var(--border);margin:0 2px"></div>
+    <div style="display:flex;align-items:center;gap:2px">
+      <div style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-3);border-radius:var(--radius-sm)" style-hover="background:var(--surface-3)"><svg width="13" height="13" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path></svg></div>
+      <div style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-3);border-radius:var(--radius-sm)" style-hover="background:var(--surface-3)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="2"></rect></svg></div>
+      <div style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;color:var(--text-3);border-radius:var(--radius-sm)" style-hover="background:var(--reject);color:#fff"><svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path d="M6 6l12 12M18 6L6 18"></path></svg></div>
+    </div>
+  </div>
+
+  <!-- TOOLBAR -->
+  <div style="height:50px;flex:0 0 50px;display:flex;align-items:center;gap:14px;padding:0 16px;background:var(--surface-1);border-bottom:1px solid var(--border)">
+    <div style="display:flex;align-items:center;height:32px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:0 4px 0 10px;gap:8px;min-width:300px">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--text-3)" stroke-width="1.7"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+      <input value="~/Pictures/2024-06-08_Rivera_Wedding" readOnly style="flex:1;background:transparent;border:none;outline:none;color:var(--text-1);font-family:'IBM Plex Mono';font-size:12px" />
+      <button style="height:24px;padding:0 12px;background:var(--accent);color:var(--accent-fg);border:none;border-radius:5px;font-weight:600;font-size:12px;cursor:pointer">Scan</button>
+    </div>
+    <div style="display:flex;align-items:center;gap:6px;flex:1;overflow:hidden">
+      <sc-for list="{{ chips }}" as="c" hint-placeholder-count="7">
+        <button data-on="{{ c.on }}" onClick="{{ c.onClick }}" style="display:flex;align-items:center;gap:6px;height:28px;padding:0 11px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:99px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--border-strong);color:var(--text-1)">
+          <span>{{ c.l }}</span>
+          <span style="font-family:'IBM Plex Mono';font-size:10px;opacity:.7">{{ c.count }}</span>
+        </button>
+      </sc-for>
+    </div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <div style="display:flex;align-items:center;gap:7px;color:var(--text-3)">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        <input type="range" min="150" max="300" step="10" value="{{ thumb }}" onChange="{{ setThumb }}" onInput="{{ setThumb }}" style="width:90px;height:4px" />
+      </div>
+      <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;gap:2px">
+        <button data-on="{{ denseComfortable }}" onClick="{{ setComfortable }}" style="padding:3px 9px;border:none;background:transparent;color:var(--text-2);border-radius:4px;font-size:11.5px;font-weight:500;cursor:pointer">Comfortable</button>
+        <button data-on="{{ denseCompact }}" onClick="{{ setCompact }}" style="padding:3px 9px;border:none;background:transparent;color:var(--text-2);border-radius:4px;font-size:11.5px;font-weight:500;cursor:pointer">Compact</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1;display:flex;min-height:0">
+
+    <!-- LEFT RAIL -->
+    <div style="width:236px;flex:0 0 236px;background:var(--surface-1);border-right:1px solid var(--border);display:flex;flex-direction:column;padding:12px 10px;gap:4px;overflow-y:auto">
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text-3);padding:6px 8px 4px">LIBRARY</div>
+      <button data-on="{{ onBrowse }}" onClick="{{ goBrowse }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1"></rect><rect x="14" y="3" width="7" height="7" rx="1"></rect><rect x="3" y="14" width="7" height="7" rx="1"></rect><rect x="14" y="14" width="7" height="7" rx="1"></rect></svg>
+        <span style="flex:1">Browse</span><span style="font-family:'IBM Plex Mono';font-size:11px;opacity:.6">{{ total }}</span>
+      </button>
+      <button data-on="{{ onStats }}" onClick="{{ goStats }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3v18h18"></path><rect x="7" y="12" width="3" height="6"></rect><rect x="12" y="8" width="3" height="10"></rect><rect x="17" y="5" width="3" height="13"></rect></svg>
+        <span style="flex:1">Folder overview</span>
+      </button>
+      <button data-on="{{ onRejects }}" onClick="{{ goRejects }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"></path></svg>
+        <span style="flex:1">Rejects</span><span style="font-family:'IBM Plex Mono';font-size:11px;color:var(--reject)">{{ rejects }}</span>
+      </button>
+
+      <div style="font-size:10px;font-weight:600;letter-spacing:.1em;color:var(--text-3);padding:14px 8px 4px">CULL</div>
+      <button onClick="{{ runHeuristic }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M13 2L4 14h6l-1 8 9-12h-6z"></path></svg>
+        <span style="flex:1">Heuristic baseline</span>
+      </button>
+      <button data-on="{{ onCull }}" onClick="{{ openCull }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2l1.7 4.7L18.5 8.4l-4.8 1.7L12 15l-1.7-4.9L5.5 8.4l4.8-1.7z"></path><path d="M18 14l.8 2.2L21 17l-2.2.8L18 20l-.8-2.2L15 17l2.2-.8z"></path></svg>
+        <span style="flex:1">Interactive cull</span>
+      </button>
+      <button data-on="{{ onLog }}" onClick="{{ openLog }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:13px;font-weight:500;cursor:pointer;text-align:left" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M6 4l14 8-14 8z"></path></svg>
+        <span style="flex:1">Unattended run</span>
+      </button>
+
+      <div style="flex:1"></div>
+
+      <div style="border:1px solid var(--border);border-radius:var(--radius);padding:11px 12px;background:var(--surface-2);margin-top:10px">
+        <div style="font-size:10px;font-weight:600;letter-spacing:.09em;color:var(--text-3);margin-bottom:9px">LEGEND</div>
+        <div style="display:flex;flex-direction:column;gap:7px;font-size:11.5px;color:var(--text-2)">
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:18px;height:13px;border-radius:3px;box-shadow:inset 0 0 0 2px var(--pick)"></span>Pick (3&#9733;+)</div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:18px;height:13px;border-radius:3px;box-shadow:inset 0 0 0 2px var(--reject)"></span>Reject (1&#9733;)</div>
+          <div style="height:1px;background:var(--border);margin:2px 0"></div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:50%;background:var(--lab-red)"></span>Soft / focus</div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:50%;background:var(--lab-blue)"></span>Exposure</div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:50%;background:var(--lab-purple)"></span>Noise</div>
+          <div style="display:flex;align-items:center;gap:9px"><span style="width:9px;height:9px;border-radius:50%;background:var(--lab-yellow)"></span>2+ problems</div>
+        </div>
+      </div>
+
+      <button onClick="{{ goDesign }}" data-on="{{ onDesign }}" style="display:flex;align-items:center;gap:10px;padding:8px 9px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:12.5px;font-weight:500;cursor:pointer;text-align:left;margin-top:8px" style-hover="background:var(--surface-3)">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="3" width="8" height="8" rx="1.5"></rect><rect x="13" y="3" width="8" height="8" rx="1.5"></rect><rect x="3" y="13" width="8" height="8" rx="1.5"></rect><circle cx="17" cy="17" r="4"></circle></svg>
+        <span>Design system</span>
+      </button>
+    </div>
+
+    <!-- CENTER -->
+    <div style="flex:1;min-width:0;display:flex;flex-direction:column;background:var(--bg)">
+
+      <!-- BROWSE GRID -->
+      <sc-if value="{{ isBrowse }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="height:38px;flex:0 0 38px;display:flex;align-items:center;justify-content:space-between;padding:0 18px;border-bottom:1px solid var(--border)">
+          <div style="font-size:12px;color:var(--text-2)"><span style="color:var(--text-1);font-weight:600">{{ visCount }}</span> of {{ total }} frames<span style="color:var(--text-3)"> &middot; {{ filterLabel }}</span></div>
+          <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:var(--text-3)">
+            <span style="font-family:'IBM Plex Mono'">{{ groupCount }} bursts</span><span>&middot;</span><span style="font-family:'IBM Plex Mono'">largest {{ largestGroup }}</span>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;min-height:0" style="{{ gridWrapStyle }}">
+          <div style="{{ gridStyle }}">
+            <sc-for list="{{ vis }}" as="p" hint-placeholder-count="12">
+              <div data-pcstate="{{ p.state }}" data-sel="{{ p.sel }}" onClick="{{ p.onSelect }}" style="position:relative;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease" style-hover="transform:translateY(-2px);box-shadow:var(--shadow)">
+                <div style="position:relative;aspect-ratio:4/3;overflow:hidden;background:var(--surface-3) {{ p.imgBg }} center/cover no-repeat">
+                  <span data-lab="{{ p.label }}" style="position:absolute;top:8px;right:8px;width:11px;height:11px;border-radius:50%;background:transparent;box-shadow:0 0 0 1.5px rgba(0,0,0,.4)"></span>
+                  <sc-if value="{{ p.group }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;top:7px;left:8px;font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:#fff;background:rgba(0,0,0,.55);padding:3px 6px;border-radius:4px;backdrop-filter:blur(3px)">{{ p.groupTag }}</span>
+                  </sc-if>
+                </div>
+                <div style="padding:8px 10px 10px;display:flex;flex-direction:column;gap:7px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                    <span style="font:500 11.5px/1.2 'IBM Plex Mono';color:var(--text-1);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+                    <span style="font-size:12px;letter-spacing:1px;flex:0 0 auto"><span style="color:var(--star)">{{ p.starsFilled }}</span><span style="color:var(--text-3)">{{ p.starsEmpty }}</span></span>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:9px">
+                    <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3);letter-spacing:.06em">TQ</span>
+                    <div style="flex:1;height:4px;border-radius:2px;background:var(--surface-hi);overflow:hidden"><div style="height:100%;border-radius:2px;width:{{ p.techPct }};background:{{ p.techColor }}"></div></div>
+                    <span style="font:500 10px/1 'IBM Plex Mono';color:var(--text-2);min-width:26px;text-align:right">{{ p.techStr }}</span>
+                    <span style="width:1px;height:11px;background:var(--border)"></span>
+                    <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3)">AES</span>
+                    <span style="font:500 10px/1 'IBM Plex Mono';color:var(--text-2)">{{ p.aesStr }}</span>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- STATS -->
+      <sc-if value="{{ isStats }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:26px 30px">
+        <div style="max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:22px">
+          <div>
+            <div style="font-size:20px;font-weight:700;letter-spacing:-.01em">Folder overview</div>
+            <div style="color:var(--text-3);font-family:'IBM Plex Mono';font-size:12px;margin-top:4px">2024-06-08_Rivera_Wedding</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            <sc-for list="{{ statCards }}" as="s" hint-placeholder-count="4">
+              <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:15px 16px">
+                <div style="font-size:11px;color:var(--text-3);font-weight:500;text-transform:uppercase;letter-spacing:.05em">{{ s.k }}</div>
+                <div style="font-size:26px;font-weight:700;font-family:'IBM Plex Mono';margin-top:8px;color:{{ s.c }}">{{ s.v }}</div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:2px">{{ s.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="display:grid;grid-template-columns:1.3fr 1fr;gap:14px">
+            <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:16px">Star histogram</div>
+              <div style="display:flex;flex-direction:column;gap:11px">
+                <sc-for list="{{ histRows }}" as="h" hint-placeholder-count="5">
+                  <div style="display:flex;align-items:center;gap:12px">
+                    <span style="width:54px;font-size:12px;color:var(--text-2);font-weight:500">{{ h.label }}</span>
+                    <div style="flex:1;height:18px;background:var(--surface-3);border-radius:5px;overflow:hidden"><div style="height:100%;border-radius:5px;width:{{ h.pct }};background:{{ h.color }}"></div></div>
+                    <span style="width:26px;text-align:right;font-family:'IBM Plex Mono';font-size:12px;color:var(--text-2)">{{ h.n }}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+            <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:18px 20px">
+              <div style="font-size:13px;font-weight:600;margin-bottom:16px">Technical breakdown</div>
+              <div style="display:flex;flex-direction:column;gap:13px">
+                <sc-for list="{{ techRows }}" as="t" hint-placeholder-count="4">
+                  <div>
+                    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:6px"><span style="color:var(--text-2)">{{ t.k }}</span><span style="font-family:'IBM Plex Mono';color:var(--text-1)">{{ t.v }}</span></div>
+                    <div style="height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:{{ t.pct }};background:{{ t.color }}"></div></div>
+                  </div>
+                </sc-for>
+              </div>
+              <div style="margin-top:16px;display:flex;align-items:center;gap:8px;font-size:11.5px;color:var(--text-2);background:var(--accent-soft);border:1px solid var(--accent-line);border-radius:var(--radius-sm);padding:8px 10px">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--accent)" stroke-width="1.8"><path d="M5 12l5 5L20 6"></path></svg>
+                Aesthetic pre-filter ran &middot; DirectML (AMD) &middot; 24/24 scored
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- REJECTS -->
+      <sc-if value="{{ isRejects }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:26px 30px">
+        <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+          <div>
+            <div style="font-size:20px;font-weight:700;letter-spacing:-.01em">Reject management</div>
+            <div style="color:var(--text-2);font-size:13px;margin-top:5px;max-width:560px">Rejects stay in place by default &mdash; culling just rates them 1&#9733;. Opt in below to move them into a <span style="font-family:'IBM Plex Mono';color:var(--text-1)">_Rejects</span> subfolder, carrying every sidecar with them.</div>
+          </div>
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+            <div style="padding:11px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:12px;font-weight:600;color:var(--text-2)">{{ rejects }} frames rated 1&#9733;</span>
+              <span style="font-size:11px;color:var(--text-3);font-family:'IBM Plex Mono'">+ sidecars (.xmp, .txt)</span>
+            </div>
+            <sc-for list="{{ rejectList }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:13px;padding:11px 16px;border-bottom:1px solid var(--border)">
+                <div style="width:46px;height:34px;border-radius:5px;overflow:hidden;flex:0 0 auto;box-shadow:inset 0 0 0 2px var(--reject);background:var(--surface-3) {{ r.imgBg }} center/cover no-repeat"></div>
+                <span style="font-family:'IBM Plex Mono';font-size:12.5px;color:var(--text-1);flex:1">{{ r.name }}.{{ r.ext }}</span>
+                <span style="font-size:11px;color:var(--reject);font-weight:600">{{ r.head }}</span>
+                <span style="font-family:'IBM Plex Mono';font-size:11px;color:var(--text-3)">&rarr; _Rejects/</span>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:var(--surface-2);border:1px solid var(--border-strong);border-radius:var(--radius);padding:16px 18px;display:flex;flex-direction:column;gap:13px">
+            <div style="display:flex;align-items:center;gap:9px;font-size:12.5px;color:var(--text-2)">
+              <span style="font-family:'IBM Plex Mono';font-size:10px;font-weight:600;color:var(--accent);background:var(--accent-soft);padding:2px 7px;border-radius:4px">DRY RUN</span>
+              Would move <b style="color:var(--text-1)">{{ rejects }} files</b> (+ {{ sidecarCount }} sidecars). Nothing is moved until you confirm.
+            </div>
+            <label style="display:flex;align-items:center;gap:10px;cursor:pointer;font-size:13px;color:var(--text-1)">
+              <button onClick="{{ toggleMove }}" data-on="{{ moveOn }}" style="width:38px;height:22px;border-radius:99px;border:1px solid var(--border-strong);background:var(--surface-3);position:relative;cursor:pointer;flex:0 0 auto;padding:0">
+                <span style="position:absolute;top:2px;left:{{ knobX }};width:16px;height:16px;border-radius:50%;background:var(--text-1);transition:left .15s"></span>
+              </button>
+              I understand &mdash; actually move the rejects
+            </label>
+            <button disabled="{{ moveDisabled }}" style="align-self:flex-start;height:34px;padding:0 18px;border:none;border-radius:var(--radius-sm);font-weight:600;font-size:13px;cursor:pointer;background:{{ moveBtnBg }};color:{{ moveBtnFg }};opacity:{{ moveBtnOpacity }}">Move {{ rejects }} rejects to _Rejects</button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:26px 30px">
+        <div style="max-width:680px;margin:0 auto;display:flex;flex-direction:column;gap:20px">
+          <div style="font-size:20px;font-weight:700;letter-spacing:-.01em">Settings</div>
+
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:16px">Appearance</div>
+            <div style="display:flex;flex-direction:column;gap:18px">
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div><div style="font-size:13px;color:var(--text-1)">Theme</div><div style="font-size:11.5px;color:var(--text-3)">Warm graphite, light or dark</div></div>
+                <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;gap:2px">
+                  <button data-on="{{ isDarkSel }}" onClick="{{ setDark }}" style="padding:5px 13px;border:none;background:transparent;color:var(--text-2);border-radius:5px;font-size:12px;font-weight:500;cursor:pointer">Dark</button>
+                  <button data-on="{{ isLightSel }}" onClick="{{ setLight }}" style="padding:5px 13px;border:none;background:transparent;color:var(--text-2);border-radius:5px;font-size:12px;font-weight:500;cursor:pointer">Light</button>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div><div style="font-size:13px;color:var(--text-1)">Accent</div><div style="font-size:11.5px;color:var(--text-3)">Active states, focus, progress</div></div>
+                <div style="display:flex;gap:9px">
+                  <sc-for list="{{ swatches }}" as="w" hint-placeholder-count="4">
+                    <button onClick="{{ w.onClick }}" title="{{ w.name }}" style="width:26px;height:26px;border-radius:8px;border:2px solid var(--surface-1);cursor:pointer;background:{{ w.hex }};box-shadow:0 0 0 {{ w.ring }} var(--text-1)"></button>
+                  </sc-for>
+                </div>
+              </div>
+              <div style="display:flex;align-items:center;justify-content:space-between">
+                <div><div style="font-size:13px;color:var(--text-1)">UI scale</div><div style="font-size:11.5px;color:var(--text-3)">Accessibility &middot; affects whole window</div></div>
+                <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;gap:2px">
+                  <button data-on="{{ scaleS }}" onClick="{{ setScaleS }}" style="padding:5px 13px;border:none;background:transparent;color:var(--text-2);border-radius:5px;font-size:12px;font-weight:500;cursor:pointer">Small</button>
+                  <button data-on="{{ scaleM }}" onClick="{{ setScaleM }}" style="padding:5px 13px;border:none;background:transparent;color:var(--text-2);border-radius:5px;font-size:12px;font-weight:500;cursor:pointer">Default</button>
+                  <button data-on="{{ scaleL }}" onClick="{{ setScaleL }}" style="padding:5px 13px;border:none;background:transparent;color:var(--text-2);border-radius:5px;font-size:12px;font-weight:500;cursor:pointer">Large</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:16px">Cull &amp; writing</div>
+            <div style="display:flex;flex-direction:column;gap:15px">
+              <div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:13px">Judging model</div><div style="font-size:11.5px;color:var(--text-3)">Opus for quality, Haiku for huge folders</div></div><div style="font-family:'IBM Plex Mono';font-size:12px;color:var(--text-1);background:var(--surface-2);border:1px solid var(--border);padding:6px 12px;border-radius:var(--radius-sm)">Opus 4.8 &#9662;</div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:13px">Write XMP sidecars</div><div style="font-size:11.5px;color:var(--text-3)">Standard .xmp only &mdash; never touches .on1</div></div><div style="width:38px;height:22px;border-radius:99px;background:var(--accent);position:relative"><span style="position:absolute;top:2px;left:18px;width:16px;height:16px;border-radius:50%;background:#fff"></span></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:13px">Back up before first edit</div><div style="font-size:11.5px;color:var(--text-3)">.xmp.bak / .txt.bak</div></div><div style="width:38px;height:22px;border-radius:99px;background:var(--accent);position:relative"><span style="position:absolute;top:2px;left:18px;width:16px;height:16px;border-radius:50%;background:#fff"></span></div></div>
+              <div style="display:flex;align-items:center;justify-content:space-between"><div><div style="font-size:13px">Mirror ratings to RAW+JPG pairs</div><div style="font-size:11.5px;color:var(--text-3)">One frame = two files</div></div><div style="width:38px;height:22px;border-radius:99px;background:var(--accent);position:relative"><span style="position:absolute;top:2px;left:18px;width:16px;height:16px;border-radius:50%;background:#fff"></span></div></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- DESIGN SYSTEM -->
+      <sc-if value="{{ isDesign }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:30px 36px">
+        <div style="max-width:940px;margin:0 auto;display:flex;flex-direction:column;gap:30px">
+          <div>
+            <div style="font-size:24px;font-weight:700;letter-spacing:-.02em">Photo Critic &mdash; Design System</div>
+            <div style="color:var(--text-2);font-size:13.5px;margin-top:6px;max-width:640px">A token-driven system for a refined-neutral, image-first culling tool. Built for Avalonia 11 &middot; FluentTheme: every token below maps to a <span style="font-family:'IBM Plex Mono';color:var(--text-1)">DynamicResource</span>, themes swap by merging a resource dictionary.</div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--text-3);margin-bottom:14px">SURFACES &amp; TEXT</div>
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px">
+              <sc-for list="{{ dsSurfaces }}" as="c" hint-placeholder-count="8">
+                <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;background:var(--surface-1)">
+                  <div style="height:56px;background:{{ c.bg }};border-bottom:1px solid var(--border)"></div>
+                  <div style="padding:9px 11px"><div style="font-size:12px;font-weight:600">{{ c.name }}</div><div style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3);margin-top:2px">{{ c.var }}</div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--text-3);margin-bottom:14px">SEMANTIC &amp; ACCENT &middot; fixed meanings</div>
+            <div style="display:grid;grid-template-columns:repeat(6,1fr);gap:10px">
+              <sc-for list="{{ dsSemantic }}" as="c" hint-placeholder-count="9">
+                <div style="border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+                  <div style="height:48px;background:{{ c.bg }}"></div>
+                  <div style="padding:8px 10px;background:var(--surface-1)"><div style="font-size:11px;font-weight:600">{{ c.name }}</div><div style="font-family:'IBM Plex Mono';font-size:10px;color:var(--text-3);margin-top:2px">{{ c.var }}</div></div>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:grid;grid-template-columns:1.1fr 1fr;gap:24px">
+            <div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--text-3);margin-bottom:14px">TYPE &middot; IBM Plex Sans + Mono</div>
+              <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:14px">
+                <div><div style="font-size:28px;font-weight:700;letter-spacing:-.02em;line-height:1.1">Cull faster</div><div style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3);margin-top:4px">Display / 28&middot;700</div></div>
+                <div><div style="font-size:20px;font-weight:600">Folder overview</div><div style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3);margin-top:4px">Heading / 20&middot;600</div></div>
+                <div><div style="font-size:13px;color:var(--text-2);line-height:1.5">Body copy sits at 13px with relaxed leading for dense metric panels and rationale text.</div><div style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3);margin-top:4px">Body / 13&middot;400</div></div>
+                <div><div style="font-family:'IBM Plex Mono';font-size:13px;color:var(--text-1)">DSC04412.ARW &nbsp; TQ 0.93 &nbsp; ISO 200</div><div style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3);margin-top:4px">Mono / metrics, filenames, scores</div></div>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--text-3);margin-bottom:14px">COMPONENTS</div>
+              <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--radius);padding:20px;display:flex;flex-direction:column;gap:18px">
+                <div style="display:flex;gap:9px;flex-wrap:wrap">
+                  <button style="height:30px;padding:0 14px;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--radius-sm);font-weight:600;font-size:12.5px">Primary</button>
+                  <button style="height:30px;padding:0 14px;background:var(--surface-2);color:var(--text-1);border:1px solid var(--border-strong);border-radius:var(--radius-sm);font-weight:500;font-size:12.5px">Secondary</button>
+                  <button style="height:30px;padding:0 14px;background:transparent;color:var(--text-2);border:1px solid var(--border);border-radius:var(--radius-sm);font-size:12.5px">Ghost</button>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap">
+                  <span style="height:26px;display:flex;align-items:center;padding:0 11px;background:var(--accent-soft);color:var(--accent);border:1px solid var(--accent-line);border-radius:99px;font-size:12px;font-weight:500">Picks 9</span>
+                  <span style="height:26px;display:flex;align-items:center;padding:0 11px;background:var(--surface-2);color:var(--text-2);border:1px solid var(--border);border-radius:99px;font-size:12px">Unrated 6</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:16px">
+                  <span style="font-size:17px;letter-spacing:2px"><span style="color:var(--star)">&#9733;&#9733;&#9733;</span><span style="color:var(--text-3)">&#9734;</span></span>
+                  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--pick);font-weight:600"><span style="width:9px;height:9px;border-radius:50%;background:var(--pick)"></span>PICK</span>
+                  <span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--reject);font-weight:600"><span style="width:9px;height:9px;border-radius:50%;background:var(--reject)"></span>REJECT</span>
+                </div>
+                <div style="display:flex;align-items:center;gap:9px">
+                  <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3)">TQ</span>
+                  <div style="flex:1;height:6px;border-radius:3px;background:var(--surface-hi);overflow:hidden"><div style="height:100%;width:78%;background:var(--pick);border-radius:3px"></div></div>
+                  <span style="font:500 11px/1 'IBM Plex Mono';color:var(--text-2)">0.78</span>
+                </div>
+                <div style="display:flex;gap:7px">
+                  <span style="width:11px;height:11px;border-radius:50%;background:var(--lab-red)"></span>
+                  <span style="width:11px;height:11px;border-radius:50%;background:var(--lab-blue)"></span>
+                  <span style="width:11px;height:11px;border-radius:50%;background:var(--lab-purple)"></span>
+                  <span style="width:11px;height:11px;border-radius:50%;background:var(--lab-yellow)"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:600;letter-spacing:.1em;color:var(--text-3);margin-bottom:14px">RADIUS &amp; SPACING</div>
+            <div style="display:flex;gap:14px;align-items:flex-end">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:60px;height:46px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:6px"></div><span style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">6 / sm</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:60px;height:46px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:9px"></div><span style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">9 / md</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:8px"><div style="width:60px;height:46px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:13px"></div><span style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">13 / lg</span></div>
+              <div style="width:1px;height:46px;background:var(--border);margin:0 6px"></div>
+              <div style="display:flex;align-items:center;gap:8px">
+                <span style="width:4px;height:46px;background:var(--accent);border-radius:2px"></span><span style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">4</span>
+                <span style="width:8px;height:46px;background:var(--accent);border-radius:2px"></span><span style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">8</span>
+                <span style="width:16px;height:46px;background:var(--accent);border-radius:2px"></span><span style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">16</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <sc-if value="{{ showRight }}" hint-placeholder-val="{{ true }}">
+    <div style="width:392px;flex:0 0 392px;background:var(--surface-1);border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0">
+      <div style="height:38px;flex:0 0 38px;display:flex;align-items:center;padding:4px 6px;gap:3px;border-bottom:1px solid var(--border)">
+        <button data-on="{{ tabDetail }}" onClick="{{ setTabDetail }}" style="flex:1;height:28px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer">Detail</button>
+        <button data-on="{{ tabCull }}" onClick="{{ setTabCull }}" style="flex:1;height:28px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer">AI Cull</button>
+        <button data-on="{{ tabLog }}" onClick="{{ setTabLog }}" style="flex:1;height:28px;border:none;background:transparent;color:var(--text-2);border-radius:var(--radius-sm);font-size:12px;font-weight:600;cursor:pointer">Run log</button>
+      </div>
+
+      <!-- DETAIL -->
+      <sc-if value="{{ tabIsDetail }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;overflow-y:auto;min-height:0;display:flex;flex-direction:column">
+        <div style="position:relative;aspect-ratio:4/3;overflow:hidden;flex:0 0 auto;background:var(--surface-3) {{ sel.bigImgBg }} center/cover no-repeat">
+          <div style="position:absolute;left:12px;bottom:12px;display:flex;gap:6px">
+            <span style="font:600 10px/1 'IBM Plex Mono';color:#fff;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:5px;backdrop-filter:blur(4px)">{{ sel.ext }}</span>
+            <sc-if value="{{ sel.pair }}" hint-placeholder-val="{{ false }}"><span style="font:600 10px/1 'IBM Plex Mono';color:#fff;background:rgba(0,0,0,.6);padding:4px 8px;border-radius:5px;backdrop-filter:blur(4px)">RAW+JPG</span></sc-if>
+          </div>
+        </div>
+        <div style="padding:15px 16px;display:flex;flex-direction:column;gap:15px">
+          <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px">
+            <div style="min-width:0">
+              <div style="font-family:'IBM Plex Mono';font-size:14px;font-weight:600;color:var(--text-1)">{{ sel.name }}</div>
+              <div style="font-size:12px;color:var(--text-2);margin-top:3px">{{ dispHead }}</div>
+            </div>
+            <div style="text-align:right;flex:0 0 auto"><div style="font-size:11px;color:var(--text-3)">{{ judgeCount }}</div><div style="font-size:11.5px;font-weight:600;color:{{ agreeColor }}">{{ agreeText }}</div></div>
+          </div>
+
+          <sc-if value="{{ hasJudges }}" hint-placeholder-val="{{ true }}">
+            <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:2px;gap:2px">
+              <sc-for list="{{ judgeTabs }}" as="t" hint-placeholder-count="3">
+                <button data-on="{{ t.on }}" onClick="{{ t.onClick }}" style="flex:1;height:27px;border:none;background:transparent;color:var(--text-2);border-radius:5px;font-size:11.5px;font-weight:600;cursor:pointer;white-space:nowrap">{{ t.label }}</button>
+              </sc-for>
+            </div>
+          </sc-if>
+
+          <sc-if value="{{ isOverallTab }}" hint-placeholder-val="{{ true }}">
+          <div style="display:flex;flex-direction:column;gap:9px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <button onClick="{{ pickSel }}" style="flex:1;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:{{ pickBg }};color:{{ pickFg }}">Pick</button>
+              <button onClick="{{ rejectSel }}" style="flex:1;height:32px;border-radius:var(--radius-sm);border:1px solid var(--border);font-weight:600;font-size:12px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;background:{{ rejectBg }};color:{{ rejectFg }}">Reject</button>
+              <div style="display:flex;gap:3px;align-items:center;padding-left:6px">
+                <sc-for list="{{ starButtons }}" as="b" hint-placeholder-count="4">
+                  <button onClick="{{ b.onClick }}" style="background:none;border:none;cursor:pointer;font-size:20px;line-height:1;padding:0;color:{{ b.color }}">&#9733;</button>
+                </sc-for>
+              </div>
+            </div>
+            <sc-if value="{{ hasJudges }}" hint-placeholder-val="{{ true }}">
+              <div style="display:flex;gap:7px">
+                <sc-for list="{{ judgeScores }}" as="j" hint-placeholder-count="2">
+                  <button onClick="{{ j.onClick }}" style="flex:1;display:flex;align-items:center;justify-content:space-between;gap:8px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:7px 11px;cursor:pointer" style-hover="border-color:var(--border-strong)">
+                    <span style="font-size:11px;color:var(--text-2);font-weight:500">{{ j.short }}</span>
+                    <span style="font-size:12px;letter-spacing:1px"><span style="color:var(--star)">{{ j.filled }}</span><span style="color:var(--text-3)">{{ j.empty }}</span></span>
+                  </button>
+                </sc-for>
+              </div>
+            </sc-if>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ showModelTab }}" hint-placeholder-val="{{ false }}">
+          <div style="display:flex;flex-direction:column;gap:9px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:12px 13px">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <span style="font-size:22px;letter-spacing:2px"><span style="color:var(--star)">{{ modelFilled }}</span><span style="color:var(--text-3)">{{ modelEmpty }}</span></span>
+              <button onClick="{{ applyJudge }}" style="height:28px;padding:0 13px;border:1px solid var(--accent-line);background:var(--accent-soft);color:var(--accent);border-radius:var(--radius-sm);font-size:11.5px;font-weight:600;cursor:pointer">Use as overall</button>
+            </div>
+            <div style="font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)">{{ modelMeta }}</div>
+          </div>
+          </sc-if>
+
+          <sc-if value="{{ sel.label }}" hint-placeholder-val="{{ false }}">
+            <div style="display:flex;align-items:center;gap:9px;padding:9px 11px;border-radius:var(--radius-sm);background:{{ sel.labelSoft }};border:1px solid {{ sel.labelColor }}">
+              <span style="width:9px;height:9px;border-radius:50%;background:{{ sel.labelColor }};flex:0 0 auto"></span>
+              <span style="font-size:11.5px;color:var(--text-1)">Color label &middot; <b>{{ sel.labelName }}</b></span>
+            </div>
+          </sc-if>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:9px">
+            <sc-for list="{{ metricCards }}" as="m" hint-placeholder-count="6">
+              <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:9px 11px">
+                <div style="font-size:10px;color:var(--text-3);text-transform:uppercase;letter-spacing:.05em">{{ m.k }}</div>
+                <div style="font-family:'IBM Plex Mono';font-size:14px;font-weight:600;margin-top:3px;color:{{ m.c }}">{{ m.v }}</div>
+              </div>
+            </sc-for>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-3);margin-bottom:10px">{{ rationaleLabel }}</div>
+            <div style="display:flex;flex-direction:column;gap:0">
+              <sc-for list="{{ critRows }}" as="c" hint-placeholder-count="9">
+                <div style="display:flex;gap:11px;padding:8px 0;border-bottom:1px solid var(--border)">
+                  <span style="width:88px;flex:0 0 auto;font-size:11.5px;color:var(--text-2);font-weight:500">{{ c.k }}</span>
+                  <span style="font-size:12px;color:var(--text-1);line-height:1.45">{{ c.v }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-3);margin-bottom:9px">KEYWORDS</div>
+            <div style="display:flex;flex-wrap:wrap;gap:6px">
+              <sc-for list="{{ sel.keywords }}" as="k" hint-placeholder-count="3">
+                <span style="font-family:'IBM Plex Mono';font-size:11px;padding:4px 9px;border-radius:5px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)">{{ k }}</span>
+              </sc-for>
+            </div>
+          </div>
+
+          <div>
+            <div style="font-size:11px;font-weight:600;letter-spacing:.06em;color:var(--text-3);margin-bottom:9px">SIDECAR &middot; {{ sel.name }}.txt</div>
+            <pre style="margin:0;font-family:'IBM Plex Mono';font-size:11px;line-height:1.6;color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);border-radius:var(--radius-sm);padding:11px 13px;white-space:pre-wrap">{{ sel.sidecar }}</pre>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- AI CULL CHAT -->
+      <sc-if value="{{ tabIsCull }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:11px">
+          <sc-for list="{{ chat }}" as="m" hint-placeholder-count="6">
+            <div style="display:flex;flex-direction:column;gap:4px;animation:pc-fade .25s ease;align-self:{{ m.align }};max-width:{{ m.max }}">
+              <div style="font-size:9.5px;font-weight:600;letter-spacing:.06em;color:var(--text-3);text-transform:uppercase;padding:0 2px">{{ m.who }}</div>
+              <div style="font-size:12.5px;line-height:1.5;padding:9px 12px;border-radius:11px;background:{{ m.bg }};color:{{ m.fg }};border:1px solid {{ m.bd }};font-family:{{ m.font }};white-space:pre-wrap">{{ m.text }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div style="flex:0 0 auto;padding:11px 13px;border-top:1px solid var(--border)">
+          <div style="display:flex;align-items:center;gap:8px;background:var(--surface-2);border:1px solid var(--border-strong);border-radius:10px;padding:7px 7px 7px 13px">
+            <input value="{{ chatInput }}" onChange="{{ setChatInput }}" onInput="{{ setChatInput }}" onKeyDown="{{ chatKey }}" placeholder="Steer the cull&hellip;  &ldquo;only keep 4&#9733;+&rdquo;, &ldquo;go&rdquo;, &ldquo;stop&rdquo;" style="flex:1;background:transparent;border:none;outline:none;color:var(--text-1);font-size:12.5px;font-family:inherit" />
+            <button onClick="{{ sendChat }}" style="width:30px;height:30px;border-radius:8px;border:none;background:var(--accent);color:var(--accent-fg);cursor:pointer;display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4z" stroke="currentColor" stroke-width="1.6" fill="none"></path></svg>
+            </button>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- RUN LOG -->
+      <sc-if value="{{ tabIsLog }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="flex:0 0 auto;padding:13px 15px;border-bottom:1px solid var(--border);display:flex;flex-direction:column;gap:9px">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <span style="font-size:12px;font-weight:600;display:flex;align-items:center;gap:8px"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent);animation:pc-pulse 1.4s infinite"></span>Unattended cull</span>
+            <span style="font-family:'IBM Plex Mono';font-size:11px;color:var(--text-3)">Opus 4.8</span>
+          </div>
+          <div style="height:7px;background:var(--surface-3);border-radius:4px;overflow:hidden"><div style="height:100%;border-radius:4px;width:{{ ratedPct }};background:var(--accent)"></div></div>
+          <div style="display:flex;justify-content:space-between;font-family:'IBM Plex Mono';font-size:10.5px;color:var(--text-3)"><span>{{ rated }} / {{ total }} rated</span><span>6 turns &middot; 41s &middot; $0.17</span></div>
+        </div>
+        <div style="flex:1;overflow-y:auto;padding:12px 14px;font-family:'IBM Plex Mono';font-size:11px;line-height:1.7;display:flex;flex-direction:column">
+          <sc-for list="{{ log }}" as="l" hint-placeholder-count="8">
+            <div style="display:flex;gap:9px;animation:pc-fade .2s ease">
+              <span style="color:var(--text-3);flex:0 0 auto">{{ l.t }}</span>
+              <span style="color:{{ l.color }};white-space:pre-wrap">{{ l.m }}</span>
+            </div>
+          </sc-for>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+    </sc-if>
+
+  </div>
+
+  <!-- STATUS BAR -->
+  <div style="height:34px;flex:0 0 34px;display:flex;align-items:center;gap:16px;padding:0 16px;background:var(--surface-1);border-top:1px solid var(--border);font-size:11.5px;color:var(--text-2)">
+    <div style="display:flex;align-items:center;gap:9px;min-width:200px">
+      <span style="color:var(--text-3)">Review progress</span>
+      <div style="width:140px;height:6px;background:var(--surface-3);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:{{ ratedPct }};background:var(--accent)"></div></div>
+      <span style="font-family:'IBM Plex Mono'"><b style="color:var(--text-1)">{{ rated }}</b>/{{ total }}</span>
+    </div>
+    <div style="width:1px;height:14px;background:var(--border)"></div>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--pick)"></span>{{ picks }} picks</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:8px;height:8px;border-radius:50%;background:var(--reject)"></span>{{ rejects }} rejects</span>
+    <span style="color:var(--text-3)">{{ unrated }} unrated</span>
+    <div style="flex:1"></div>
+    <span style="font-family:'IBM Plex Mono';color:var(--text-3)">{{ groupCount }} burst groups &middot; aesthetic: DirectML</span>
+    <div style="width:1px;height:14px;background:var(--border)"></div>
+    <span style="font-family:'IBM Plex Mono';color:var(--text-3)">last run &middot; 41s &middot; $0.17</span>
+  </div>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.PHOTOS = this.buildPhotos();
+    this.state = {
+      theme:'dark', accent:'teal', scaleKey:'m', view:'browse', rightTab:'detail', judgeTab:'overall',
+      filter:'all', selectedId:1011, density:'comfortable', thumb:200, chatInput:'',
+      moveOptIn:false,
+      chat:[
+        {role:'assistant',kind:'plan',text:'Plan for 2024-06-08_Rivera_Wedding (24 frames): group bursts & brackets, judge each from the embedded JPEG preview (never demosaic a RAW), and rate 1\u20134\u2605. Bursts get de-duplicated but I keep \u22653 frames of any genuine series. Est. ~6 turns \u00b7 ~$0.18. Reply \u201Cgo\u201D to start \u2014 or steer me.'},
+        {role:'user',text:'go \u2014 but cap the ceremony burst at one keeper'},
+        {role:'assistant',kind:'step',text:'Batch 1 / 4 \u00b7 frames 1\u20136'},
+        {role:'tool',text:'DSC04412.ARW \u2192 4\u2605 pick'},
+        {role:'tool',text:'DSC04413.ARW \u2192 2\u2605 (burst dup)'},
+        {role:'tool',text:'DSC04414.ARW \u2192 3\u2605'},
+        {role:'assistant',kind:'note',text:'Ceremony burst A: 04412 is the clear keeper \u2014 tack sharp, both eyes open. 04414 is a hair soft; 04413 / 04416 missed focus. Per your steer I\u2019m capping the rest of the burst at 2\u2605.'},
+        {role:'tool',text:'DSC04416.ARW \u2192 2\u2605 soft'}
+      ],
+      log:[
+        {t:'12:04:01',lvl:'info',m:'scan 2024-06-08_Rivera_Wedding \u2014 24 images'},
+        {t:'12:04:01',lvl:'ok',m:'aesthetic pre-filter: DirectML (AMD) \u2713  24/24 scored'},
+        {t:'12:04:02',lvl:'group',m:'3 burst groups \u00b7 largest 5 \u00b7 series protection on'},
+        {t:'12:04:03',lvl:'rate',m:'DSC04412.ARW   4\u2605 pick     TQ 0.93  AES 8.1'},
+        {t:'12:04:05',lvl:'rate',m:'DSC04413.ARW   2\u2605 dup      TQ 0.71  AES 6.2'},
+        {t:'12:04:06',lvl:'rate',m:'DSC04414.ARW   3\u2605          TQ 0.84  AES 7.0'},
+        {t:'12:04:08',lvl:'lab',m:'DSC04416.ARW   label RED  soft focus'},
+        {t:'12:04:11',lvl:'rate',m:'IMG_2207.CR3   4\u2605 pick     TQ 0.95  AES 8.9'},
+        {t:'12:04:13',lvl:'lab',m:'IMG_2208.CR3   1\u2605 reject   highlights blown'},
+        {t:'12:04:21',lvl:'group',m:'series B protected \u2014 kept 3/3 frames'},
+        {t:'12:04:30',lvl:'done',m:'done \u00b7 24 rated \u00b7 6 turns \u00b7 41s \u00b7 $0.17'}
+      ]
+    };
+  }
+
+  buildPhotos(){
+    const rows=[
+      [1011,'DSC04412','ARW',4,0.93,8.1,0.96,'ok',200,0.6,0.3,'A',null],
+      [1012,'DSC04413','ARW',2,0.71,6.2,0.74,'ok',200,0.4,0.2,'A',null],
+      [1013,'DSC04414','ARW',3,0.84,7.0,0.88,'ok',200,0.5,0.3,'A',null],
+      [1014,'DSC04415','ARW',2,0.66,5.8,0.61,'ok',200,0.5,0.2,'A','red'],
+      [1015,'DSC04416','ARW',2,0.62,5.5,0.55,'ok',200,0.4,0.2,'A','red'],
+      [1020,'DSC04431','ARW',3,0.86,7.4,0.90,'ok',400,0.8,0.4,'B',null],
+      [1021,'DSC04432','ARW',4,0.90,8.6,0.93,'ok',400,1.1,0.3,'B',null],
+      [1022,'DSC04433','ARW',3,0.82,7.1,0.85,'ok',400,0.9,0.4,'B',null],
+      [1030,'IMG_2207','CR3',4,0.95,8.9,0.97,'ok',100,0.3,0.1,null,null],
+      [1031,'IMG_2208','CR3',1,0.38,3.1,0.45,'over',100,7.2,0.2,null,'blue'],
+      [1040,'DSC04455','ARW',0,0.80,6.6,0.86,'ok',800,0.5,0.6,'C',null],
+      [1041,'DSC04456','ARW',0,0.78,6.4,0.83,'under',800,0.2,3.4,'C','blue'],
+      [1042,'DSC04457','ARW',0,0.81,6.9,0.87,'ok',800,0.6,0.5,'C',null],
+      [1043,'DSC04458','ARW',2,0.48,4.2,0.42,'ok',800,0.5,0.6,'C','red'],
+      [1050,'_DSF1180','RAF',4,0.91,8.3,0.94,'ok',640,0.7,0.4,null,null],
+      [1051,'_DSF1181','RAF',2,0.55,5.0,0.62,'ok',6400,0.6,0.5,null,'purple'],
+      [1052,'_DSF1182','RAF',1,0.33,2.8,0.40,'ok',12800,0.5,1.2,null,'yellow'],
+      [1060,'NEF_8841','NEF',3,0.83,7.2,0.87,'ok',1600,0.8,0.6,null,null],
+      [1061,'NEF_8842','NEF',2,0.60,5.3,0.66,'under',1600,0.3,4.1,null,'blue'],
+      [1070,'IMG_3310','DNG',4,0.94,8.7,0.96,'ok',125,0.4,0.2,null,null],
+      [1071,'IMG_3311','DNG',0,0.79,6.7,0.84,'ok',125,0.5,0.3,null,null],
+      [1072,'IMG_3312','DNG',1,0.36,3.4,0.34,'ok',125,0.5,0.3,null,'red'],
+      [1080,'P1000455','RW2',0,0.77,6.1,0.82,'ok',400,0.6,0.4,null,null],
+      [1081,'P1000456','RW2',3,0.85,7.6,0.89,'ok',400,0.7,0.3,null,null]
+    ];
+    return rows.map(r=>this.expand(r));
+  }
+
+  expand(r){
+    const [seed,name,ext,stars,tech,aes,sharp,exp,iso,hi,sh,group,label]=r;
+    const base={seed,name,ext,tech,aes,sharp,exp,iso,hi,sh,label};
+    const p={id:seed,seed,name,ext,stars,tech,aes,sharp,exp,iso,hi,sh,group,label,
+      pair:[1030,1070,1020].includes(seed),
+      techPct:Math.round(tech*100)+'%', techStr:tech.toFixed(2), techColor:this.techColor(tech),
+      aesStr:aes.toFixed(1), groupTag: group?('BURST '+group):null,
+      img:'https://picsum.photos/seed/pc'+seed+'/420/315',
+      bigImg:'https://picsum.photos/seed/pc'+seed+'/640/480',
+      imgBg:'url("https://picsum.photos/seed/pc'+seed+'/420/315")',
+      bigImgBg:'url("https://picsum.photos/seed/pc'+seed+'/640/480")'};
+    // per-model AI judgments (fixed reference; the human-editable working rating is p.stars)
+    if(stars>0){
+      const opus=stars; let haiku=opus;
+      if(opus===3 && aes<7.2) haiku=2;
+      else if(opus===2 && tech>=0.8) haiku=3;
+      else if(opus===4 && aes<8.4) haiku=3;
+      else if(opus===2 && aes<5.6) haiku=1;
+      p.judges=[
+        {model:'Opus 4.8', short:'Opus', stars:opus, conf:90, turns:2, crit:this.genCrit({...base,stars:opus})},
+        {model:'Haiku 4.5', short:'Haiku', stars:haiku, conf:78, turns:1, crit:this.genCrit({...base,stars:haiku})}
+      ];
+    } else { p.judges=[]; }
+    this.rederive(p);
+    return p;
+  }
+
+  techColor(t){ return t>=0.78?'var(--pick)':t>=0.55?'var(--star)':'var(--reject)'; }
+
+  rederive(p){
+    p.isPick=p.stars>=3; p.isReject=p.stars===1; p.unrated=p.stars===0;
+    p.starsFilled='\u2605'.repeat(p.stars);
+    p.starsEmpty='\u2606'.repeat(4-p.stars);
+    p.state=p.isPick?'pick':p.isReject?'reject':'none';
+    p.model=p.stars>0?'Opus 4.8':null;
+    p.head=this.headline(p.stars,p.label);
+    p.crit=this.genCrit(p);
+    p.agree=(p.judges&&p.judges.length===2)? p.judges[0].stars===p.judges[1].stars : true;
+  }
+
+  headline(stars,label){
+    if(stars===0) return 'Not yet reviewed';
+    if(stars===1) return label==='red'?'Reject \u2014 focus missed':label==='blue'?'Reject \u2014 exposure blown':label==='yellow'?'Reject \u2014 multiple faults':'Reject';
+    if(stars===2) return 'Weak \u2014 stronger frames exist';
+    if(stars===3) return 'Solid frame \u2014 a keeper';
+    return 'Strong keeper';
+  }
+
+  genCrit(p){
+    const s=p.sharp;
+    const sharpTxt = s>=0.9?'Tack sharp \u2014 eyes hold detail at 100%.':s>=0.75?'Sharp enough; edges soften a touch.':s>=0.5?'Visibly soft; focus sits behind the subject.':'Focus missed \u2014 not recoverable.';
+    const expTxt = p.exp==='over'?'Highlights clipped ('+p.hi.toFixed(1)+'% blown); not recoverable.':p.exp==='under'?'Underexposed; shadows crushed ('+p.sh.toFixed(1)+'%).':'Balanced exposure \u00b7 '+p.hi.toFixed(1)+'% hi / '+p.sh.toFixed(1)+'% sh clip.';
+    const noiseTxt = p.iso>=6400?'Heavy luma noise at ISO '+p.iso+'.':p.iso>=1600?'Mild grain at ISO '+p.iso+', cleans up fine.':'Clean \u2014 ISO '+p.iso+'.';
+    return {
+      sharp:sharpTxt, exposure:expTxt, noise:noiseTxt,
+      other:'No motion smear or lens flare of note.',
+      artistic:p.aes>=8?'Lovely light and subject separation; frame-worthy.':p.aes>=6?'Pleasant composition, nothing distracting.':'Composition is flat; subject competes with the background.',
+      story:p.stars>=3?'Reads the moment clearly \u2014 you know what happened.':'Moment is ambiguous; little narrative pull.',
+      nostalgia:p.aes>=7?'Warm, timeless feel.':'Neutral mood.',
+      eye:(p.sharp>=0.8&&p.stars>=3)?'Direct eye contact, engaged.':'Gaze off-camera.',
+      happy:p.aes>=7?'Genuine, unforced expression.':'Expression is muted.'
+    };
+  }
+
+  matchFilter(p,f){
+    switch(f){
+      case 's2': return p.stars>=2; case 's3': return p.stars>=3; case 's4': return p.stars===4;
+      case 'picks': return p.stars>=3; case 'rejects': return p.stars===1; case 'unrated': return p.stars===0;
+      default: return true;
+    }
+  }
+  countFor(f){ return this.PHOTOS.filter(p=>this.matchFilter(p,f)).length; }
+
+  setStars(id,n){ const p=this.PHOTOS.find(x=>x.id===id); if(!p)return; p.stars=n; this.rederive(p); this.setState({judgeTab:'overall'}); }
+
+  runHeuristic(){
+    this.PHOTOS.forEach(p=>{
+      if(p.stars>0) return;
+      let n; const score=p.tech*0.6+(p.aes/10)*0.4;
+      if(p.sharp<0.45) n=1; else if(score>=0.8) n=4; else if(score>=0.62) n=3; else if(score>=0.45) n=2; else n=1;
+      p.stars=n; this.rederive(p);
+    });
+    this.forceUpdate();
+  }
+
+  componentDidMount(){
+    this._key=(e)=>{
+      const tag=(e.target&&e.target.tagName)||''; if(tag==='INPUT'||tag==='TEXTAREA') return;
+      const ids=this._visIds||[]; const i=ids.indexOf(this.state.selectedId);
+      if(e.key==='ArrowRight'||e.key==='l'){ if(i<ids.length-1) this.setState({selectedId:ids[i+1],judgeTab:'overall'}); e.preventDefault(); }
+      else if(e.key==='ArrowLeft'||e.key==='h'){ if(i>0) this.setState({selectedId:ids[i-1],judgeTab:'overall'}); e.preventDefault(); }
+      else if(['1','2','3','4'].includes(e.key)){ this.setStars(this.state.selectedId,+e.key); }
+      else if(e.key==='0'){ this.setStars(this.state.selectedId,0); }
+      else if(e.key==='p'||e.key==='P'){ this.setStars(this.state.selectedId,4); }
+      else if(e.key==='r'||e.key==='x'||e.key==='R'||e.key==='X'){ this.setStars(this.state.selectedId,1); }
+    };
+    window.addEventListener('keydown',this._key);
+  }
+  componentWillUnmount(){ window.removeEventListener('keydown',this._key); }
+
+  sendChat(){
+    const t=(this.state.chatInput||'').trim(); if(!t) return;
+    const reply={role:'assistant',kind:'note',text:'Got it \u2014 applying \u201C'+t+'\u201D to the remaining frames. Continuing batch 2 / 4.'};
+    this.setState(s=>({chat:[...s.chat,{role:'user',text:t},reply],chatInput:''}));
+  }
+
+  renderVals(){
+    const s=this.state, P=this.PHOTOS;
+    const filtered=P.filter(p=>this.matchFilter(p,s.filter));
+    this._visIds=filtered.map(p=>p.id);
+    const sel=P.find(p=>p.id===s.selectedId)||P[0];
+    const total=P.length, rated=P.filter(p=>p.stars>0).length;
+    const picks=this.countFor('picks'), rejects=this.countFor('rejects'), unrated=this.countFor('unrated');
+    const groupSet={}; P.forEach(p=>{ if(p.group) groupSet[p.group]=(groupSet[p.group]||0)+1; });
+    const groupCount=Object.keys(groupSet).length;
+    const largestGroup=Math.max(0,...Object.values(groupSet));
+    const ratedPct=Math.round(rated/total*100)+'%';
+
+    const vis=filtered.map(p=>({...p, sel: p.id===s.selectedId?'1':'0',
+      onSelect:()=>this.setState(st=>({selectedId:p.id, judgeTab:'overall', rightTab:(st.rightTab==='cull'||st.rightTab==='log')?st.rightTab:'detail'})) }));
+
+    const chipDefs=[['all','All'],['s2','\u2605 2+'],['s3','\u2605 3+'],['s4','\u2605 4'],['picks','Picks'],['rejects','Rejects'],['unrated','Unrated']];
+    const chips=chipDefs.map(([k,l])=>({k,l,count:this.countFor(k),on:s.filter===k?'1':'0',onClick:()=>this.setState({filter:k})}));
+    const filterMap={all:'all frames',s2:'\u2605 2 and up',s3:'\u2605 3 and up',s4:'\u2605 4 only',picks:'picks',rejects:'rejects',unrated:'unrated'};
+
+    const swHex={teal:'#1eb5a6',blue:'#5089f4',amber:'#e2982f',violet:'#9072ee'};
+    const swatches=['teal','blue','amber','violet'].map(a=>({name:a,hex:swHex[a],ring:s.accent===a?'2px':'0px',onClick:()=>this.setState({accent:a})}));
+
+    // selected detail
+    const labelNames={red:'Sharpness / focus',blue:'Exposure',purple:'Noise',yellow:'2+ problems'};
+    const labelVar={red:'var(--lab-red)',blue:'var(--lab-blue)',purple:'var(--lab-purple)',yellow:'var(--lab-yellow)'};
+    const labelSoft={red:'color-mix(in oklab,var(--lab-red) 14%,transparent)',blue:'color-mix(in oklab,var(--lab-blue) 14%,transparent)',purple:'color-mix(in oklab,var(--lab-purple) 14%,transparent)',yellow:'color-mix(in oklab,var(--lab-yellow) 14%,transparent)'};
+    const expLabel=sel.exp==='over'?'Over +'+sel.hi.toFixed(1)+'%':sel.exp==='under'?'Under \u2212'+sel.sh.toFixed(1)+'%':'Balanced';
+    const metricCards=[
+      {k:'Technical',v:sel.techStr,c:sel.techColor},
+      {k:'Sharpness',v:sel.sharp.toFixed(2),c:sel.sharp>=0.75?'var(--text-1)':'var(--lab-red)'},
+      {k:'Exposure',v:expLabel,c:sel.exp==='ok'?'var(--text-1)':'var(--lab-blue)'},
+      {k:'ISO',v:String(sel.iso),c:sel.iso>=3200?'var(--lab-purple)':'var(--text-1)'},
+      {k:'Aesthetic',v:sel.aesStr+' /10',c:'var(--text-1)'},
+      {k:'Hi / Sh clip',v:sel.hi.toFixed(1)+' / '+sel.sh.toFixed(1)+'%',c:'var(--text-1)'}
+    ];
+    // per-model score tabs
+    const jt=s.judgeTab;
+    const hasJudges=!!(sel.judges&&sel.judges.length);
+    const isOverallTab=jt==='overall'||!hasJudges;
+    const activeJudge=isOverallTab?null:(sel.judges.find(j=>j.model===jt)||sel.judges[0]);
+    const dispHead=isOverallTab?sel.head:this.headline(activeJudge.stars,sel.label);
+    const dispCrit=isOverallTab?sel.crit:activeJudge.crit;
+    const judgeTabs=[{key:'overall',label:'Overall',on:isOverallTab?'1':'0',onClick:()=>this.setState({judgeTab:'overall'})}]
+      .concat((sel.judges||[]).map(j=>({key:j.model,label:j.model,on:(!isOverallTab&&activeJudge.model===j.model)?'1':'0',onClick:()=>this.setState({judgeTab:j.model})})));
+    const judgeScores=(sel.judges||[]).map(j=>({short:j.short,stars:j.stars,filled:'\u2605'.repeat(j.stars),empty:'\u2606'.repeat(4-j.stars),onClick:()=>this.setState({judgeTab:j.model})}));
+    const modelMeta=activeJudge?(activeJudge.model+' \u00b7 confidence '+activeJudge.conf+'% \u00b7 '+activeJudge.turns+' turn'+(activeJudge.turns>1?'s':'')):'';
+    const modelFilled=activeJudge?'\u2605'.repeat(activeJudge.stars):'';
+    const modelEmpty=activeJudge?'\u2606'.repeat(4-activeJudge.stars):'';
+    const applyJudge=activeJudge?(()=>this.setStars(sel.id,activeJudge.stars)):(()=>{});
+    const agreeText=hasJudges?(sel.agree?'Models agree':'Models split'):(sel.stars>0?'Single pass':'Unrated');
+    const agreeColor=hasJudges?(sel.agree?'var(--pick)':'var(--star)'):'var(--text-3)';
+    const judgeCount=hasJudges?(sel.judges.length+' models'):'manual';
+    const rationaleLabel=isOverallTab?(hasJudges?'CONSENSUS RATIONALE':'RATIONALE'):(activeJudge.model.toUpperCase()+' \u00b7 RATIONALE');
+    const c=sel.crit;
+    const dc=dispCrit;
+    const critRows=[['Sharpness',dc.sharp],['Exposure',dc.exposure],['Noise',dc.noise],['Other tech',dc.other],['Artistic',dc.artistic],['Storytelling',dc.story],['Nostalgia',dc.nostalgia],['Eye contact',dc.eye],['Happy moment',dc.happy]].map(([k,v])=>({k,v}));
+    const kw=[]; if(sel.stars>=3) kw.push('Pick'); if(sel.stars===1) kw.push('reject');
+    if(sel.label==='red') kw.push('soft'); if(sel.label==='blue') kw.push(sel.exp==='under'?'underexposed':'overexposed'); if(sel.label==='purple') kw.push('noisy'); if(sel.label==='yellow') kw.push('soft','noisy');
+    const sidecar=sel.stars+'\u2605 \u2014 '+sel.head+'\nSharpness: '+c.sharp+'\nExposure: '+c.exposure+'\nNoise: '+c.noise+'\nArtistic: '+c.artistic;
+    const starButtons=[1,2,3,4].map(n=>({n,color:n<=sel.stars?'var(--star)':'var(--text-3)',onClick:()=>this.setStars(sel.id,n)}));
+
+    // chat presentation
+    const chat=s.chat.map(m=>{
+      if(m.role==='user') return {...m,who:'You',align:'flex-end',max:'85%',bg:'var(--accent)',fg:'var(--accent-fg)',bd:'transparent',font:'inherit'};
+      if(m.role==='tool') return {...m,who:'tool \u00b7 rate',align:'flex-start',max:'88%',bg:'var(--surface-2)',fg:'var(--text-2)',bd:'var(--border)',font:"'IBM Plex Mono'"};
+      return {...m,who:m.kind==='plan'?'Claude \u00b7 plan':m.kind==='step'?'Claude \u00b7 batch':'Claude',align:'flex-start',max:'92%',bg:'var(--surface-2)',fg:'var(--text-1)',bd:'var(--border)',font:'inherit'};
+    });
+    const logColor={info:'var(--text-2)',ok:'var(--pick)',group:'var(--accent)',rate:'var(--text-1)',lab:'var(--star)',done:'var(--pick)'};
+    const log=s.log.map(l=>({...l,color:logColor[l.lvl]||'var(--text-2)'}));
+
+    // stats
+    const histDefs=[['\u2605 4',4,'var(--pick)'],['\u2605 3',3,'color-mix(in oklab,var(--pick) 70%,var(--star))'],['\u2605 2',2,'var(--star)'],['\u2605 1',1,'var(--reject)'],['Unrated',0,'var(--text-3)']];
+    const histRows=histDefs.map(([label,star,color])=>{ const n=P.filter(p=>p.stars===star).length; return {label,n,color,pct:Math.round(n/total*100)+'%'}; });
+    const statCards=[
+      {k:'Frames',v:String(total),sub:'8 formats',c:'var(--text-1)'},
+      {k:'Picks',v:String(picks),sub:Math.round(picks/total*100)+'% keep rate',c:'var(--pick)'},
+      {k:'Burst groups',v:String(groupCount),sub:'largest '+largestGroup+' frames',c:'var(--text-1)'},
+      {k:'Reviewed',v:ratedPct,sub:rated+' of '+total,c:'var(--accent)'}
+    ];
+    const softN=P.filter(p=>p.sharp<0.6).length, expN=P.filter(p=>p.exp!=='ok').length, noiseN=P.filter(p=>p.iso>=3200).length, cleanN=P.filter(p=>!p.label).length;
+    const techRows=[
+      {k:'Clean frames',v:cleanN+'/'+total,pct:Math.round(cleanN/total*100)+'%',color:'var(--pick)'},
+      {k:'Soft / focus',v:softN+'/'+total,pct:Math.round(softN/total*100)+'%',color:'var(--lab-red)'},
+      {k:'Exposure issues',v:expN+'/'+total,pct:Math.round(expN/total*100)+'%',color:'var(--lab-blue)'},
+      {k:'High ISO',v:noiseN+'/'+total,pct:Math.round(noiseN/total*100)+'%',color:'var(--lab-purple)'}
+    ];
+
+    const rejectList=P.filter(p=>p.stars===1);
+
+    // design system
+    const dsSurfaces=[
+      ['Background','--bg'],['Surface 1','--surface-1'],['Surface 2','--surface-2'],['Surface 3','--surface-3'],
+      ['Border','--border'],['Text 1','--text-1'],['Text 2','--text-2'],['Text 3','--text-3']
+    ].map(([name,v])=>({name,var:v,bg:'var('+v+')'}));
+    const dsSemantic=[
+      ['Accent','--accent'],['Pick','--pick'],['Reject','--reject'],['Star','--star'],
+      ['Label red','--lab-red'],['Label blue','--lab-blue'],['Label purple','--lab-purple'],['Label yellow','--lab-yellow'],['Accent soft','--accent-soft']
+    ].map(([name,v])=>({name,var:v,bg:'var('+v+')'}));
+
+    return {
+      theme:s.theme, accent:s.accent, scaleKey:s.scaleKey,
+      isDark:s.theme==='dark', isLight:s.theme==='light',
+      swatches,
+      // toolbar
+      chips, thumb:s.thumb,
+      denseComfortable:s.density==='comfortable'?'1':'0', denseCompact:s.density==='compact'?'1':'0',
+      setComfortable:()=>this.setState({density:'comfortable'}), setCompact:()=>this.setState({density:'compact'}),
+      setThumb:(e)=>this.setState({thumb:+e.target.value}),
+      toggleTheme:()=>this.setState(st=>({theme:st.theme==='dark'?'light':'dark'})),
+      goSettings:()=>this.setState({view:'settings'}),
+      // nav
+      onBrowse:s.view==='browse'?'1':'0', onStats:s.view==='stats'?'1':'0', onRejects:s.view==='rejects'?'1':'0',
+      onDesign:s.view==='design'?'1':'0', onCull:(s.view==='browse'&&s.rightTab==='cull')?'1':'0', onLog:(s.view==='browse'&&s.rightTab==='log')?'1':'0',
+      goBrowse:()=>this.setState({view:'browse'}), goStats:()=>this.setState({view:'stats'}),
+      goRejects:()=>this.setState({view:'rejects'}), goDesign:()=>this.setState({view:'design'}),
+      openCull:()=>this.setState({view:'browse',rightTab:'cull'}), openLog:()=>this.setState({view:'browse',rightTab:'log'}),
+      runHeuristic:()=>this.runHeuristic(),
+      // view flags
+      isBrowse:s.view==='browse', isStats:s.view==='stats', isRejects:s.view==='rejects', isSettings:s.view==='settings', isDesign:s.view==='design',
+      showChrome:s.view!=='design', showRight:s.view==='browse'||s.view==='stats'||s.view==='rejects',
+      // grid
+      vis, visCount:filtered.length, total, filterLabel:filterMap[s.filter], groupCount, largestGroup,
+      gridStyle:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax('+s.thumb+'px,1fr))',gap:s.density==='compact'?'10px':'15px',padding:s.density==='compact'?'14px 18px':'18px',alignContent:'start'},
+      gridWrapStyle:'',
+      // right tabs
+      tabDetail:s.rightTab==='detail'?'1':'0', tabCull:s.rightTab==='cull'?'1':'0', tabLog:s.rightTab==='log'?'1':'0',
+      tabIsDetail:s.rightTab==='detail', tabIsCull:s.rightTab==='cull', tabIsLog:s.rightTab==='log',
+      setTabDetail:()=>this.setState({rightTab:'detail'}), setTabCull:()=>this.setState({rightTab:'cull'}), setTabLog:()=>this.setState({rightTab:'log'}),
+      // detail
+      sel:{...sel, modelLabel:sel.model||'\u2014', labelName:labelNames[sel.label]||'', labelColor:labelVar[sel.label]||'transparent', labelSoft:labelSoft[sel.label]||'transparent', keywords:kw, sidecar},
+      metricCards, critRows, starButtons,
+      pickBg:sel.stars>=3?'var(--pick)':'var(--surface-2)', pickFg:sel.stars>=3?'#06271a':'var(--text-2)',
+      rejectBg:sel.stars===1?'var(--reject)':'var(--surface-2)', rejectFg:sel.stars===1?'#fff':'var(--text-2)',
+      pickSel:()=>this.setStars(sel.id,4), rejectSel:()=>this.setStars(sel.id,1),
+      judgeTabs, judgeScores, isOverallTab, showModelTab:hasJudges&&!isOverallTab, hasJudges,
+      dispHead, judgeCount, agreeText, agreeColor, modelMeta, modelFilled, modelEmpty, applyJudge, rationaleLabel,
+      // chat
+      chat, chatInput:s.chatInput, setChatInput:(e)=>this.setState({chatInput:e.target.value}),
+      chatKey:(e)=>{ if(e.key==='Enter') this.sendChat(); }, sendChat:()=>this.sendChat(),
+      // log
+      log, ratedPct, rated,
+      // stats
+      statCards, histRows, techRows,
+      // rejects
+      rejectList, rejects, sidecarCount:rejects*2,
+      moveOn:s.moveOptIn?'1':'0', knobX:s.moveOptIn?'20px':'2px', toggleMove:()=>this.setState(st=>({moveOptIn:!st.moveOptIn})),
+      moveDisabled:!s.moveOptIn, moveBtnBg:s.moveOptIn?'var(--reject)':'var(--surface-3)', moveBtnFg:s.moveOptIn?'#fff':'var(--text-3)', moveBtnOpacity:s.moveOptIn?'1':'.6',
+      // status
+      picks, unrated,
+      // settings
+      isDarkSel:s.theme==='dark'?'1':'0', isLightSel:s.theme==='light'?'1':'0',
+      setDark:()=>this.setState({theme:'dark'}), setLight:()=>this.setState({theme:'light'}),
+      scaleS:s.scaleKey==='s'?'1':'0', scaleM:s.scaleKey==='m'?'1':'0', scaleL:s.scaleKey==='l'?'1':'0',
+      setScaleS:()=>this.setState({scaleKey:'s'}), setScaleM:()=>this.setState({scaleKey:'m'}), setScaleL:()=>this.setState({scaleKey:'l'}),
+      // design system
+      dsSurfaces, dsSemantic
+    };
+  }
+}
+</script>
+</body>
+</html>

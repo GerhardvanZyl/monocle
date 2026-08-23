@@ -273,6 +273,111 @@
             <Setter Property="Foreground" Value="{StaticResource Text1}"/>
         </Style>
 
+        <!-- ===== Icon rail (design v2) =====
+             38px square, icon-only; Classes.on marks the current page the way Button.nav did. -->
+        <Style Selector="Button.railbtn">
+            <Setter Property="Width" Value="38"/>
+            <Setter Property="Height" Value="38"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="11"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+        <Style Selector="Button.railbtn:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+        </Style>
+        <Style Selector="Button.railbtn.on">
+            <Setter Property="Background" Value="{StaticResource AccentSoft}"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+        <Style Selector="Button.railbtn.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <!-- ===== Left panel: folder-tree rows, their chevron, and catalog cards ===== -->
+        <Style Selector="Button.treerow">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="CornerRadius" Value="6"/>
+            <Setter Property="Foreground" Value="{StaticResource Text2}"/>
+            <Setter Property="Padding" Value="10,6"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="Button.treerow:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+            <Setter Property="Foreground" Value="{StaticResource Text1}"/>
+        </Style>
+        <Style Selector="Button.treerow.on">
+            <Setter Property="Background" Value="{StaticResource AccentSoft}"/>
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+        <Style Selector="Button.treerow.on /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Foreground" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <Style Selector="Button.chev">
+            <Setter Property="Width" Value="15"/>
+            <Setter Property="Height" Value="15"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+        </Style>
+
+        <Style Selector="Button.catalogCard">
+            <Setter Property="Background" Value="{StaticResource Surface2}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="11,10"/>
+            <Setter Property="Margin" Value="0,0,0,7"/>
+            <Setter Property="FontWeight" Value="Normal"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+        </Style>
+        <Style Selector="Button.catalogCard:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{StaticResource Surface3}"/>
+        </Style>
+        <Style Selector="Button.catalogCard.on">
+            <Setter Property="BorderBrush" Value="{StaticResource Accent}"/>
+        </Style>
+
+        <!-- ===== Folder-overview stat card (design v2): mono key, big mono number, quiet sub-line ===== -->
+        <Style Selector="Border.statCard">
+            <Setter Property="Background" Value="{StaticResource Surface1}"/>
+            <Setter Property="BorderBrush" Value="{StaticResource BorderSoft}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Padding" Value="17,16"/>
+        </Style>
+        <Style Selector="TextBlock.statKey">
+            <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+            <Setter Property="FontSize" Value="9.5"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+        </Style>
+        <Style Selector="TextBlock.statValue">
+            <Setter Property="FontFamily" Value="{StaticResource FontMono}"/>
+            <Setter Property="FontSize" Value="27"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Margin" Value="0,10,0,0"/>
+        </Style>
+        <Style Selector="TextBlock.statSub">
+            <Setter Property="FontSize" Value="11.5"/>
+            <Setter Property="Foreground" Value="{StaticResource Text3}"/>
+            <Setter Property="Margin" Value="0,3,0,0"/>
+            <Setter Property="TextWrapping" Value="Wrap"/>
+        </Style>
+
         <!-- ===== Right-panel tab buttons (#8) ===== -->
         <Style Selector="Button.rtab">
             <Setter Property="Background" Value="Transparent"/>

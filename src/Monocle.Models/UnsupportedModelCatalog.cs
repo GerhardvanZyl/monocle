@@ -17,78 +17,16 @@ public sealed record BlockedModelGroup(string Reason, IReadOnlyList<ModelDescrip
 public static class UnsupportedModelCatalog
 {
     // Reasons are written for THIS machine's shape: Windows + an AMD GPU, so the working GPU paths
-    // are ONNX Runtime/DirectML and llama.cpp/Vulkan. A PyTorch-only model has no GPU path here —
-    // ROCm is Linux-only and the DirectML torch build is stale. Those are the honest blockers, not
-    // a verdict on the model.
+    // are ONNX Runtime/DirectML, llama.cpp/Vulkan, and the Python sidecar. Being PyTorch-only is no
+    // longer a blocker on its own — the sidecar hosts the pyiqa metrics, on whichever of CPU/GPU
+    // actually works for each — so what remains here needs a package or a runner that does not
+    // exist, which is an honest blocker rather than a verdict on the model.
     public static readonly IReadOnlyList<BlockedModelGroup> Groups = new BlockedModelGroup[]
     {
-        new("PyTorch-only (pyiqa): no ONNX export, so no DirectML path on this AMD GPU. Runs on CPU "
-          + "at a few seconds a frame, or on an NVIDIA card.",
+        new("Preference models with no pyiqa metric and no ONNX export, so nothing here can host "
+          + "them. Both would need their own runner and their own package.",
         new ModelDescriptor[]
         {
-            new()
-            {
-                Id = "musiq", DisplayName = "MUSIQ", Category = ModelCategory.NumericIqa,
-                Description = "Multi-scale image quality transformer (Google). Judges a photo at several "
-                            + "resolutions at once, so it catches both global exposure/composition faults and "
-                            + "pixel-level softness. Trained on KonIQ / SPAQ / PaQ-2-PiQ.",
-                Tradeoffs = "The strongest general-purpose technical scorer in the open zoo; native 1-10 output "
-                          + "lines up with NIMA. Transformer-sized, so slow on CPU.",
-                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Technical, ScaleMax = 10,
-                InfoUrl = "https://github.com/chaofengc/IQA-PyTorch",
-            },
-            new()
-            {
-                Id = "maniqa", DisplayName = "MANIQA", Category = ModelCategory.NumericIqa,
-                Description = "ViT-based no-reference IQA that won the NTIRE 2022 challenge. Keys on sharpness, "
-                            + "noise and compression rather than on subject matter.",
-                Tradeoffs = "Good at ranking near-identical frames within a burst, which is exactly the cull "
-                          + "problem. Its scores are relative, not absolute.",
-                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Technical, ScaleMax = 1,
-                InfoUrl = "https://github.com/IIGROUP/MANIQA",
-            },
-            new()
-            {
-                Id = "topiq", DisplayName = "TOPIQ (+ face variant)", Category = ModelCategory.NumericIqa,
-                Description = "Top-down semantic IQA: works out what the photo is about first, then judges quality "
-                            + "where it matters. Ships a face-specific head (topiq_nr-face) trained on portrait "
-                            + "quality, which is closer to how a portrait shooter actually culls.",
-                Tradeoffs = "The face head is the most directly useful model on this list for people photography. "
-                          + "Needs a face-crop step to feed it.",
-                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Technical, ScaleMax = 1,
-                InfoUrl = "https://github.com/chaofengc/IQA-PyTorch",
-            },
-            new()
-            {
-                Id = "liqe", DisplayName = "LIQE", Category = ModelCategory.NumericIqa,
-                Description = "CLIP-based multitask IQA that returns a quality score AND names the scene type and "
-                            + "the dominant distortion. Its distortion vocabulary includes motion blur, defocus "
-                            + "blur and noise, so it can say why a frame is weak, not only how weak.",
-                Tradeoffs = "That distortion head maps straight onto Monocle's colour-label technical reason. "
-                          + "The labels are coarse.",
-                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Technical, ScaleMax = 5,
-                InfoUrl = "https://github.com/zwx8981/LIQE",
-            },
-            new()
-            {
-                Id = "clipiqa-plus", DisplayName = "CLIP-IQA+", Category = ModelCategory.NumericIqa,
-                Description = "Scores a photo by how much more CLIP prefers 'Good photo.' over 'Bad photo.' for it, "
-                            + "with a learned prompt. Free-form: swap the prompt pair and it scores sharpness, "
-                            + "brightness or noise instead of overall quality.",
-                Tradeoffs = "Prompt-steerable, which nothing else here is. Less accurate than MUSIQ overall.",
-                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Technical, ScaleMax = 1,
-                InfoUrl = "https://github.com/IceClear/CLIP-IQA",
-            },
-            new()
-            {
-                Id = "arniqa", DisplayName = "ARNIQA", Category = ModelCategory.NumericIqa,
-                Description = "Self-supervised IQA (WACV 2024), trained by learning what degradations look like, so "
-                            + "it generalises to faults it never saw labelled.",
-                Tradeoffs = "Holds up on real camera faults better than the KonIQ-trained models. Newer and less "
-                          + "battle-tested.",
-                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Technical, ScaleMax = 1,
-                InfoUrl = "https://github.com/miccunifi/ARNIQA",
-            },
             new()
             {
                 Id = "imagereward", DisplayName = "ImageReward", Category = ModelCategory.AestheticPredictor,

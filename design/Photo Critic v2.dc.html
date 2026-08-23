@@ -1,0 +1,1192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0e0e10; --surface-1:#15151a; --surface-2:#1b1b21; --surface-3:#23232a; --surface-hi:#2c2c34;
+  --border:rgba(255,255,255,.07); --border-strong:rgba(255,255,255,.14);
+  --text-1:#f2f1ef; --text-2:#a3a1a8; --text-3:#6e6c74;
+  --accent:#2ec8b4; --accent-fg:#04211e;
+  --accent-soft:color-mix(in oklab, var(--accent) 16%, transparent);
+  --accent-line:color-mix(in oklab, var(--accent) 42%, transparent);
+  --pick:#4ecb84; --reject:#f2704f; --star:#f4bb45; --warn:#e6a33c;
+  --lab-red:#f2704f; --lab-blue:#5f9bfa; --lab-purple:#b585f5; --lab-yellow:#e8c34a;
+  --shadow:0 18px 40px -12px rgba(0,0,0,.65); --shadow-sm:0 2px 10px rgba(0,0,0,.35);
+  --r:12px; --r-sm:8px; --r-lg:18px;
+}
+[data-theme="light"]{
+  --bg:#f4f3f0; --surface-1:#ffffff; --surface-2:#f7f6f3; --surface-3:#edece8; --surface-hi:#e2e0da;
+  --border:rgba(20,18,16,.09); --border-strong:rgba(20,18,16,.18);
+  --text-1:#17161a; --text-2:#55535c; --text-3:#8a8891;
+  --shadow:0 18px 40px -16px rgba(40,36,32,.28); --shadow-sm:0 2px 10px rgba(40,36,32,.12);
+}
+[data-accent="teal"]{--accent:#2ec8b4;--accent-fg:#04211e;}
+[data-accent="blue"]{--accent:#5b8cf7;--accent-fg:#04122e;}
+[data-accent="amber"]{--accent:#e6a33c;--accent-fg:#2a1c05;}
+[data-accent="violet"]{--accent:#9b7cf4;--accent-fg:#160b33;}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0;height:100%}
+body{background:var(--bg)}
+a{color:var(--accent);text-decoration:none}
+a:hover{color:var(--text-1)}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--surface-hi);border-radius:8px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-thumb:hover{background:var(--text-3);background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+[data-on="1"]{background:var(--accent-soft)!important;color:var(--accent)!important}
+[data-pcstate="pick"]{box-shadow:inset 0 0 0 1.5px var(--pick)}
+[data-pcstate="reject"]{box-shadow:inset 0 0 0 1.5px var(--reject)}
+[data-sel="1"]{outline:2px solid var(--accent);outline-offset:2px}
+[data-lab="red"]{background:var(--lab-red)!important}
+[data-lab="blue"]{background:var(--lab-blue)!important}
+[data-lab="purple"]{background:var(--lab-purple)!important}
+[data-lab="yellow"]{background:var(--lab-yellow)!important}
+@keyframes pc-pulse{0%,100%{opacity:.4}50%{opacity:1}}
+@keyframes pc-pop{from{opacity:0;transform:scale(.97) translateY(-3px)}to{opacity:1;transform:none}}
+input[type=range]{accent-color:var(--accent)}
+::selection{background:var(--accent-soft)}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" data-accent="{{ accent }}" onClick="{{ closeMenu }}" style="height:100vh;width:100vw;overflow-x:auto;overflow-y:hidden;display:flex;flex-direction:column;background:var(--bg);color:var(--text-1);font-family:Geist,system-ui,sans-serif;font-size:13px;-webkit-font-smoothing:antialiased">
+
+  <!-- TITLEBAR -->
+  <div style="height:44px;flex:0 0 44px;min-width:1348px;display:flex;align-items:center;gap:14px;padding:0 10px 0 16px;border-bottom:1px solid var(--border);user-select:none">
+    <div style="display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;font-size:13.5px">
+      <div style="width:22px;height:22px;border-radius:8px;background:var(--accent);display:flex;align-items:center;justify-content:center">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="var(--accent-fg)" stroke-width="2.2"><circle cx="10" cy="10" r="6.5"></circle><path d="M15 15l6 6"></path></svg>
+      </div>
+      <span>Photo&nbsp;Critic</span>
+    </div>
+    <div style="width:1px;height:16px;background:var(--border)"></div>
+    <div style="display:flex;align-items:center;gap:8px;min-width:0;font-size:12px;white-space:nowrap;overflow:hidden">
+      <span style="font-family:'IBM Plex Mono';color:var(--text-3)">{{ activeParent }}</span>
+      <span style="color:var(--text-3)">/</span>
+      <span style="font-weight:600">{{ activeName }}</span>
+      <span style="display:flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;background:var(--surface-2);border:1px solid var(--border);font:500 10.5px/1 'IBM Plex Mono';color:var(--text-2)">{{ activeCount }} frames</span>
+      <span style="display:flex;align-items:center;gap:5px;height:20px;padding:0 8px;border-radius:99px;background:{{ freshBg }};border:1px solid {{ freshLine }};font:500 10.5px/1 'IBM Plex Mono';color:{{ freshFg }}">{{ freshLabel }}</span>
+    </div>
+    <div style="flex:1"></div>
+    <button onClick="{{ toggleTheme }}" title="Theme" style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text-2);cursor:pointer;border-radius:var(--r-sm)" style-hover="background:var(--surface-3);color:var(--text-1)">
+      <sc-if value="{{ isDark }}" hint-placeholder-val="{{ true }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M2 12h2M20 12h2M5 5l1.4 1.4M17.6 17.6L19 19M19 5l-1.4 1.4M6.4 17.6L5 19"></path></svg></sc-if>
+      <sc-if value="{{ isLight }}" hint-placeholder-val="{{ false }}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M21 12.8A9 9 0 1111.2 3 7 7 0 0021 12.8z"></path></svg></sc-if>
+    </button>
+    <div style="display:flex;align-items:center;gap:6px;padding:0 4px">
+      <sc-for list="{{ swatches }}" as="w" hint-placeholder-count="4">
+        <button onClick="{{ w.onClick }}" title="{{ w.name }}" style="width:13px;height:13px;border-radius:50%;border:none;cursor:pointer;background:{{ w.hex }};outline:{{ w.ring }} solid var(--text-1);outline-offset:2px"></button>
+      </sc-for>
+    </div>
+    <button onClick="{{ goSettings }}" title="Settings" style="width:30px;height:28px;display:flex;align-items:center;justify-content:center;background:transparent;border:none;color:var(--text-2);cursor:pointer;border-radius:var(--r-sm)" style-hover="background:var(--surface-3);color:var(--text-1)">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>
+    </button>
+    <div style="width:1px;height:16px;background:var(--border);margin:0 2px"></div>
+    <div style="display:flex;align-items:center;gap:2px;color:var(--text-3)">
+      <div style="width:30px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm)" style-hover="background:var(--surface-3)"><svg width="12" height="12" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.8"><path d="M5 12h14"></path></svg></div>
+      <div style="width:30px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm)" style-hover="background:var(--surface-3)"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="4" y="4" width="16" height="16" rx="3"></rect></svg></div>
+      <div style="width:30px;height:26px;display:flex;align-items:center;justify-content:center;border-radius:var(--r-sm)" style-hover="background:var(--reject);color:#fff"><svg width="11" height="11" viewBox="0 0 24 24" stroke="currentColor" stroke-width="1.9"><path d="M6 6l12 12M18 6L6 18"></path></svg></div>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div style="flex:1;display:flex;min-height:0;min-width:1348px"><div style="flex:1;display:flex;min-height:0">
+
+    <!-- ICON RAIL -->
+    <div style="width:58px;flex:0 0 58px;display:flex;flex-direction:column;align-items:center;gap:6px;padding:12px 0;border-right:1px solid var(--border)">
+      <button onClick="{{ goBrowse }}" title="Browse" data-on="{{ onBrowse }}" style="width:38px;height:38px;border:none;background:transparent;color:var(--text-3);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:var(--surface-2);color:var(--text-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+      </button>
+      <button onClick="{{ goModels }}" title="Models &amp; config" data-on="{{ onModels }}" style="width:38px;height:38px;border:none;background:transparent;color:var(--text-3);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative" style-hover="background:var(--surface-2);color:var(--text-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2.6l1.6 4.4 4.4 1.6-4.4 1.6L12 14.6l-1.6-4.4L6 8.6l4.4-1.6z"></path><path d="M18 14.4l.8 2.1 2.2.8-2.2.8-.8 2.1-.8-2.1-2.2-.8 2.2-.8z"></path></svg>
+        <span style="position:absolute;top:3px;right:2px;min-width:15px;height:15px;padding:0 3px;border-radius:99px;background:var(--accent);color:var(--accent-fg);font:600 9px/15px 'IBM Plex Mono';text-align:center">{{ pickedCount }}</span>
+      </button>
+      <button onClick="{{ goPipeline }}" title="Pipeline &amp; progress" data-on="{{ onPipeline }}" style="width:38px;height:38px;border:none;background:transparent;color:var(--text-3);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:var(--surface-2);color:var(--text-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="4" y="3" width="16" height="5" rx="1.6"></rect><rect x="4" y="16" width="16" height="5" rx="1.6"></rect><path d="M12 8v8"></path></svg>
+      </button>
+      <button onClick="{{ goStats }}" title="Folder overview" data-on="{{ onStats }}" style="width:38px;height:38px;border:none;background:transparent;color:var(--text-3);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:var(--surface-2);color:var(--text-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M3 3v18h18"></path><path d="M7 15v3M12 10v8M17 6v12"></path></svg>
+      </button>
+      <button onClick="{{ goRejects }}" title="Rejects" data-on="{{ onRejects }}" style="width:38px;height:38px;border:none;background:transparent;color:var(--text-3);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center;position:relative" style-hover="background:var(--surface-2);color:var(--text-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"></path></svg>
+        <span style="position:absolute;top:3px;right:2px;min-width:15px;height:15px;padding:0 3px;border-radius:99px;background:var(--reject);color:#fff;font:600 9px/15px 'IBM Plex Mono';text-align:center">{{ rejects }}</span>
+      </button>
+      <button onClick="{{ goSettings }}" title="Settings" data-on="{{ onSettings }}" style="width:38px;height:38px;border:none;background:transparent;color:var(--text-3);border-radius:var(--r);cursor:pointer;display:flex;align-items:center;justify-content:center" style-hover="background:var(--surface-2);color:var(--text-1)">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="12" cy="12" r="3"></circle><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"></path></svg>
+      </button>
+      <div style="flex:1"></div>
+      <div style="width:8px;height:8px;border-radius:50%;background:var(--pick);animation:pc-pulse 2.4s infinite" title="Python sidecar running"></div>
+    </div>
+
+    <!-- LEFT PANEL: catalog + folder browser -->
+    <div style="width:290px;flex:0 0 290px;border-right:1px solid var(--border);display:flex;flex-direction:column;min-height:0;background:var(--surface-1)">
+      <div style="display:flex;gap:3px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r);margin:12px 12px 0;padding:3px">
+        <button data-on="{{ tabCatalogOn }}" onClick="{{ showCatalog }}" style="flex:1;height:28px;border:none;background:transparent;color:var(--text-2);border-radius:9px;font-size:12px;font-weight:600;cursor:pointer">Catalog</button>
+        <button data-on="{{ tabFoldersOn }}" onClick="{{ showFolders }}" style="flex:1;height:28px;border:none;background:transparent;color:var(--text-2);border-radius:9px;font-size:12px;font-weight:600;cursor:pointer">Folders</button>
+      </div>
+
+      <!-- FOLDER BROWSER -->
+      <sc-if value="{{ isFolders }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:12px 8px 16px">
+        <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3);padding:6px 10px 8px">FAVOURITES</div>
+        <sc-for list="{{ favourites }}" as="f" hint-placeholder-count="4">
+          <button onClick="{{ f.onClick }}" onContextMenu="{{ f.onMenu }}" style="width:100%;display:flex;align-items:center;gap:9px;padding:6px 10px;border:none;background:transparent;color:var(--text-2);border-radius:var(--r-sm);font-size:12.5px;cursor:pointer;text-align:left" style-hover="background:var(--surface-3);color:var(--text-1)">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" style="flex:0 0 auto;opacity:.7"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ f.name }}</span>
+          </button>
+        </sc-for>
+
+        <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3);padding:18px 10px 8px">LOCAL DRIVES</div>
+        <sc-for list="{{ tree }}" as="n" hint-placeholder-count="12">
+          <div data-on="{{ n.active }}" onClick="{{ n.onClick }}" onContextMenu="{{ n.onMenu }}" style="display:flex;align-items:center;gap:7px;height:28px;padding-right:8px;padding-left:{{ n.pad }};border-radius:var(--r-sm);color:var(--text-2);cursor:pointer;font-size:12.5px" style-hover="background:var(--surface-3);color:var(--text-1)">
+            <button onClick="{{ n.onToggle }}" style="width:15px;height:15px;flex:0 0 auto;border:none;background:transparent;padding:0;cursor:pointer;color:var(--text-3);display:flex;align-items:center;justify-content:center;transform:rotate({{ n.rot }});transition:transform .12s">
+              <sc-if value="{{ n.hasKids }}" hint-placeholder-val="{{ true }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M9 5l7 7-7 7"></path></svg></sc-if>
+            </button>
+            <span style="flex:0 0 auto;color:{{ n.iconColor }};display:flex">
+              <sc-if value="{{ n.isDrive }}" hint-placeholder-val="{{ false }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="12" width="18" height="8" rx="2"></rect><path d="M6 12V6a2 2 0 012-2h8a2 2 0 012 2v6"></path><circle cx="17" cy="16" r="1"></circle></svg></sc-if>
+              <sc-if value="{{ n.isFolder }}" hint-placeholder-val="{{ true }}"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"></path></svg></sc-if>
+            </span>
+            <span style="flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:{{ n.weight }}">{{ n.name }}</span>
+            <sc-if value="{{ n.inCatalog }}" hint-placeholder-val="{{ false }}">
+              <span title="In catalog" style="width:6px;height:6px;border-radius:50%;background:var(--accent);flex:0 0 auto"></span>
+            </sc-if>
+          </div>
+        </sc-for>
+
+        <div style="margin:16px 10px 0;padding:10px 11px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--border);font-size:11.5px;color:var(--text-2);line-height:1.5">
+          Right-click a folder &rarr; <b style="color:var(--text-1)">Add to catalog</b>. Nothing is read from disk until you do.
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- CATALOG -->
+      <sc-if value="{{ isCatalog }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;min-height:0;padding:12px 10px 16px;display:flex;flex-direction:column;gap:7px">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 4px">
+          <span style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3)">SCANNED FOLDERS &middot; {{ catCount }}</span>
+        </div>
+        <sc-for list="{{ catalog }}" as="c" hint-placeholder-count="4">
+          <div data-on="{{ c.active }}" onClick="{{ c.onClick }}" onContextMenu="{{ c.onMenu }}" style="padding:10px 11px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface-2);cursor:pointer;display:flex;flex-direction:column;gap:7px" style-hover="border-color:var(--border-strong)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="font-weight:600;font-size:12.5px;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.name }}</span>
+              <span style="font:500 9.5px/1 'IBM Plex Mono';padding:3px 6px;border-radius:5px;color:{{ c.stateFg }};background:{{ c.stateBg }}">{{ c.stateLabel }}</span>
+            </div>
+            <div style="font:400 10.5px/1.3 'IBM Plex Mono';color:var(--text-3);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ c.path }}</div>
+            <div style="display:flex;align-items:center;gap:10px;font:500 10.5px/1 'IBM Plex Mono';color:var(--text-2)">
+              <span>{{ c.frames }} frames</span>
+              <span style="width:1px;height:9px;background:var(--border)"></span>
+              <span style="color:var(--pick)">{{ c.picks }} picks</span>
+              <span style="flex:1"></span>
+              <span style="color:var(--text-3)">{{ c.scanned }}</span>
+            </div>
+          </div>
+        </sc-for>
+        <div style="margin:8px 4px 0;padding:10px 11px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--border);font-size:11.5px;color:var(--text-2);line-height:1.5">
+          Catalogued folders never refresh on their own. Right-click &rarr; <b style="color:var(--text-1)">Refresh now</b>.
+        </div>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- CENTER -->
+    <div style="flex:1;min-width:640px;display:flex;flex-direction:column">
+
+      <!-- FILTER BAR -->
+      <sc-if value="{{ showFilterBar }}" hint-placeholder-val="{{ true }}">
+      <div style="height:52px;flex:0 0 52px;display:flex;align-items:center;gap:14px;padding:0 18px;border-bottom:1px solid var(--border)">
+        <div style="display:flex;align-items:center;gap:5px;flex:1 1 auto;min-width:0;overflow-x:auto;overflow-y:hidden;padding-bottom:2px">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="7">
+            <button data-on="{{ c.on }}" onClick="{{ c.onClick }}" style="display:flex;align-items:center;gap:6px;height:30px;padding:0 12px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:99px;font-size:12px;font-weight:500;cursor:pointer;white-space:nowrap" style-hover="border-color:var(--border-strong);color:var(--text-1)">
+              <span>{{ c.l }}</span><span style="font-family:'IBM Plex Mono';font-size:10px;opacity:.7">{{ c.count }}</span>
+            </button>
+          </sc-for>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;color:var(--text-3);flex:0 0 auto">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><rect x="3" y="3" width="7" height="7" rx="1.5"></rect><rect x="14" y="3" width="7" height="7" rx="1.5"></rect><rect x="3" y="14" width="7" height="7" rx="1.5"></rect><rect x="14" y="14" width="7" height="7" rx="1.5"></rect></svg>
+          <input type="range" min="160" max="320" step="10" value="{{ thumb }}" onChange="{{ setThumb }}" onInput="{{ setThumb }}" style="width:90px;height:4px" />
+        </div>
+        <div style="display:flex;flex:0 0 auto;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px;gap:2px">
+          <button data-on="{{ denseComfortable }}" onClick="{{ setComfortable }}" style="padding:4px 10px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer">Comfortable</button>
+          <button data-on="{{ denseCompact }}" onClick="{{ setCompact }}" style="padding:4px 10px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer">Compact</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- BROWSE -->
+      <sc-if value="{{ isBrowse }}" hint-placeholder-val="{{ true }}">
+      <div style="flex:1;display:flex;flex-direction:column;min-height:0">
+        <div style="height:38px;flex:0 0 38px;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:0 20px;white-space:nowrap;overflow:hidden">
+          <div style="font-size:12px;color:var(--text-2)"><span style="color:var(--text-1);font-weight:600">{{ visCount }}</span> of {{ total }} frames <span style="color:var(--text-3)">&middot; {{ filterLabel }}</span></div>
+          <div style="display:flex;align-items:center;gap:6px">
+            <span style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3);margin-right:6px">{{ groupCount }} bursts &middot; largest {{ largestGroup }}</span>
+            <span style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.12em;color:var(--text-3)">SCORES</span>
+            <sc-for list="{{ cardVizOptions }}" as="o" hint-placeholder-count="4">
+              <button data-on="{{ o.on }}" onClick="{{ o.onClick }}" style="height:24px;padding:0 10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:99px;font-size:11px;font-weight:500;cursor:pointer">{{ o.l }}</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="flex:1;overflow-y:auto;min-height:0">
+          <div style="{{ gridStyle }}">
+            <sc-for list="{{ vis }}" as="p" hint-placeholder-count="12">
+              <div data-pcstate="{{ p.state }}" data-sel="{{ p.sel }}" onClick="{{ p.onSelect }}" style="position:relative;background:var(--surface-1);border-radius:var(--r);overflow:hidden;cursor:pointer;transition:transform .12s ease,box-shadow .12s ease" style-hover="transform:translateY(-2px);box-shadow:var(--shadow)">
+                <div style="position:relative;aspect-ratio:4/3;background:var(--surface-3) {{ p.imgBg }} center/cover no-repeat">
+                  <span data-lab="{{ p.label }}" style="position:absolute;top:9px;right:9px;width:9px;height:9px;border-radius:50%;background:transparent"></span>
+                  <sc-if value="{{ p.group }}" hint-placeholder-val="{{ false }}">
+                    <span style="position:absolute;top:8px;left:9px;font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:#fff;background:rgba(0,0,0,.5);padding:4px 7px;border-radius:6px;backdrop-filter:blur(4px)">{{ p.groupTag }}</span>
+                  </sc-if>
+                </div>
+                <div style="padding:9px 11px 11px;display:flex;flex-direction:column;gap:7px">
+                  <div style="display:flex;align-items:center;justify-content:space-between;gap:8px">
+                    <span style="font:500 11.5px/1.2 'IBM Plex Mono';overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ p.name }}</span>
+                    <span style="font-size:11px;letter-spacing:1px;flex:0 0 auto"><span style="color:var(--star)">{{ p.starsFilled }}</span><span style="color:var(--text-3)">{{ p.starsEmpty }}</span></span>
+                  </div>
+                  <div style="display:{{ p.dBars }};flex-direction:column;gap:5px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:22px;font:500 9px/1 'IBM Plex Mono';color:var(--text-3);letter-spacing:.06em">TQ</span>
+                      <div style="flex:1;height:4px;border-radius:2px;background:var(--surface-hi);overflow:hidden"><div style="height:100%;border-radius:2px;width:{{ p.techPct }};background:{{ p.techColor }}"></div></div>
+                      <span style="width:24px;text-align:right;font:500 10px/1 'IBM Plex Mono';color:var(--text-2)">{{ p.techStr }}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:22px;font:500 9px/1 'IBM Plex Mono';color:var(--text-3);letter-spacing:.06em">AES</span>
+                      <div style="flex:1;height:4px;border-radius:2px;background:var(--surface-hi);overflow:hidden"><div style="height:100%;border-radius:2px;width:{{ p.aesPct }};background:{{ p.aesColor }}"></div></div>
+                      <span style="width:24px;text-align:right;font:500 10px/1 'IBM Plex Mono';color:var(--text-2)">{{ p.aesStr }}</span>
+                    </div>
+                  </div>
+                  <div style="display:{{ p.dRings }};align-items:center;gap:14px;padding:1px 0 2px">
+                    <span style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+                      <svg width="36" height="36" viewBox="0 0 32 32" style="transform:rotate(-90deg)">
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="var(--surface-hi)" stroke-width="3"></circle>
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="{{ p.techColor }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ p.techDash }}"></circle>
+                      </svg>
+                      <span style="position:absolute;font:600 10px/1 'IBM Plex Mono';color:var(--text-1)">{{ p.techStr }}</span>
+                    </span>
+                    <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3);margin-left:-8px">TQ</span>
+                    <span style="position:relative;width:36px;height:36px;display:flex;align-items:center;justify-content:center;flex:0 0 auto">
+                      <svg width="36" height="36" viewBox="0 0 32 32" style="transform:rotate(-90deg)">
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="var(--surface-hi)" stroke-width="3"></circle>
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="{{ p.aesColor }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ p.aesDash }}"></circle>
+                      </svg>
+                      <span style="position:absolute;font:600 10px/1 'IBM Plex Mono';color:var(--text-1)">{{ p.aesStr }}</span>
+                    </span>
+                    <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3);margin-left:-8px">AES</span>
+                  </div>
+                  <div style="display:{{ p.dMeter }};flex-direction:column;gap:4px">
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:22px;font:500 9px/1 'IBM Plex Mono';color:var(--text-3)">TQ</span>
+                      <span style="flex:1;font:500 12px/1 'IBM Plex Mono';letter-spacing:-.5px"><span style="color:{{ p.techColor }}">{{ p.techOn }}</span><span style="color:var(--surface-hi)">{{ p.techOff }}</span></span>
+                      <span style="font:500 10px/1 'IBM Plex Mono';color:var(--text-2)">{{ p.techStr }}</span>
+                    </div>
+                    <div style="display:flex;align-items:center;gap:8px">
+                      <span style="width:22px;font:500 9px/1 'IBM Plex Mono';color:var(--text-3)">AES</span>
+                      <span style="flex:1;font:500 12px/1 'IBM Plex Mono';letter-spacing:-.5px"><span style="color:{{ p.aesColor }}">{{ p.aesOn }}</span><span style="color:var(--surface-hi)">{{ p.aesOff }}</span></span>
+                      <span style="font:500 10px/1 'IBM Plex Mono';color:var(--text-2)">{{ p.aesStr }}</span>
+                    </div>
+                  </div>
+                  <div style="display:{{ p.dChips }};align-items:center;gap:6px">
+                    <span style="display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border)">
+                      <span style="width:6px;height:6px;border-radius:50%;background:{{ p.techColor }}"></span>
+                      <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3)">TQ</span>
+                      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-1)">{{ p.techStr }}</span>
+                    </span>
+                    <span style="display:flex;align-items:center;gap:6px;height:24px;padding:0 9px;border-radius:7px;background:var(--surface-2);border:1px solid var(--border)">
+                      <span style="width:6px;height:6px;border-radius:50%;background:{{ p.aesColor }}"></span>
+                      <span style="font:500 9px/1 'IBM Plex Mono';color:var(--text-3)">AES</span>
+                      <span style="font:600 11px/1 'IBM Plex Mono';color:var(--text-1)">{{ p.aesStr }}</span>
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- OVERVIEW -->
+      <sc-if value="{{ isStats }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:28px 32px">
+        <div style="max-width:820px;margin:0 auto;display:flex;flex-direction:column;gap:22px">
+          <div>
+            <div style="font-size:21px;font-weight:600;letter-spacing:-.02em">Folder overview</div>
+            <div style="color:var(--text-3);font-family:'IBM Plex Mono';font-size:11.5px;margin-top:5px">{{ activePath }}</div>
+          </div>
+          <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px">
+            <sc-for list="{{ statCards }}" as="s" hint-placeholder-count="4">
+              <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:16px 17px">
+                <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.12em;color:var(--text-3)">{{ s.k }}</div>
+                <div style="font-size:27px;font-weight:600;font-family:'IBM Plex Mono';margin-top:10px;color:{{ s.c }}">{{ s.v }}</div>
+                <div style="font-size:11.5px;color:var(--text-3);margin-top:3px">{{ s.sub }}</div>
+              </div>
+            </sc-for>
+          </div>
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:20px 22px">
+            <div style="font-size:13px;font-weight:600;margin-bottom:18px">Star histogram</div>
+            <div style="display:flex;flex-direction:column;gap:11px">
+              <sc-for list="{{ histRows }}" as="h" hint-placeholder-count="5">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <span style="width:56px;font-size:12px;color:var(--text-2)">{{ h.label }}</span>
+                  <div style="flex:1;height:16px;background:var(--surface-3);border-radius:6px;overflow:hidden"><div style="height:100%;border-radius:6px;width:{{ h.pct }};background:{{ h.color }}"></div></div>
+                  <span style="width:30px;text-align:right;font-family:'IBM Plex Mono';font-size:12px;color:var(--text-2)">{{ h.n }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- REJECTS -->
+      <sc-if value="{{ isRejects }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:28px 32px">
+        <div style="max-width:720px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+          <div>
+            <div style="font-size:21px;font-weight:600;letter-spacing:-.02em">Reject management</div>
+            <div style="color:var(--text-2);font-size:13px;margin-top:6px;max-width:560px;line-height:1.55">Rejects stay in place by default &mdash; culling just rates them 1&#9733;. Opt in below to move them into a <span style="font-family:'IBM Plex Mono';color:var(--text-1)">_Rejects</span> subfolder, carrying every sidecar with them.</div>
+          </div>
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);overflow:hidden">
+            <sc-for list="{{ rejectList }}" as="r" hint-placeholder-count="4">
+              <div style="display:flex;align-items:center;gap:13px;padding:11px 15px;border-bottom:1px solid var(--border)">
+                <div style="width:44px;height:32px;border-radius:6px;flex:0 0 auto;box-shadow:inset 0 0 0 1.5px var(--reject);background:var(--surface-3) {{ r.imgBg }} center/cover no-repeat"></div>
+                <span style="font-family:'IBM Plex Mono';font-size:12px;flex:1">{{ r.name }}.{{ r.ext }}</span>
+                <span style="font-family:'IBM Plex Mono';font-size:11px;color:var(--text-3)">&rarr; _Rejects/</span>
+              </div>
+            </sc-for>
+          </div>
+          <label style="display:flex;align-items:center;gap:11px;cursor:pointer;font-size:13px">
+            <button onClick="{{ toggleMove }}" style="width:36px;height:21px;border-radius:99px;border:1px solid var(--border-strong);background:{{ moveTrack }};position:relative;cursor:pointer;flex:0 0 auto;padding:0">
+              <span style="position:absolute;top:2px;left:{{ knobX }};width:15px;height:15px;border-radius:50%;background:var(--text-1);transition:left .15s"></span>
+            </button>
+            I understand &mdash; actually move the rejects
+          </label>
+          <button style="align-self:flex-start;height:34px;padding:0 18px;border:none;border-radius:var(--r-sm);font-weight:600;font-size:12.5px;cursor:pointer;background:{{ moveBtnBg }};color:{{ moveBtnFg }};opacity:{{ moveBtnOpacity }}">Move {{ rejects }} rejects to _Rejects</button>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- MODELS & CONFIG -->
+      <sc-if value="{{ isModels }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:26px 30px">
+        <div style="max-width:860px;margin:0 auto;display:flex;flex-direction:column;gap:26px">
+          <div style="display:flex;align-items:flex-end;justify-content:space-between;gap:20px">
+            <div>
+              <div style="font-size:21px;font-weight:600;letter-spacing:-.02em">Models &amp; process</div>
+              <div style="color:var(--text-2);font-size:12.5px;margin-top:6px;max-width:520px;line-height:1.5">Tick the models, then Process. Scan first for metrics; Process runs the ticked models (and Claude, if ticked) on every click.</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:9px;flex:0 0 auto">
+              <button style="height:32px;padding:0 14px;background:var(--surface-2);border:1px solid var(--border-strong);color:var(--text-1);border-radius:var(--r-sm);font-size:12.5px;font-weight:500;cursor:pointer">{{ sidecarLabel }}</button>
+              <button onClick="{{ runProcess }}" style="height:32px;padding:0 16px;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;cursor:pointer">{{ runLabel }}</button>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:8px">
+            <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3)">RUNNABLE HERE &middot; {{ pickedCount }} TICKED</div>
+            <sc-for list="{{ models }}" as="m" hint-placeholder-count="7">
+              <div onClick="{{ m.onToggle }}" style="display:flex;align-items:flex-start;gap:12px;padding:13px 15px;border-radius:var(--r);border:1px solid var(--border);background:var(--surface-1);cursor:pointer" style-hover="border-color:var(--border-strong)">
+                <span style="width:17px;height:17px;flex:0 0 auto;margin-top:1px;border-radius:5px;border:1.5px solid {{ m.boxLine }};background:{{ m.boxBg }};display:flex;align-items:center;justify-content:center">
+                  <sc-if value="{{ m.on }}" hint-placeholder-val="{{ true }}"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="var(--accent-fg)" stroke-width="3"><path d="M5 12l5 5L20 6"></path></svg></sc-if>
+                </span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13px;font-weight:600">{{ m.name }}</div>
+                  <div style="font-size:11.5px;color:var(--text-2);line-height:1.5;margin-top:3px">{{ m.desc }}</div>
+                  <sc-if value="{{ m.card }}" hint-placeholder-val="{{ false }}">
+                    <span style="display:inline-flex;margin-top:8px;font:500 10.5px/1 'IBM Plex Mono';padding:5px 9px;border-radius:6px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-2)">model card &#8599;</span>
+                  </sc-if>
+                </div>
+                <span style="flex:0 0 auto;font:500 10.5px/1 'IBM Plex Mono';color:{{ m.tagColor }}">{{ m.tag }}</span>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3)">NOT RUNNABLE HERE</div>
+            <sc-for list="{{ blocked }}" as="g" hint-placeholder-count="2">
+              <div style="border:1px solid var(--border);border-radius:var(--r);overflow:hidden;background:var(--surface-1)">
+                <div style="padding:10px 15px;font-size:11.5px;color:var(--warn);background:color-mix(in oklab,var(--warn) 10%,transparent);line-height:1.5">{{ g.reason }}</div>
+                <sc-for list="{{ g.models }}" as="b" hint-placeholder-count="4">
+                  <div style="padding:11px 15px;border-top:1px solid var(--border)">
+                    <div style="font-size:12.5px;font-weight:500;color:var(--text-2)">{{ b.name }}</div>
+                    <div style="font-size:11.5px;color:var(--text-3);line-height:1.5;margin-top:3px">{{ b.desc }}</div>
+                  </div>
+                </sc-for>
+              </div>
+            </sc-for>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3)">WEIGHTED SCORING</div>
+            <div style="font-size:11.5px;color:var(--text-2);line-height:1.5;max-width:600px">Combine the models above into one Technical and one Aesthetic number (0&ndash;1). A missing model&rsquo;s weight is redistributed among the rest.</div>
+            <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;gap:14px">
+              <sc-for list="{{ weightRows }}" as="w" hint-placeholder-count="4">
+                <div style="display:flex;align-items:center;gap:14px">
+                  <span style="width:190px;flex:0 0 auto;font-size:12px;color:var(--text-2)">{{ w.k }}</span>
+                  <input type="range" min="0" max="100" step="1" value="{{ w.v }}" onInput="{{ w.onInput }}" onChange="{{ w.onInput }}" style="flex:1;height:4px" />
+                  <span style="width:42px;text-align:right;font:500 11px/1 'IBM Plex Mono';color:var(--text-1)">{{ w.pct }}</span>
+                  <span style="width:70px;font:500 10px/1 'IBM Plex Mono';color:var(--text-3)">{{ w.group }}</span>
+                </div>
+              </sc-for>
+            </div>
+          </div>
+
+          <div style="display:flex;flex-direction:column;gap:12px">
+            <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.14em;color:var(--text-3)">AI CULL INSTRUCTIONS</div>
+            <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;gap:18px">
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="font-size:12.5px;color:var(--text-2)">Keepers to target</span>
+                <input value="{{ keepers }}" onChange="{{ setKeepers }}" onInput="{{ setKeepers }}" style="width:80px;height:30px;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-1);font-family:'IBM Plex Mono';font-size:12px;padding:0 10px;outline:none" />
+                <span style="font-size:11.5px;color:var(--text-3)">0 = no target</span>
+              </div>
+              <div>
+                <div style="font-size:12.5px;color:var(--text-2);margin-bottom:10px">Judge on</div>
+                <div style="display:flex;flex-wrap:wrap;gap:8px">
+                  <sc-for list="{{ judgeChips }}" as="j" hint-placeholder-count="6">
+                    <button onClick="{{ j.onToggle }}" style="display:flex;align-items:center;gap:8px;height:30px;padding:0 12px 0 9px;border-radius:99px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-1);font-size:12px;cursor:pointer">
+                      <span style="width:15px;height:15px;border-radius:4px;border:1.5px solid {{ j.boxLine }};background:{{ j.boxBg }};display:flex;align-items:center;justify-content:center">
+                        <sc-if value="{{ j.on }}" hint-placeholder-val="{{ true }}"><svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="var(--accent-fg)" stroke-width="3.4"><path d="M5 12l5 5L20 6"></path></svg></sc-if>
+                      </span>
+                      {{ j.k }}
+                    </button>
+                  </sc-for>
+                </div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:9px">
+                  <span style="font-size:12.5px;color:var(--text-2)">System prompt (editable)</span>
+                  <span style="font:500 10.5px/1 'IBM Plex Mono';color:var(--text-3)">regenerates when you change an option</span>
+                </div>
+                <textarea value="{{ prompt }}" onChange="{{ setPrompt }}" onInput="{{ setPrompt }}" style="width:100%;height:190px;resize:vertical;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);color:var(--text-2);font-family:'IBM Plex Mono';font-size:11.5px;line-height:1.65;padding:12px 14px;outline:none"></textarea>
+              </div>
+              <div style="display:flex;align-items:center;gap:14px">
+                <span style="font-size:12.5px;color:var(--text-2)">Scorer scope</span>
+                <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px;gap:2px">
+                  <button data-on="{{ scopeAll }}" onClick="{{ setScopeAll }}" style="padding:5px 12px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer">Re-score everything</button>
+                  <button data-on="{{ scopeMissing }}" onClick="{{ setScopeMissing }}" style="padding:5px 12px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:11.5px;font-weight:500;cursor:pointer">Only what&rsquo;s missing</button>
+                </div>
+              </div>
+              <button onClick="{{ runProcess }}" style="align-self:flex-start;height:34px;padding:0 18px;background:var(--accent);color:var(--accent-fg);border:none;border-radius:var(--r-sm);font-size:12.5px;font-weight:600;cursor:pointer">{{ runLabel }}</button>
+            </div>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- PIPELINE -->
+      <sc-if value="{{ isPipeline }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:26px 30px">
+        <div style="max-width:760px;margin:0 auto;display:flex;flex-direction:column;gap:22px">
+          <div>
+            <div style="font-size:21px;font-weight:600;letter-spacing:-.02em">Pipeline</div>
+            <div style="color:var(--text-2);font-size:12.5px;margin-top:6px">Stages light up as the run reaches them. Greyed stages are skipped for this run.</div>
+          </div>
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:18px 20px;display:flex;flex-direction:column;gap:12px">
+            <div style="display:flex;align-items:center;gap:6px;padding-bottom:2px">
+              <span style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.12em;color:var(--text-3);margin-right:4px">INDICATOR</span>
+              <sc-for list="{{ pipeStyles }}" as="o" hint-placeholder-count="4">
+                <button data-on="{{ o.on }}" onClick="{{ o.onClick }}" style="height:24px;padding:0 10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:99px;font-size:11px;font-weight:500;cursor:pointer">{{ o.l }}</button>
+              </sc-for>
+            </div>
+            <div style="display:flex;align-items:center;gap:10px">
+              <span style="width:8px;height:8px;border-radius:50%;background:{{ runningDot }};animation:pc-pulse 1.6s infinite"></span>
+              <span style="font-size:13px;font-weight:600">{{ stageName }}</span>
+              <span style="flex:1"></span>
+              <span style="font:500 11px/1 'IBM Plex Mono';color:var(--text-2)">{{ runPct }} &middot; 276 / 656 frames</span>
+            </div>
+            <div style="height:8px;background:var(--surface-3);border-radius:5px;overflow:hidden"><div style="height:100%;border-radius:5px;width:{{ runPct }};background:var(--accent)"></div></div>
+            <div style="display:flex;justify-content:space-between;font:500 10.5px/1 'IBM Plex Mono';color:var(--text-3)">
+              <span>elapsed 00:41 &middot; eta 01:12</span><span>{{ pickedCount }} models &middot; $0.17</span>
+            </div>
+          </div>
+          <div style="display:flex;flex-direction:column;gap:6px">
+            <sc-for list="{{ pipelineRows }}" as="g" hint-placeholder-count="12">
+              <div style="margin-left:{{ g.indent }};padding:{{ g.pad }};border:1px solid {{ g.line }};border-radius:{{ g.radius }};background:{{ g.bg }};display:flex;flex-direction:column;gap:8px">
+                <div style="display:flex;align-items:center;gap:12px">
+                  <span style="display:{{ g.dRing }};flex:0 0 auto;position:relative;width:{{ g.ringSize }}px;height:{{ g.ringSize }}px;align-items:center;justify-content:center">
+                      <svg width="{{ g.ringSize }}" height="{{ g.ringSize }}" viewBox="0 0 32 32" style="transform:rotate(-90deg)">
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="var(--surface-3)" stroke-width="3"></circle>
+                        <circle cx="16" cy="16" r="13" fill="none" stroke="{{ g.fill }}" stroke-width="3" stroke-linecap="round" stroke-dasharray="{{ g.dash }}"></circle>
+                      </svg>
+                      <span style="position:absolute;font:600 8px/1 'IBM Plex Mono';color:{{ g.fg }}">{{ g.pct }}</span>
+                    </span>
+                  <span style="display:{{ g.dNum }};font:500 10px/1 'IBM Plex Mono';color:var(--text-3);width:14px">{{ g.num }}</span>
+                  <span style="flex:1;font-size:{{ g.nameSize }};font-weight:{{ g.nameWeight }};color:{{ g.fg }}">{{ g.name }}</span>
+                  <span style="display:{{ g.dBlocks }};font:500 11px/1 'IBM Plex Mono';letter-spacing:-.5px"><span style="color:{{ g.fill }}">{{ g.meterOn }}</span><span style="color:var(--surface-hi)">{{ g.meterOff }}</span></span>
+                  <span style="font:500 10.5px/1 'IBM Plex Mono';color:var(--text-3)">{{ g.frames }}</span>
+                  <span style="font:500 10.5px/1 'IBM Plex Mono';color:{{ g.fg }};width:56px;text-align:right">{{ g.pctLabel }}</span>
+                  <span style="font:500 10.5px/1 'IBM Plex Mono';color:{{ g.tagColor }};width:52px;text-align:right">{{ g.tag }}</span>
+                </div>
+                <div style="display:{{ g.dBar }};height:{{ g.barH }};border-radius:2px;margin-left:26px;background:{{ g.track }};overflow:hidden">
+                    <div style="height:100%;border-radius:2px;width:{{ g.width }};background:{{ g.fill }};transition:width .3s ease"></div>
+                  </div>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+
+      <!-- SETTINGS -->
+      <sc-if value="{{ isSettings }}" hint-placeholder-val="{{ false }}">
+      <div style="flex:1;overflow-y:auto;padding:28px 32px">
+        <div style="max-width:640px;margin:0 auto;display:flex;flex-direction:column;gap:18px">
+          <div style="font-size:21px;font-weight:600;letter-spacing:-.02em">Settings</div>
+          <div style="background:var(--surface-1);border:1px solid var(--border);border-radius:var(--r);padding:20px;display:flex;flex-direction:column;gap:18px">
+            <div style="font-size:13px;font-weight:600">Catalog</div>
+            <sc-for list="{{ settingRows }}" as="s" hint-placeholder-count="3">
+              <div style="display:flex;align-items:center;justify-content:space-between;gap:20px">
+                <div><div style="font-size:12.5px">{{ s.k }}</div><div style="font-size:11.5px;color:var(--text-3);margin-top:2px">{{ s.sub }}</div></div>
+                <span style="font:500 11px/1 'IBM Plex Mono';color:var(--text-2);background:var(--surface-2);border:1px solid var(--border);padding:6px 11px;border-radius:var(--r-sm);white-space:nowrap">{{ s.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+      </sc-if>
+    </div>
+
+    <!-- INSPECTOR -->
+    <sc-if value="{{ showInspector }}" hint-placeholder-val="{{ true }}">
+    <div style="width:360px;flex:0 0 360px;border-left:1px solid var(--border);display:flex;flex-direction:column;min-height:0;background:var(--surface-1);overflow-y:auto">
+      <div style="position:relative;aspect-ratio:4/3;flex:0 0 auto;background:var(--surface-3) {{ sel.bigImgBg }} center/cover no-repeat">
+        <div style="position:absolute;left:12px;bottom:12px;display:flex;gap:6px">
+          <span style="font:600 10px/1 'IBM Plex Mono';color:#fff;background:rgba(0,0,0,.55);padding:5px 8px;border-radius:6px;backdrop-filter:blur(4px)">{{ sel.ext }}</span>
+          <sc-if value="{{ sel.pair }}" hint-placeholder-val="{{ false }}"><span style="font:600 10px/1 'IBM Plex Mono';color:#fff;background:rgba(0,0,0,.55);padding:5px 8px;border-radius:6px;backdrop-filter:blur(4px)">RAW+JPG</span></sc-if>
+        </div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:15px">
+        <div>
+          <div style="font-family:'IBM Plex Mono';font-size:14px;font-weight:600">{{ sel.name }}</div>
+          <div style="font-size:12px;color:var(--text-2);margin-top:4px">{{ sel.head }}</div>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          <button style="height:29px;padding:0 12px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-1);border-radius:var(--r-sm);font-size:11.5px;font-weight:500;cursor:pointer" style-hover="border-color:var(--border-strong)">Enlarge</button>
+          <button title="Rotate left" style="width:31px;height:29px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border:1px solid var(--border);color:var(--text-1);border-radius:var(--r-sm);cursor:pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M9 5H4V0M4 5a9 9 0 109 4"></path></svg>
+          </button>
+          <button title="Rotate right" style="width:31px;height:29px;display:flex;align-items:center;justify-content:center;background:var(--surface-2);border:1px solid var(--border);color:var(--text-1);border-radius:var(--r-sm);cursor:pointer">
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><path d="M15 5h5V0M20 5a9 9 0 11-9 4"></path></svg>
+          </button>
+          <button style="height:29px;padding:0 12px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-1);border-radius:var(--r-sm);font-size:11.5px;font-weight:500;cursor:pointer">Crop</button>
+          <button style="height:29px;padding:0 12px;background:var(--surface-2);border:1px solid var(--border);color:var(--text-1);border-radius:var(--r-sm);font-size:11.5px;font-weight:500;cursor:pointer">Switch RAW/JPG</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <button onClick="{{ pickSel }}" style="flex:1;height:32px;border-radius:var(--r-sm);border:1px solid var(--border);font-weight:600;font-size:12px;cursor:pointer;background:{{ pickBg }};color:{{ pickFg }}">Pick</button>
+          <button onClick="{{ rejectSel }}" style="flex:1;height:32px;border-radius:var(--r-sm);border:1px solid var(--border);font-weight:600;font-size:12px;cursor:pointer;background:{{ rejectBg }};color:{{ rejectFg }}">Reject</button>
+          <div style="display:flex;gap:2px;align-items:center;padding-left:4px">
+            <sc-for list="{{ starButtons }}" as="b" hint-placeholder-count="4">
+              <button onClick="{{ b.onClick }}" style="background:none;border:none;cursor:pointer;font-size:19px;line-height:1;padding:0;color:{{ b.color }}">&#9733;</button>
+            </sc-for>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+          <sc-for list="{{ metricCards }}" as="m" hint-placeholder-count="6">
+            <div style="background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:9px 11px">
+              <div style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.1em;color:var(--text-3)">{{ m.k }}</div>
+              <div style="font-family:'IBM Plex Mono';font-size:13.5px;font-weight:600;margin-top:5px;color:{{ m.c }}">{{ m.v }}</div>
+            </div>
+          </sc-for>
+        </div>
+        <div>
+          <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.12em;color:var(--text-3);margin-bottom:10px">METADATA</div>
+          <div style="display:flex;flex-direction:column">
+            <sc-for list="{{ meta }}" as="d" hint-placeholder-count="4">
+              <div style="display:flex;gap:12px;padding:7px 0;border-bottom:1px solid var(--border)">
+                <span style="width:56px;flex:0 0 auto;font-size:11.5px;color:var(--text-3)">{{ d.k }}</span>
+                <span style="font:400 11.5px/1.45 'IBM Plex Mono';color:var(--text-1)">{{ d.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+        <div>
+          <div style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.12em;color:var(--text-3);margin-bottom:10px">RATIONALE &middot; OPUS 4.8</div>
+          <div style="font-size:12px;line-height:1.6;color:var(--text-1);white-space:pre-line;background:var(--surface-2);border:1px solid var(--border);border-radius:var(--r-sm);padding:12px 13px">{{ verdict }}</div>
+          <div style="display:flex;flex-direction:column;margin-top:10px">
+            <sc-for list="{{ rationale }}" as="c" hint-placeholder-count="5">
+              <div style="display:flex;flex-direction:column;gap:3px;padding:9px 0;border-bottom:1px solid var(--border)">
+                <span style="font:600 9.5px/1 'IBM Plex Mono';letter-spacing:.1em;color:var(--text-3)">{{ c.k }}</span>
+                <span style="font-size:12px;line-height:1.5;white-space:pre-line">{{ c.v }}</span>
+              </div>
+            </sc-for>
+          </div>
+        </div>
+      </div>
+    </div>
+    </sc-if>
+  </div></div>
+
+  <!-- CONSOLE / RUN LOG DRAWER -->
+  <sc-if value="{{ bottomOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="flex:0 0 auto;min-width:1348px;height:200px;display:flex;flex-direction:column;border-top:1px solid var(--border);background:var(--surface-1)">
+    <div style="height:36px;flex:0 0 36px;display:flex;align-items:center;gap:3px;padding:0 10px;border-bottom:1px solid var(--border)">
+      <button data-on="{{ onConsole }}" onClick="{{ openConsole }}" style="height:26px;padding:0 12px;border:none;background:transparent;color:var(--text-2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Console</button>
+      <button data-on="{{ onRunLog }}" onClick="{{ openLog }}" style="height:26px;padding:0 12px;border:none;background:transparent;color:var(--text-2);border-radius:7px;font-size:12px;font-weight:600;cursor:pointer">Run log</button>
+      <div style="flex:1"></div>
+      <button style="height:26px;padding:0 11px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:7px;font-size:11.5px;cursor:pointer">Clear</button>
+      <button onClick="{{ hideBottom }}" style="height:26px;padding:0 11px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:7px;font-size:11.5px;cursor:pointer">Hide</button>
+    </div>
+    <div style="flex:1;overflow-y:auto;padding:10px 14px;font-family:'IBM Plex Mono';font-size:11px;line-height:1.7">
+      <sc-if value="{{ isConsoleTab }}" hint-placeholder-val="{{ true }}">
+        <sc-for list="{{ consoleLines }}" as="l" hint-placeholder-count="6">
+          <div style="display:flex;gap:9px;white-space:pre-wrap"><span style="color:var(--text-3);flex:0 0 auto">{{ l.t }}</span><span style="color:var(--text-3);flex:0 0 auto">{{ l.lvl }}</span><span style="color:{{ l.color }}">{{ l.m }}</span></div>
+        </sc-for>
+      </sc-if>
+      <sc-if value="{{ isLogTab }}" hint-placeholder-val="{{ false }}">
+        <sc-for list="{{ logLines }}" as="l" hint-placeholder-count="7">
+          <div style="display:flex;gap:9px;white-space:pre-wrap"><span style="color:var(--text-3);flex:0 0 auto">{{ l.t }}</span><span style="color:{{ l.color }}">{{ l.m }}</span></div>
+        </sc-for>
+      </sc-if>
+    </div>
+  </div>
+  </sc-if>
+
+  <!-- STATUS BAR -->
+  <div style="height:32px;flex:0 0 32px;min-width:1348px;display:flex;align-items:center;gap:14px;padding:0 16px;border-top:1px solid var(--border);font-size:11.5px;color:var(--text-2)">
+    <div style="display:flex;align-items:center;gap:9px">
+      <span style="color:var(--text-3)">Review</span>
+      <div style="width:120px;height:5px;background:var(--surface-3);border-radius:3px;overflow:hidden"><div style="height:100%;border-radius:3px;width:{{ ratedPct }};background:var(--accent)"></div></div>
+      <span style="font-family:'IBM Plex Mono'"><b style="color:var(--text-1)">{{ rated }}</b>/{{ total }}</span>
+    </div>
+    <div style="width:1px;height:13px;background:var(--border)"></div>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--pick)"></span>{{ picks }} picks</span>
+    <span style="display:flex;align-items:center;gap:6px"><span style="width:7px;height:7px;border-radius:50%;background:var(--reject)"></span>{{ rejects }} rejects</span>
+    <div style="width:1px;height:13px;background:var(--border)"></div>
+    <button onClick="{{ openConsole }}" data-on="{{ consoleActive }}" style="height:22px;padding:0 10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:6px;font-size:11px;font-weight:500;cursor:pointer">Console</button>
+    <button onClick="{{ openLog }}" data-on="{{ logActive }}" style="height:22px;padding:0 10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:6px;font-size:11px;font-weight:500;cursor:pointer">Run log</button>
+    <div style="width:1px;height:13px;background:var(--border)"></div>
+    <button onClick="{{ goPipeline }}" style="display:flex;align-items:center;gap:8px;height:22px;padding:0 10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text-2);border-radius:6px;font-size:11px;cursor:pointer">
+      <span style="width:6px;height:6px;border-radius:50%;background:{{ runningDot }}"></span>{{ stageName }} &middot; {{ runPct }}
+    </button>
+    <div style="flex:1"></div>
+    <span style="font-family:'IBM Plex Mono';color:var(--text-3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:520px">{{ statusMsg }}</span>
+  </div>
+
+  <!-- CONTEXT MENU -->
+  <sc-if value="{{ menuOpen }}" hint-placeholder-val="{{ false }}">
+  <div style="{{ menuStyle }}">
+    <div style="padding:8px 12px 7px;font:500 10.5px/1.2 'IBM Plex Mono';color:var(--text-3);border-bottom:1px solid var(--border);max-width:250px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">{{ menuTitle }}</div>
+    <div style="padding:5px">
+      <sc-for list="{{ menuItems }}" as="m" hint-placeholder-count="4">
+        <div onClick="{{ m.onClick }}" style="display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;font-size:12.5px;color:{{ m.color }};cursor:pointer;white-space:nowrap" style-hover="background:var(--surface-3)">
+          <span style="flex:1">{{ m.label }}</span>
+          <span style="font:500 10px/1 'IBM Plex Mono';color:var(--text-3)">{{ m.hint }}</span>
+        </div>
+      </sc-for>
+    </div>
+  </div>
+  </sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props="{&quot;accent&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;teal&quot;,&quot;blue&quot;,&quot;amber&quot;,&quot;violet&quot;],&quot;default&quot;:&quot;teal&quot;,&quot;tsType&quot;:&quot;string&quot;},&quot;thumbSize&quot;:{&quot;editor&quot;:&quot;range&quot;,&quot;min&quot;:160,&quot;max&quot;:320,&quot;step&quot;:10,&quot;default&quot;:210,&quot;tsType&quot;:&quot;number&quot;,&quot;unit&quot;:&quot;px&quot;},&quot;showInspector&quot;:{&quot;editor&quot;:&quot;boolean&quot;,&quot;default&quot;:true,&quot;tsType&quot;:&quot;boolean&quot;},&quot;pipelineStyle&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;bar&quot;,&quot;ring&quot;,&quot;blocks&quot;,&quot;minimal&quot;],&quot;default&quot;:&quot;bar&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Indicators&quot;},&quot;cardViz&quot;:{&quot;editor&quot;:&quot;enum&quot;,&quot;options&quot;:[&quot;bars&quot;,&quot;rings&quot;,&quot;meter&quot;,&quot;chips&quot;],&quot;default&quot;:&quot;bars&quot;,&quot;tsType&quot;:&quot;string&quot;,&quot;section&quot;:&quot;Indicators&quot;}}">
+class Component extends DCLogic {
+  constructor(props){
+    super(props);
+    this.PHOTOS = this.buildPhotos();
+    this.NODES = this.buildTree();
+    this.MODELS=[
+      {id:'aesthetic-fast',name:'Aesthetic (fast)',tag:'CPU',card:false,desc:'A local aesthetic score (1\u201310) from colourfulness, contrast and exposure balance \u2014 a fast, offline signal of visual appeal.'},
+      {id:'nima',name:'NIMA',tag:'GPU',card:true,desc:'Neural Image Assessment \u2014 predicts a 1\u201310 technical + aesthetic mean opinion score. Tiny and fast.'},
+      {id:'pred25',name:'aesthetic-predictor-v2.5',tag:'GPU',card:true,desc:'Modern SigLIP-based aesthetic head with strong human-preference correlation. Small VRAM.'},
+      {id:'qwen',name:'Qwen2.5-VL critique',tag:'GPU',card:true,desc:'Vision-language model that writes a natural-language critique \u2014 good training data for your notes. Runs on the GPU via a llama.cpp Vulkan server.'},
+      {id:'haiku',name:'Claude Haiku 4.5',tag:'Claude tokens',card:false,desc:'Culls the shoot with your own Claude Code \u2014 no API keys, locked to Monocle photo tools.'},
+      {id:'sonnet',name:'Claude Sonnet 4.6',tag:'Claude tokens',card:false,desc:'Culls the shoot with your own Claude Code \u2014 no API keys, locked to Monocle photo tools.'},
+      {id:'opus',name:'Claude Opus 4.8',tag:'Claude tokens',card:false,desc:'Culls the shoot with your own Claude Code \u2014 no API keys, locked to Monocle photo tools.'}
+    ];
+    this.BLOCKED=[
+      {reason:'PyTorch-only (pyiqa): no ONNX export, so no DirectML path on this AMD GPU. Runs on CPU at a few seconds a frame, or on an NVIDIA card.',
+       models:[
+        {name:'MUSIQ',desc:'Multi-scale image quality transformer (Google). Judges a photo at several resolutions at once, so it catches both global exposure/composition faults and pixel-level softness.'},
+        {name:'MANIQA',desc:'ViT-based no-reference IQA that won the NTIRE 2022 challenge. Keys on sharpness, noise and compression rather than on subject matter.'},
+        {name:'TOPIQ (+ face variant)',desc:'Top-down semantic IQA: works out what the photo is about first, then judges quality where it matters. Ships a face-specific head trained on portrait quality.'},
+        {name:'LIQE',desc:'CLIP-based multitask IQA that returns a quality score AND names the scene type and the dominant distortion.'},
+        {name:'CLIP-IQA+',desc:'Scores a photo by how much more CLIP prefers \u2018Good photo.\u2019 over \u2018Bad photo.\u2019 for it, with a learned prompt.'},
+        {name:'ARNIQA',desc:'Self-supervised IQA (WACV 2024), trained by learning what degradations look like, so it generalises to faults it never saw labelled.'},
+        {name:'ImageReward',desc:'BLIP-based reward model trained on 137k human preference comparisons. Ranks a set the way people ranked theirs.'},
+        {name:'HPS v2',desc:'Human Preference Score v2, a CLIP-H head fine-tuned on a large preference dataset. Close cousin of PickScore.'}
+       ]},
+      {reason:'No runner wired up yet: the weights exist and would run on this machine. What\u2019s missing is Monocle code, so these are the ones worth asking for.',
+       models:[
+        {name:'MiniCPM-V 4.5',desc:'Small, sharp vision-language model with strong detail grounding. Writes a critique like Qwen2.5-VL at roughly half the VRAM.'},
+        {name:'SCRFD face + landmarks',desc:'InsightFace\u2019s fast face detector with five landmarks. Supplies the eye region, so sharpness can be measured where a portrait is actually judged.'},
+        {name:'BiRefNet / U2-Net saliency',desc:'Salient-object segmentation: feeds a subject-versus-background sharpness comparison, which is how you tell deliberate shallow depth of field from a missed focus.'},
+        {name:'Depth Anything V2',desc:'Monocular depth estimation. A depth map per frame makes \u201Cis the blur at the subject\u2019s distance or behind it?\u201D answerable.'}
+       ]}
+    ];
+    this.STAGES=[
+      {name:'Scan folder',tag:'CPU'},{name:'Decode / preview',tag:'CPU'},{name:'Read EXIF',tag:'CPU'},
+      {name:'Technical metrics',tag:'CPU'},{name:'Aesthetic models',tag:'GPU'},{name:'Claude critique',tag:'Claude'},
+      {name:'Rate',tag:'CPU'},{name:'Write sidecars',tag:'CPU'}
+    ];
+    this.CONSOLE=[
+      ['10:48:03.465','INFO','Monocle starting (args: ). Log file: C:\\Users\\vanzy\\AppData\\Local\\Monocle\\logs\\monocle-20260823-104803.log'],
+      ['10:48:03.787','INFO','[models] Qwen2.5-VL critique unavailable (not installed / sidecar not ready)'],
+      ['10:48:03.789','INFO','[models] MUSIQ not runnable here \u2014 PyTorch-only (pyiqa): no ONNX export, so no DirectML path on this AMD GPU.'],
+      ['10:48:03.789','INFO','[models] MANIQA not runnable here \u2014 PyTorch-only (pyiqa): no ONNX export, so no DirectML path on this AMD GPU.'],
+      ['10:48:03.791','INFO','[catalog] 4 folders \u00b7 manual refresh only'],
+      ['10:48:04.012','OK','Python sidecar running \u2014 its models are now available.']
+    ];
+    this.RUNLOG=[
+      ['11:02:01','info','scan 2026-04-12 \u2014 Alyssa \u2014 656 images'],
+      ['11:02:02','ok','aesthetic pre-filter: DirectML (AMD) \u2713 656/656 scored'],
+      ['11:02:04','group','3 burst groups \u00b7 largest 9 \u00b7 series protection on'],
+      ['11:02:06','rate','0Q6A3676.CR3   4\u2605 pick     TQ 8.5  AES 5.4'],
+      ['11:02:07','rate','0Q6A3677.CR3   2\u2605 dup      TQ 8.8  AES 5.3'],
+      ['11:02:09','lab','0Q6A3680.CR3   label RED  soft focus'],
+      ['11:02:31','done','done \u00b7 656 rated \u00b7 193 picks \u00b7 35 rejects \u00b7 $0.17']
+    ];
+    this.state = {
+      theme:'dark', accent: props.accent || 'teal', view:'browse', leftTab:'folders',
+      filter:'all', selectedId:1011, density:'comfortable', thumb: props.thumbSize || 210,
+      expanded:{'E:':true,'E:\\Fotos Jare':true,'E:\\Fotos Jare\\Fotos 2026':true},
+      selectedFolder:'E:\\Fotos Jare\\Fotos 2026\\2026-04-12',
+      activeCatalog:'E:\\Fotos Jare\\Fotos 2026\\2026-04-12',
+      menu:null, moveOptIn:false,
+      bottom:null, bottomTab:'console',
+      pipeStyle:null, cardViz:null,
+      picked:{'aesthetic-fast':true,'opus':true},
+      judgeOn:{Sharpness:true,Exposure:true,Noise:true,Composition:true,Aesthetics:true,Artistic:true},
+      keepers:0, scope:'all', running:false, pct:0.42, stageIdx:4,
+      weights:{tq:100,aesFast:33,nima:33,pred:33},
+      prompt:'Use ONLY the monocle MCP tools. scan_folder first, then for each frame call get_preview to judge the JPEG/embedded preview visually together with its technical metrics, and set_rating(id, stars, rationale, model) where 1\u2605=reject (bad), 2\u2605=weak, 3\u2605=average, 4\u2605=good or better.\n\nJudge primarily on: sharpness, exposure, noise, composition, aesthetics, artistic.\n\nHard limits you must respect:\n- If a frame\u2019s technical score is below 0.35, rate it at most 1 star.\n\nIn the rationale, say in one or two sentences BOTH what works in the frame and what doesn\u2019t. For bursts keep the strongest and down-rate the rest but keep at least 3 frames of a genuine series. Never demosaic a RAW.',
+      status:'Python sidecar running \u2014 models available',
+      catalog:[
+        {path:'E:\\Fotos Jare\\Fotos 2026\\2026-04-12', name:'2026-04-12 \u2014 Alyssa', frames:656, picks:193, scanned:'today 10:42', state:'fresh'},
+        {path:'E:\\Fotos Jare\\Fotos 2026\\2026-03-04', name:'2026-03-04 \u2014 Alyssa', frames:412, picks:118, scanned:'18 Aug 09:15', state:'stale'},
+        {path:'E:\\Fotos Jare\\Fotos 2025\\2025-12-24', name:'2025-12-24 \u2014 Christmas', frames:1284, picks:301, scanned:'2 Aug 20:07', state:'fresh'},
+        {path:'E:\\Photo test', name:'Photo test', frames:0, picks:0, scanned:'never', state:'new'}
+      ]
+    };
+  }
+
+  buildTree(){
+    const F=(name,path,kids)=>({name,path,kids:kids||null});
+    const yr=(y)=>F('Fotos '+y,'E:\\Fotos Jare\\Fotos '+y, y===2026?[
+      F('2026-04-12 \u2014 Alyssa','E:\\Fotos Jare\\Fotos 2026\\2026-04-12',[]),
+      F('2026-03-04 \u2014 Alyssa','E:\\Fotos Jare\\Fotos 2026\\2026-03-04',[]),
+      F('2026-02-19 \u2014 Studio','E:\\Fotos Jare\\Fotos 2026\\2026-02-19',[])
+    ] : []);
+    return [
+      {name:'C:',path:'C:',drive:true,kids:[F('Users','C:\\Users',[]),F('Pictures','C:\\Pictures',[])]},
+      {name:'E: [sata]',path:'E:',drive:true,kids:[
+        F('Backups','E:\\Backups',[]),
+        F('Fotos','E:\\Fotos',[]),
+        F('Fotos Jare','E:\\Fotos Jare',[2018,2019,2021,2022,2023,2024,2025,2026].map(yr)),
+        F('Photo test','E:\\Photo test',[]),
+        F('Playpen','E:\\Playpen',[]),
+        F('Projects','E:\\Projects',[]),
+        F('Temp','E:\\Temp',[]),
+        F('Videos','E:\\Videos',[])
+      ]}
+    ];
+  }
+
+  flatten(nodes, depth, out){
+    nodes.forEach(n=>{
+      out.push({node:n, depth});
+      if(this.state.expanded[n.path] && n.kids && n.kids.length) this.flatten(n.kids, depth+1, out);
+    });
+    return out;
+  }
+
+  buildPhotos(){
+    const rows=[
+      [1011,'0Q6A3676','CR3',4,0.85,5.4,0.92,'ok',1250,0.6,0.3,'A',null],
+      [1012,'0Q6A3677','CR3',2,0.88,5.3,0.74,'ok',1250,0.4,0.2,'A',null],
+      [1013,'0Q6A3678','CR3',3,0.83,5.1,0.86,'ok',1250,0.5,0.3,'A',null],
+      [1014,'0Q6A3679','CR3',3,0.79,5.3,0.71,'ok',1600,0.5,0.2,null,null],
+      [1015,'0Q6A3680','CR3',2,0.68,5.4,0.55,'ok',1600,0.4,0.2,null,'red'],
+      [1016,'0Q6A3681','CR3',3,0.78,5.0,0.80,'ok',1600,0.5,0.3,null,null],
+      [1017,'0Q6A3682','CR3',3,0.79,5.4,0.82,'ok',1600,0.6,0.4,'B',null],
+      [1018,'0Q6A3683','CR3',4,0.91,5.4,0.94,'ok',800,0.3,0.2,'B',null],
+      [1019,'0Q6A3684','CR3',4,0.92,5.7,0.95,'ok',800,0.4,0.2,'B',null],
+      [1020,'0Q6A3858','CR3',1,0.36,3.1,0.41,'over',2500,7.2,0.2,null,'blue'],
+      [1021,'0Q6A3859','CR3',1,0.33,2.8,0.38,'ok',2500,0.5,1.2,null,'red'],
+      [1022,'0Q6A3861','CR3',1,0.31,2.6,0.35,'under',3200,0.2,4.4,null,'blue'],
+      [1023,'0Q6A3939','CR3',2,0.55,4.6,0.60,'ok',6400,0.6,0.5,null,'purple'],
+      [1024,'0Q6A3995','CR3',3,0.81,5.2,0.84,'ok',1250,0.5,0.3,null,null],
+      [1025,'0Q6A3996','CR3',0,0.77,5.0,0.80,'ok',1250,0.6,0.4,null,null],
+      [1026,'0Q6A4012','CR3',4,0.94,6.1,0.96,'ok',640,0.3,0.1,null,null],
+      [1027,'0Q6A4013','CR3',2,0.60,4.4,0.62,'ok',6400,0.7,0.6,null,'yellow'],
+      [1028,'0Q6A4021','CR3',3,0.84,5.5,0.88,'ok',1000,0.4,0.3,null,null]
+    ];
+    return rows.map(r=>this.expand(r));
+  }
+
+  expand(r){
+    const [seed,name,ext,stars,tech,aes,sharp,exp,iso,hi,sh,group,label]=r;
+    const p={id:seed,seed,name,ext,stars,tech,aes,sharp,exp,iso,hi,sh,group,label,
+      pair:true,
+      techPct:Math.round(tech*100)+'%', techStr:(tech*10).toFixed(1), techRaw:tech.toFixed(2), techColor:this.techColor(tech),
+      aesStr:aes.toFixed(1), aesPct:Math.round(aes*10)+'%', aesColor:'#e87a56',
+      groupTag: group?('BURST '+group):null,
+      imgBg:'url("https://picsum.photos/seed/pc'+seed+'/420/315")',
+      bigImgBg:'url("https://picsum.photos/seed/pc'+seed+'/640/480")'};
+    this.rederive(p);
+    return p;
+  }
+
+  techColor(t){ return t>=0.78?'var(--pick)':t>=0.55?'var(--star)':'var(--reject)'; }
+
+  rederive(p){
+    p.starsFilled='\u2605'.repeat(p.stars);
+    p.starsEmpty='\u2606'.repeat(4-p.stars);
+    p.state=p.stars>=3?'pick':p.stars===1?'reject':'none';
+    p.head=this.headline(p.stars,p.label);
+  }
+
+  headline(stars,label){
+    if(stars===0) return 'Not yet reviewed';
+    if(stars===1) return label==='red'?'Reject \u2014 focus missed':label==='blue'?'Reject \u2014 exposure blown':'Reject';
+    if(stars===2) return 'Weak \u2014 stronger frames exist';
+    if(stars===3) return 'Solid frame \u2014 a keeper';
+    return 'Strong keeper';
+  }
+
+  crit(p){
+    const s=p.sharp;
+    return [
+      ['Sharpness', s>=0.9?'Tack sharp \u2014 eyes hold detail at 100%.':s>=0.75?'Sharp enough; edges soften a touch.':s>=0.5?'Visibly soft; focus sits behind the subject.':'Focus missed \u2014 not recoverable.'],
+      ['Exposure', p.exp==='over'?'Highlights clipped ('+p.hi.toFixed(1)+'% blown).':p.exp==='under'?'Underexposed; shadows crushed ('+p.sh.toFixed(1)+'%).':'Balanced \u00b7 '+p.hi.toFixed(1)+'% hi / '+p.sh.toFixed(1)+'% sh clip.'],
+      ['Noise', p.iso>=6400?'Heavy luma noise at ISO '+p.iso+'.':p.iso>=1600?'Mild grain at ISO '+p.iso+', cleans up fine.':'Clean \u2014 ISO '+p.iso+'.'],
+      ['Artistic', p.aes>=5.6?'Lovely light and subject separation.':p.aes>=4.5?'Pleasant composition, nothing distracting.':'Composition is flat; subject competes with the background.'],
+      ['Moment', p.stars>=3?'Reads clearly \u2014 you know what happened.':'Moment is ambiguous; little narrative pull.']
+    ].map(([k,v])=>({k,v}));
+  }
+
+  verdictText(p){
+    const rows=this.crit(p);
+    const pos=[], neg=[];
+    (p.sharp>=0.75?pos:neg).push(rows[0].v);
+    (p.exp==='ok'?pos:neg).push(rows[1].v);
+    (p.iso<3200?pos:neg).push(rows[2].v);
+    (p.aes>=5?pos:neg).push(rows[3].v);
+    (p.stars>=3?pos:neg).push(rows[4].v);
+    const good=pos.length?'What works: '+pos.join(' '):'What works: little \u2014 nothing in this frame holds up on its own.';
+    const bad=neg.length?'What doesn\u2019t: '+neg.join(' '):'What doesn\u2019t: nothing significant against it \u2014 no technical or compositional fault worth calling out.';
+    return good+'\n\n'+bad+'\n\nVerdict: '+p.head+' \u2014 rated '+p.stars+'\u2605 by Claude Opus 4.8 (confidence 90%), agreed by NIMA and aesthetic-predictor-v2.5.';
+  }
+
+  matchFilter(p,f){
+    switch(f){
+      case 's2': return p.stars>=2; case 's3': return p.stars>=3; case 's4': return p.stars===4;
+      case 'picks': return p.stars>=3; case 'rejects': return p.stars===1; case 'unrated': return p.stars===0;
+      default: return true;
+    }
+  }
+  countFor(f){ return this.PHOTOS.filter(p=>this.matchFilter(p,f)).length; }
+  setStars(id,n){ const p=this.PHOTOS.find(x=>x.id===id); if(!p)return; p.stars=n; this.rederive(p); this.forceUpdate(); }
+
+  openMenu(e,kind,target){
+    e.preventDefault(); e.stopPropagation();
+    this.setState({menu:{kind,target,x:Math.min(e.clientX, window.innerWidth-270),y:Math.min(e.clientY, window.innerHeight-230)}});
+  }
+
+  addToCatalog(path,name,recursive){
+    const exists=this.state.catalog.some(c=>c.path===path);
+    if(exists){ this.setState({menu:null,status:'Already in catalog \u00b7 '+path}); return; }
+    this.setState(s=>({
+      menu:null, leftTab:'catalog',
+      catalog:[{path,name,frames:0,picks:0,scanned:'never',state:'new'},...s.catalog],
+      status:'Added to catalog'+(recursive?' with subfolders':'')+' \u00b7 '+path+' \u2014 right-click \u2192 Refresh now to scan'
+    }));
+  }
+
+  refreshEntry(path,full){
+    this.setState(s=>({
+      menu:null,
+      catalog:s.catalog.map(c=>c.path===path?{...c,state:'fresh',scanned:'just now',frames:c.frames||656,picks:c.picks||193}:c),
+      status:(full?'Full re-scan':'Refresh')+' finished \u00b7 '+path
+    }));
+  }
+
+  removeEntry(path){
+    this.setState(s=>({menu:null,catalog:s.catalog.filter(c=>c.path!==path),status:'Removed from catalog (files untouched) \u00b7 '+path}));
+  }
+
+  renderVals(){
+    const s=this.state, P=this.PHOTOS;
+    const filtered=P.filter(p=>this.matchFilter(p,s.filter));
+    const sel=P.find(p=>p.id===s.selectedId)||P[0];
+    const total=P.length, rated=P.filter(p=>p.stars>0).length;
+    const picks=this.countFor('picks'), rejects=this.countFor('rejects');
+    const groups={}; P.forEach(p=>{ if(p.group) groups[p.group]=(groups[p.group]||0)+1; });
+
+    const catEntry=s.catalog.find(c=>c.path===s.activeCatalog)||s.catalog[0]||{name:'\u2014',path:'\u2014',frames:0,state:'new',scanned:'never'};
+    const stateStyle={
+      fresh:{fg:'var(--pick)',bg:'color-mix(in oklab,var(--pick) 15%,transparent)',label:'up to date'},
+      stale:{fg:'var(--warn)',bg:'color-mix(in oklab,var(--warn) 16%,transparent)',label:'12 new on disk'},
+      new:{fg:'var(--text-3)',bg:'var(--surface-3)',label:'not scanned'}
+    };
+
+    const catalog=s.catalog.map(c=>{
+      const st=stateStyle[c.state]||stateStyle.new;
+      return {...c, stateFg:st.fg, stateBg:st.bg, stateLabel:st.label,
+        active:c.path===s.activeCatalog?'1':'0',
+        onClick:()=>this.setState({activeCatalog:c.path,selectedFolder:c.path,view:'browse'}),
+        onMenu:(e)=>this.openMenu(e,'catalog',c)};
+    });
+
+    const flat=this.flatten(this.NODES,0,[]);
+    const tree=flat.map(({node,depth})=>({
+      name:node.name, pad:(10+depth*15)+'px',
+      hasKids:!!(node.kids&&node.kids.length),
+      rot:s.expanded[node.path]?'90deg':'0deg',
+      isDrive:!!node.drive, isFolder:!node.drive,
+      weight:node.path===s.selectedFolder?'600':'400',
+      active:node.path===s.selectedFolder?'1':'0',
+      iconColor:s.catalog.some(c=>c.path===node.path)?'var(--accent)':'currentColor',
+      inCatalog:s.catalog.some(c=>c.path===node.path),
+      onToggle:(e)=>{ e.stopPropagation(); this.setState(st=>({expanded:{...st.expanded,[node.path]:!st.expanded[node.path]}})); },
+      onClick:()=>this.setState({selectedFolder:node.path}),
+      onMenu:(e)=>this.openMenu(e,'folder',node)
+    }));
+
+    const favourites=[['Desktop','C:\\Users\\vanzy\\Desktop'],['Pictures','C:\\Pictures'],['Fotos Jare','E:\\Fotos Jare'],['OneDrive','E:\\OneDrive']]
+      .map(([name,path])=>({name,path,onClick:()=>this.setState({selectedFolder:path}),onMenu:(e)=>this.openMenu(e,'folder',{name,path})}));
+
+    // context menu
+    const m=s.menu;
+    let menuItems=[], menuTitle='';
+    if(m && m.kind==='folder'){
+      menuTitle=m.target.path;
+      const already=s.catalog.some(c=>c.path===m.target.path);
+      menuItems=[
+        {label:already?'Already in catalog':'Add to catalog', hint:'', color:already?'var(--text-3)':'var(--accent)', onClick:()=>this.addToCatalog(m.target.path,m.target.name,false)},
+        {label:'Add to catalog with subfolders', hint:'', color:'var(--text-1)', onClick:()=>this.addToCatalog(m.target.path,m.target.name,true)},
+        {label:'Add to favourites', hint:'', color:'var(--text-1)', onClick:()=>this.setState({menu:null,status:'Added to favourites \u00b7 '+m.target.path})},
+        {label:'Open in File Explorer', hint:'', color:'var(--text-2)', onClick:()=>this.setState({menu:null,status:'Opened in File Explorer'})},
+        {label:'Copy path', hint:'', color:'var(--text-2)', onClick:()=>this.setState({menu:null,status:'Path copied'})}
+      ];
+    } else if(m && m.kind==='catalog'){
+      menuTitle=m.target.path;
+      menuItems=[
+        {label:'Refresh now', hint:'new files only', color:'var(--accent)', onClick:()=>this.refreshEntry(m.target.path,false)},
+        {label:'Re-scan everything', hint:'full pass', color:'var(--text-1)', onClick:()=>this.refreshEntry(m.target.path,true)},
+        {label:'Show in Folders', hint:'', color:'var(--text-2)', onClick:()=>this.setState({menu:null,leftTab:'folders',selectedFolder:m.target.path})},
+        {label:'Open in File Explorer', hint:'', color:'var(--text-2)', onClick:()=>this.setState({menu:null,status:'Opened in File Explorer'})},
+        {label:'Remove from catalog', hint:'keeps files', color:'var(--reject)', onClick:()=>this.removeEntry(m.target.path)}
+      ];
+    }
+
+    const chipDefs=[['all','All'],['s2','\u2605 2+'],['s3','\u2605 3+'],['s4','\u2605 4'],['picks','Picks'],['rejects','Rejects'],['unrated','Unrated']];
+    const chips=chipDefs.map(([k,l])=>({k,l,count:this.countFor(k),on:s.filter===k?'1':'0',onClick:()=>this.setState({filter:k})}));
+    const filterMap={all:'all frames',s2:'\u2605 2 and up',s3:'\u2605 3 and up',s4:'\u2605 4 only',picks:'picks',rejects:'rejects',unrated:'unrated'};
+
+    const swHex={teal:'#2ec8b4',blue:'#5b8cf7',amber:'#e6a33c',violet:'#9b7cf4'};
+    const swatches=Object.keys(swHex).map(a=>({name:a,hex:swHex[a],ring:s.accent===a?'2px':'0px',onClick:()=>this.setState({accent:a})}));
+
+    const expLabel=sel.exp==='over'?'Over +'+sel.hi.toFixed(1)+'%':sel.exp==='under'?'Under \u2212'+sel.sh.toFixed(1)+'%':'Balanced';
+    const metricCards=[
+      {k:'TECHNICAL',v:sel.techRaw,c:sel.techColor},
+      {k:'SHARPNESS',v:sel.sharp.toFixed(2),c:sel.sharp>=0.75?'var(--text-1)':'var(--lab-red)'},
+      {k:'EXPOSURE',v:expLabel,c:sel.exp==='ok'?'var(--text-1)':'var(--lab-blue)'},
+      {k:'ISO',v:String(sel.iso),c:sel.iso>=3200?'var(--lab-purple)':'var(--text-1)'},
+      {k:'AESTHETIC',v:sel.aesStr+' /10',c:'var(--text-1)'},
+      {k:'CLIP HI / SH',v:sel.hi.toFixed(1)+' / '+sel.sh.toFixed(1)+'%',c:'var(--text-1)'}
+    ];
+
+    const histDefs=[['\u2605 4',4,'var(--pick)'],['\u2605 3',3,'color-mix(in oklab,var(--pick) 65%,var(--star))'],['\u2605 2',2,'var(--star)'],['\u2605 1',1,'var(--reject)'],['Unrated',0,'var(--text-3)']];
+    const st=stateStyle[catEntry.state]||stateStyle.new;
+
+    const tagColor={CPU:'var(--text-3)',GPU:'var(--lab-blue)','Claude tokens':'var(--accent)',Claude:'var(--accent)'};
+    const models=this.MODELS.map(m=>({...m, on:!!s.picked[m.id],
+      boxBg:s.picked[m.id]?'var(--accent)':'transparent', boxLine:s.picked[m.id]?'var(--accent)':'var(--border-strong)',
+      tagColor:tagColor[m.tag]||'var(--text-3)',
+      onToggle:()=>this.setState(x=>({picked:{...x.picked,[m.id]:!x.picked[m.id]}}))}));
+    const pickedCount=Object.keys(s.picked).filter(k=>s.picked[k]).length;
+    const blocked=this.BLOCKED.map(g=>({reason:g.reason,models:g.models}));
+
+    const weightRows=[
+      {k:'Pixel technical quality (TQ)',group:'Technical',v:s.weights.tq,pct:s.weights.tq+'%',onInput:(e)=>this.setState(x=>({weights:{...x.weights,tq:+e.target.value}}))},
+      {k:'Aesthetic (fast)',group:'Aesthetic',v:s.weights.aesFast,pct:s.weights.aesFast+'%',onInput:(e)=>this.setState(x=>({weights:{...x.weights,aesFast:+e.target.value}}))},
+      {k:'NIMA',group:'Aesthetic',v:s.weights.nima,pct:s.weights.nima+'%',onInput:(e)=>this.setState(x=>({weights:{...x.weights,nima:+e.target.value}}))},
+      {k:'aesthetic-predictor-v2.5',group:'Aesthetic',v:s.weights.pred,pct:s.weights.pred+'%',onInput:(e)=>this.setState(x=>({weights:{...x.weights,pred:+e.target.value}}))}
+    ];
+    const judgeChips=Object.keys(s.judgeOn).map(k=>({k,on:s.judgeOn[k]?'1':'0',
+      boxBg:s.judgeOn[k]?'var(--accent)':'transparent', boxLine:s.judgeOn[k]?'var(--accent)':'var(--border-strong)',
+      onToggle:()=>this.setState(x=>({judgeOn:{...x.judgeOn,[k]:!x.judgeOn[k]}}))}));
+
+    const FRAMES=656;
+    const subModels=[
+      {id:'aesthetic-fast',name:'Aesthetic (fast)',tag:'CPU',pct:100},
+      {id:'nima',name:'NIMA',tag:'GPU',pct:74},
+      {id:'pred25',name:'aesthetic-predictor-v2.5',tag:'GPU',pct:12},
+      {id:'qwen',name:'Qwen2.5-VL critique',tag:'GPU',pct:0}
+    ];
+    const stages=this.STAGES.map((g,i)=>{
+      const done=i<s.stageIdx, active=i===s.stageIdx;
+      const claudeOff=!s.picked.opus&&!s.picked.haiku&&!s.picked.sonnet;
+      const skipped=(g.tag==='Claude'&&claudeOff)||(g.tag==='GPU'&&pickedCount===0);
+      const pct=skipped?0:done?100:active?Math.round(s.pct*100):0;
+      const isAes=i===4 && !skipped;
+      const subs=isAes?subModels.map(m=>{
+        const on=!!s.picked[m.id];
+        const p=on?m.pct:0;
+        return {...m, on, pct:p, pctLabel:on?p+'%':'not ticked',
+          frames:on?Math.round(FRAMES*p/100)+' / '+FRAMES:'\u2014',
+          fill:on?(p===100?'var(--pick)':'var(--accent)'):'transparent',
+          fg:on?(p>0?'var(--text-1)':'var(--text-2)'):'var(--text-3)',
+          stateLabel:!on?'off':p===100?'done':p>0?'running':'queued',
+          tagColor:tagColor[m.tag]||'var(--text-3)', width:p+'%'};
+      }):[];
+      return {...g, i:i+1, hasSubs:isAes&&!skipped,
+        fg: skipped?'var(--text-3)':active?'var(--accent)':done?'var(--pick)':'var(--text-2)',
+        line: skipped?'var(--border)':active?'var(--accent-line)':done?'color-mix(in oklab,var(--pick) 45%,transparent)':'var(--border)',
+        bg: active?'var(--accent-soft)':'var(--surface-2)',
+        stateLabel: skipped?'skipped':active?'running':done?'done':'queued',
+        pct, pctLabel: skipped?'\u2014':pct+'%', width:pct+'%',
+        frames: skipped?'skipped for this run':done?FRAMES+' / '+FRAMES+' frames':active?Math.round(FRAMES*pct/100)+' / '+FRAMES+' frames':'waiting',
+        fill: skipped?'transparent':done?'var(--pick)':'var(--accent)',
+        trackStyle: skipped?'repeating-linear-gradient(90deg,var(--surface-3) 0 6px,transparent 6px 11px)':'var(--surface-3)',
+        tagColor:tagColor[g.tag]||'var(--text-3)', subs};
+    });
+    const C=81.7, meter=(pct)=>{ const n=Math.round(pct/10); return {on:'\u2588'.repeat(n), off:'\u2591'.repeat(10-n)}; };
+    const pipeStyle=s.pipeStyle||this.props.pipelineStyle||'bar';
+    const cardViz=s.cardViz||this.props.cardViz||'bars';
+    const styleFlags={
+      dBar:pipeStyle==='bar'?'block':'none',
+      dRing:pipeStyle==='ring'?'flex':'none',
+      dBlocks:pipeStyle==='blocks'?'inline':'none',
+      dNum:pipeStyle==='ring'?'none':'block'};
+    const pipelineRows=[];
+    const pushRow=(o)=>{
+      const mt=meter(o.pct);
+      pipelineRows.push({...o, ...styleFlags,
+        dash:(C*o.pct/100).toFixed(1)+' '+C.toFixed(1),
+        ringSize:o.kind==='stage'?'30':'24', meterOn:mt.on, meterOff:mt.off});
+    };
+    stages.forEach(g=>{
+      pushRow({kind:'stage', num:String(g.i), name:g.name, frames:g.frames, pctLabel:g.pctLabel, pct:g.pct,
+        tag:g.tag, tagColor:g.tagColor, fg:g.fg, width:g.width, fill:g.fill, track:g.trackStyle,
+        indent:'0px', pad:'12px 15px', line:g.line, bg:g.bg, radius:'12px', barH:'3px', nameSize:'12.5px', nameWeight:'500'});
+      (g.subs||[]).forEach(m=>{
+        pushRow({kind:'sub', num:'', name:m.name, frames:m.frames, pctLabel:m.pctLabel, pct:m.pct,
+          tag:m.tag, tagColor:m.tagColor, fg:m.fg, width:m.width, fill:m.fill||'var(--surface-3)', track:'var(--surface-3)',
+          indent:'34px', pad:'9px 13px', line:'var(--border)', bg:'var(--surface-1)', radius:'9px', barH:'2px', nameSize:'11.5px', nameWeight:'400'});
+      });
+    });
+    const pipeStyles=[['bar','Bars'],['ring','Rings'],['blocks','Meter'],['minimal','Minimal']]
+      .map(([k,l])=>({k,l,on:pipeStyle===k?'1':'0',onClick:()=>this.setState({pipeStyle:k})}));
+    const cardVizOptions=[['bars','Bars'],['rings','Rings'],['meter','Meter'],['chips','Chips']]
+      .map(([k,l])=>({k,l,on:cardViz===k?'1':'0',onClick:()=>this.setState({cardViz:k})}));
+
+    const lvlColor={INFO:'var(--text-2)',OK:'var(--pick)',WARN:'var(--warn)',info:'var(--text-2)',ok:'var(--pick)',group:'var(--accent)',rate:'var(--text-1)',lab:'var(--star)',done:'var(--pick)'};
+    const consoleLines=this.CONSOLE.map(([t,lvl,m])=>({t,lvl:'['+lvl+']',m,color:lvlColor[lvl]||'var(--text-2)'}));
+    const logLines=this.RUNLOG.map(([t,lvl,m])=>({t,lvl:'',m,color:lvlColor[lvl]||'var(--text-2)'}));
+
+    return {
+      theme:s.theme, accent:s.accent, isDark:s.theme==='dark', isLight:s.theme==='light', swatches,
+      toggleTheme:()=>this.setState(x=>({theme:x.theme==='dark'?'light':'dark'})),
+      goSettings:()=>this.setState({view:'settings'}),
+      closeMenu:()=>{ if(this.state.menu) this.setState({menu:null}); },
+
+      activeParent:catEntry.path.replace(/\\[^\\]*$/,'\\'), activeName:catEntry.name, activePath:catEntry.path,
+      activeCount:catEntry.frames||total,
+      freshLabel:catEntry.state==='fresh'?('scanned '+catEntry.scanned):st.label,
+      freshFg:st.fg, freshBg:st.bg, freshLine:st.fg,
+
+      onBrowse:s.view==='browse'?'1':'0', onStats:s.view==='stats'?'1':'0',
+      onRejects:s.view==='rejects'?'1':'0', onSettings:s.view==='settings'?'1':'0',
+      goBrowse:()=>this.setState({view:'browse'}), goStats:()=>this.setState({view:'stats'}),
+      goRejects:()=>this.setState({view:'rejects'}),
+      tabCatalogOn:s.leftTab==='catalog'?'1':'0', tabFoldersOn:s.leftTab==='folders'?'1':'0',
+      showCatalog:()=>this.setState({leftTab:'catalog'}), showFolders:()=>this.setState({leftTab:'folders'}),
+      isCatalog:s.leftTab==='catalog', isFolders:s.leftTab==='folders',
+      catalog, catCount:s.catalog.length, tree, favourites,
+
+      menuOpen:!!m, menuItems, menuTitle,
+      menuStyle:m?{position:'fixed',left:m.x+'px',top:m.y+'px',zIndex:60,minWidth:'232px',background:'var(--surface-2)',border:'1px solid var(--border-strong)',borderRadius:'12px',boxShadow:'var(--shadow)',animation:'pc-pop .1s ease',backdropFilter:'blur(14px)'}:{},
+
+      chips, thumb:s.thumb, setThumb:(e)=>this.setState({thumb:+e.target.value}),
+      denseComfortable:s.density==='comfortable'?'1':'0', denseCompact:s.density==='compact'?'1':'0',
+      setComfortable:()=>this.setState({density:'comfortable'}), setCompact:()=>this.setState({density:'compact'}),
+
+      isBrowse:s.view==='browse', isStats:s.view==='stats', isRejects:s.view==='rejects', isSettings:s.view==='settings',
+      showInspector:(this.props.showInspector!==false) && (s.view==='browse'),
+      showFilterBar:s.view==='browse'||s.view==='stats'||s.view==='rejects',
+
+      vis:filtered.map(p=>{
+        const tm=meter(p.tech*100), am=meter(p.aes*10);
+        return {...p, sel:p.id===s.selectedId?'1':'0', onSelect:()=>this.setState({selectedId:p.id}),
+          dBars:cardViz==='bars'?'flex':'none', dRings:cardViz==='rings'?'flex':'none',
+          dMeter:cardViz==='meter'?'flex':'none', dChips:cardViz==='chips'?'flex':'none',
+          techDash:(C*p.tech).toFixed(1)+' '+C.toFixed(1), aesDash:(C*p.aes/10).toFixed(1)+' '+C.toFixed(1),
+          techOn:tm.on, techOff:tm.off, aesOn:am.on, aesOff:am.off};
+      }),
+      cardVizOptions, pipeStyles,
+      visCount:filtered.length, total, filterLabel:filterMap[s.filter],
+      groupCount:Object.keys(groups).length, largestGroup:Math.max(0,...Object.values(groups)),
+      gridStyle:{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax('+s.thumb+'px,1fr))',gap:s.density==='compact'?'10px':'16px',padding:s.density==='compact'?'4px 18px 20px':'4px 20px 24px',alignContent:'start'},
+
+      sel, metricCards, critRows:this.crit(sel),
+      starButtons:[1,2,3,4].map(n=>({n,color:n<=sel.stars?'var(--star)':'var(--text-3)',onClick:()=>this.setStars(sel.id,n)})),
+      pickBg:sel.stars>=3?'var(--pick)':'var(--surface-2)', pickFg:sel.stars>=3?'#06271a':'var(--text-2)',
+      rejectBg:sel.stars===1?'var(--reject)':'var(--surface-2)', rejectFg:sel.stars===1?'#fff':'var(--text-2)',
+      pickSel:()=>this.setStars(sel.id,4), rejectSel:()=>this.setStars(sel.id,1),
+
+      statCards:[
+        {k:'FRAMES',v:String(catEntry.frames||total),sub:'RAW + JPG pairs',c:'var(--text-1)'},
+        {k:'PICKS',v:String(catEntry.picks||picks),sub:Math.round((catEntry.picks||picks)/(catEntry.frames||total)*100)+'% keep rate',c:'var(--pick)'},
+        {k:'REJECTS',v:String(rejects),sub:'rated 1\u2605',c:'var(--reject)'},
+        {k:'REVIEWED',v:Math.round(rated/total*100)+'%',sub:rated+' of '+total,c:'var(--accent)'}
+      ],
+      histRows:histDefs.map(([label,star,color])=>{ const n=P.filter(p=>p.stars===star).length; return {label,n,color,pct:Math.round(n/total*100)+'%'}; }),
+
+      rejectList:P.filter(p=>p.stars===1),
+      moveTrack:s.moveOptIn?'var(--accent)':'var(--surface-3)', knobX:s.moveOptIn?'18px':'2px',
+      toggleMove:()=>this.setState(x=>({moveOptIn:!x.moveOptIn})),
+      moveBtnBg:s.moveOptIn?'var(--reject)':'var(--surface-3)', moveBtnFg:s.moveOptIn?'#fff':'var(--text-3)', moveBtnOpacity:s.moveOptIn?'1':'.55',
+
+      settingRows:[
+        {k:'Refresh catalogued folders',sub:'Manual only \u2014 right-click \u2192 Refresh now',v:'Manual'},
+        {k:'Watch folders for new files',sub:'Shows a badge; never scans by itself',v:'Badge only'},
+        {k:'Include subfolders when adding',sub:'Applies to Add to catalog with subfolders',v:'Ask'},
+        {k:'Judging model',sub:'Opus for quality, Haiku for huge folders',v:'Opus 4.8'}
+      ],
+
+      rated, ratedPct:Math.round(rated/total*100)+'%', picks, rejects, statusMsg:s.status,
+
+      isModels:s.view==='models', isPipeline:s.view==='pipeline',
+      onModels:s.view==='models'?'1':'0', onPipeline:s.view==='pipeline'?'1':'0',
+      goModels:()=>this.setState({view:'models'}), goPipeline:()=>this.setState({view:'pipeline'}),
+      models, blocked, weightRows, judgeChips, stages, pipelineRows, pickedCount,
+      sidecarLabel:s.running?'Sidecar busy':'Start Python sidecar',
+      keepers:s.keepers, setKeepers:(e)=>this.setState({keepers:+e.target.value||0}),
+      prompt:s.prompt, setPrompt:(e)=>this.setState({prompt:e.target.value}),
+      scopeAll:s.scope==='all'?'1':'0', scopeMissing:s.scope==='missing'?'1':'0',
+      setScopeAll:()=>this.setState({scope:'all'}), setScopeMissing:()=>this.setState({scope:'missing'}),
+      runProcess:()=>this.setState(x=>({running:!x.running,view:'pipeline',status:x.running?'Run paused':'Processing 656 frames \u00b7 '+pickedCount+' models ticked'})),
+      runLabel:s.running?'Pause run':'Process 656 frames',
+      runPct:Math.round(s.pct*100)+'%', runPctNum:Math.round(s.pct*100),
+      stageName:this.STAGES[s.stageIdx].name,
+      runningDot:s.running?'var(--accent)':'var(--text-3)',
+
+      // metadata + tools + rationale
+      meta:[
+        {k:'Camera',v:'Canon EOS R6m2'},
+        {k:'Lens',v:'TAMRON SP 70-200mm F/2.8 Di VC USD A009'},
+        {k:'Shot',v:'2026-03-04 11:01:02 \u00b7 1/250s \u00b7 f/2.8 \u00b7 ISO '+sel.iso},
+        {k:'File',v:'6000\u00d74000 \u00b7 RAW+JPG (showing JPG) \u00b7 24.1 MB'}
+      ],
+      verdict:this.verdictText(sel),
+      rationale:this.crit(sel),
+      bottomOpen:!!s.bottom, bottomTab:s.bottomTab,
+      onConsole:s.bottomTab==='console'?'1':'0', onRunLog:s.bottomTab==='log'?'1':'0',
+      consoleActive:(s.bottom&&s.bottomTab==='console')?'1':'0', logActive:(s.bottom&&s.bottomTab==='log')?'1':'0',
+      isConsoleTab:s.bottomTab==='console', isLogTab:s.bottomTab==='log',
+      openConsole:()=>this.setState({bottom:true,bottomTab:'console'}),
+      openLog:()=>this.setState({bottom:true,bottomTab:'log'}),
+      hideBottom:()=>this.setState({bottom:null}),
+      consoleLines, logLines
+    };
+  }
+}
+</script>
+</body>
+</html>

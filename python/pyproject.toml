@@ -13,6 +13,10 @@ dependencies = [
     "accelerate>=0.34",
     "qwen-vl-utils>=0.0.8",
     "einops>=0.8",
+    # pyiqa carries the no-reference quality metrics (MUSIQ, MANIQA, TOPIQ, LIQE, CLIP-IQA+,
+    # ARNIQA, ...). Unlike the VLMs above these run acceptably on CPU, so they are what a machine
+    # with no usable GPU actually scores with.
+    "pyiqa>=0.1.13",
 ]
 
 # Notes:

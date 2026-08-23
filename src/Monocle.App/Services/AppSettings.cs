@@ -23,6 +23,18 @@ public sealed class AppSettings
     public bool OnlyScoreMissing { get; set; } = false;   // Process scope: false = re-score every ticked model on every frame (default); true = skip frames a model already scored
     public string SidecarCompute { get; set; } = "Default (CPU / CUDA)";   // torch build for sidecar deps
 
+    // ---- Indicator styles (design v2). Two independent choices: how a grid tile draws its TQ/AES
+    // pair, and how the pipeline page draws a stage's progress. Both are pure presentation, so an
+    // unknown value from a hand-edited settings file falls back to the default rather than failing.
+    public string CardViz { get; set; } = "bars";        // bars | rings | meter | chips
+    public string PipelineViz { get; set; } = "bars";    // bars | rings | blocks | minimal | flowchart
+
+    // ---- Folder catalog (design v2 left panel). Catalogued folders never refresh on their own;
+    // the counts here are whatever the last scan saw, so the Catalog tab can show a shoot's size
+    // without touching the disk. Favourites are plain paths pinned above the drive tree.
+    public List<CatalogEntrySetting> Catalog { get; set; } = new();
+    public List<string> Favourites { get; set; } = new();
+
     // Claude cull instructions (AI Cull view). The knobs regenerate CullPrompt; CullPrompt is what's
     // actually sent (the user may hand-edit it). Empty CullPrompt => regenerate the default on load.
     public int CullKeepTarget { get; set; }                                       // 0 = no target
@@ -76,6 +88,18 @@ public sealed class AppSettings
         }
         catch { /* best-effort: a failed settings write must not surface to the user */ }
     }
+}
+
+/// <summary>One catalogued folder. Frames/Picks are the last scan's counts, kept so the Catalog
+/// tab can describe a shoot without reading the disk; LastScanned is null for a folder that has
+/// been added but never scanned.</summary>
+public sealed class CatalogEntrySetting
+{
+    public string Path { get; set; } = "";
+    public string Name { get; set; } = "";
+    public int Frames { get; set; }
+    public int Picks { get; set; }
+    public DateTime? LastScanned { get; set; }
 }
 
 /// <summary>One "[axis] below [value] -> rating at most [N] stars" hard limit. Axis is a plain

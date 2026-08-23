@@ -1,0 +1,951 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#1c1b18; --surface-1:#232220; --surface-2:#2b2926; --surface-3:#34322e; --surface-hi:#3d3a35;
+  --border:#36332e; --border-strong:#46423b;
+  --text-1:#f1eee8; --text-2:#aaa49a; --text-3:#7a736a;
+  --accent:#1eb5a6; --accent-fg:#04211e;
+}
+[data-theme="light"]{
+  --bg:#ece8e1; --surface-1:#fdfbf7; --surface-2:#f4f1ea; --surface-3:#eae5dc; --surface-hi:#e2ddd2;
+  --border:#e3ddd2; --border-strong:#d2cbbd;
+  --text-1:#211e19; --text-2:#5d564c; --text-3:#8b8378;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+[data-on="1"]{background:var(--surface-3)!important;color:var(--text-1)!important}
+::-webkit-scrollbar{width:11px;height:11px}
+::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:7px;border:3px solid transparent;background-clip:content-box}
+::-webkit-scrollbar-track{background:transparent}
+.icard{transition:transform .14s ease}
+.icard:hover{transform:translateY(-3px)}
+.icard > div:last-child{width:100%}
+.icard > div:last-child > div:first-child{white-space:nowrap;font-size:12.5px;line-height:1.2}
+</style>
+</helmet>
+
+<div data-theme="{{ theme }}" style="min-height:100vh;background:var(--bg);color:var(--text-1);font-family:'IBM Plex Sans',system-ui,sans-serif;-webkit-font-smoothing:antialiased">
+
+  <!-- HEADER -->
+  <div style="max-width:1180px;margin:0 auto;padding:44px 40px 18px;display:flex;align-items:flex-end;justify-content:space-between;gap:24px;flex-wrap:wrap">
+    <div>
+      <div style="display:flex;align-items:center;gap:13px">
+        <div style="width:40px;height:40px;border-radius:12px;background:var(--accent);display:flex;align-items:center;justify-content:center;box-shadow:0 6px 16px -4px color-mix(in oklab,var(--accent) 70%,transparent)">
+          <svg width="22" height="22" viewBox="0 0 120 120" fill="none" stroke="var(--accent-fg)" stroke-width="8" stroke-linecap="round"><circle cx="52" cy="46" r="27"></circle><line x1="71" y1="64" x2="82" y2="76"></line></svg>
+        </div>
+        <div style="font-size:24px;font-weight:700;letter-spacing:-.02em;white-space:nowrap">50 Mixes</div>
+      </div>
+      <div style="color:var(--text-2);font-size:14px;margin-top:13px;max-width:680px;line-height:1.5">Crossbreeds of every series — each <b style="color:var(--text-1)">subject</b> (lens, aperture, check, critic, gentleman, artist, robot, monogram, profile, eye) run through every <b style="color:var(--text-1)">treatment</b> (neon, glass, gradient, coin, pixel, geometric, duotone, sticker, outline). Labelled <span style="font-family:'IBM Plex Mono';color:var(--text-1)">Treatment × Subject</span>.</div>
+    </div>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+      <div style="font:600 10px/1 'IBM Plex Mono';letter-spacing:.1em;color:var(--text-3)">PREVIEW ON</div>
+      <div style="display:flex;background:var(--surface-2);border:1px solid var(--border);border-radius:9px;padding:3px;gap:3px">
+        <button data-on="{{ darkOn }}" onClick="{{ setDark }}" style="padding:6px 15px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Dark</button>
+        <button data-on="{{ lightOn }}" onClick="{{ setLight }}" style="padding:6px 15px;border:none;background:transparent;color:var(--text-2);border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit">Light</button>
+      </div>
+    </div>
+  </div>
+
+  <div style="max-width:1180px;margin:0 auto;padding:14px 40px 70px;display:flex;flex-direction:column;gap:30px">
+
+    <!-- ============ NEON × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">NEON ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">01–06 · glow tube on black</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 01 Neon × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+            <g fill="none" stroke="#2ee6cf" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #2ee6cf) drop-shadow(0 0 9px #1aa794)">
+              <circle cx="60" cy="60" r="40"></circle>
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L93,76"></path><path d="M68,73.9 L58,98"></path><path d="M52,73.9 L26,77"></path><path d="M44,60 L27,44"></path><path d="M52,46.1 L62,22"></path><path d="M68,46.1 L94,43"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Neon × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T6 · S2</span></div>
+        </div>
+
+        <!-- 02 Neon × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+            <g fill="none" stroke="#2ee6cf" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #2ee6cf) drop-shadow(0 0 9px #1aa794)">
+              <path d="M40,49 q6,6 12,0"></path>
+              <circle cx="74" cy="46" r="15"></circle>
+              <line x1="85" y1="57" x2="93" y2="65"></line>
+              <path d="M60,68 q-12,12 -22,3 q9,2 17,-4"></path><path d="M60,68 q12,12 22,3 q-9,2 -17,-4"></path>
+              <path d="M52,86 q8,5 16,0"></path>
+            </g>
+            <circle cx="74" cy="46" r="2.8" fill="#2ee6cf" style="filter:drop-shadow(0 0 4px #2ee6cf)"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Neon × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T6 · S5</span></div>
+        </div>
+
+        <!-- 03 Neon × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+            <g fill="none" stroke="#b98cff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #b98cff) drop-shadow(0 0 9px #7d4ed6)">
+              <path d="M32,40 q24,-15 54,-2 q3,7 -9,9 q-25,5 -44,1 q-5,-4 -1,-8 Z"></path>
+              <line x1="74" y1="29" x2="82" y2="22"></line>
+              <path d="M42,60 q6,6 12,0"></path>
+              <circle cx="76" cy="58" r="13"></circle>
+              <line x1="86" y1="68" x2="93" y2="75"></line>
+              <path d="M46,80 q15,13 30,0"></path>
+            </g>
+            <circle cx="76" cy="58" r="2.8" fill="#b98cff" style="filter:drop-shadow(0 0 4px #b98cff)"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Neon × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T6 · S6</span></div>
+        </div>
+
+        <!-- 04 Neon × Check -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+            <g fill="none" stroke="#4cf08a" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #4cf08a) drop-shadow(0 0 9px #1faf56)">
+              <circle cx="60" cy="55" r="29"></circle>
+              <path d="M47,56 L57,67 L77,40"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Neon × Check-lens</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T6 · S3</span></div>
+        </div>
+
+        <!-- 05 Neon × Profile -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+            <g fill="none" stroke="#2ee6cf" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #2ee6cf) drop-shadow(0 0 9px #1aa794)">
+              <path d="M86,26 C60,24 42,38 42,56 C42,64 34,64 34,70 C34,75 40,74 41,78 C43,90 57,98 75,94"></path>
+              <circle cx="64" cy="54" r="13"></circle>
+              <line x1="74" y1="63" x2="81" y2="70"></line>
+            </g>
+            <circle cx="64" cy="54" r="2.6" fill="#2ee6cf" style="filter:drop-shadow(0 0 4px #2ee6cf)"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Neon × Profile</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T6 · S9</span></div>
+        </div>
+
+        <!-- 06 Neon × Monogram -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#121814"></rect>
+            <g fill="none" stroke="#5fa8ff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" style="filter:drop-shadow(0 0 5px #5fa8ff) drop-shadow(0 0 9px #2f6fd6)">
+              <path d="M37,82 L37,44 L60,66 L83,44 L83,82"></path>
+            </g>
+            <circle cx="60" cy="40" r="5" fill="#5fa8ff" style="filter:drop-shadow(0 0 4px #5fa8ff)"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Neon × Monogram</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T6 · S8</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ GLASS × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">GLASS ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">07–12 · sheen &amp; depth</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 07 Glass × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.34))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs>
+              <radialGradient id="x07t" cx=".3" cy=".25" r="1"><stop offset="0" stop-color="#3a3833"></stop><stop offset="1" stop-color="#1a1916"></stop></radialGradient>
+              <linearGradient id="x07m" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#cfeee9"></stop><stop offset="1" stop-color="#0e8a7e"></stop></linearGradient>
+              <radialGradient id="x07h" cx=".5" cy=".5" r=".5"><stop offset="0" stop-color="#0d0d0c"></stop><stop offset="1" stop-color="#2a2824"></stop></radialGradient>
+            </defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x07t)"></rect>
+            <circle cx="60" cy="60" r="40" fill="url(#x07h)" stroke="url(#x07m)" stroke-width="5"></circle>
+            <g fill="none" stroke="url(#x07m)" stroke-width="5" stroke-linejoin="round">
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L92,75"></path><path d="M68,73.9 L59,96"></path><path d="M52,73.9 L28,77"></path><path d="M44,60 L28,45"></path><path d="M52,46.1 L61,24"></path><path d="M68,46.1 L92,44"></path>
+            </g>
+            <path d="M30,40 A40 40 0 0 1 64,22" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round" opacity=".55"></path>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Glass × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T4 · S2</span></div>
+        </div>
+
+        <!-- 08 Glass × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.32))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="x08t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#27c2b2"></stop><stop offset="1" stop-color="#0e7d72"></stop></linearGradient>
+              <radialGradient id="x08d" cx=".42" cy=".34" r=".75"><stop offset="0" stop-color="#ffffff" stop-opacity=".9"></stop><stop offset=".5" stop-color="#bff0ea" stop-opacity=".25"></stop><stop offset="1" stop-color="#05554d" stop-opacity=".4"></stop></radialGradient>
+            </defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x08t)"></rect>
+            <circle cx="60" cy="58" r="40" fill="url(#x08d)"></circle>
+            <g fill="none" stroke="#04332e" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,49 q6,6 12,0"></path><circle cx="74" cy="46" r="14"></circle><line x1="85" y1="57" x2="92" y2="64"></line>
+              <path d="M60,68 q-12,12 -22,3 q9,2 17,-4"></path><path d="M60,68 q12,12 22,3 q-9,2 -17,-4"></path>
+              <path d="M52,84 q8,5 16,0"></path>
+            </g>
+            <circle cx="74" cy="46" r="3.2" fill="#04332e"></circle>
+            <ellipse cx="48" cy="40" rx="13" ry="7" fill="#ffffff" opacity=".55"></ellipse>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Glass × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T4 · S5</span></div>
+        </div>
+
+        <!-- 09 Glass × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.34))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs>
+              <radialGradient id="x09t" cx=".3" cy=".25" r="1"><stop offset="0" stop-color="#3a3833"></stop><stop offset="1" stop-color="#1a1916"></stop></radialGradient>
+              <linearGradient id="x09g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7fe9dc"></stop><stop offset="1" stop-color="#0e8a7e"></stop></linearGradient>
+            </defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x09t)"></rect>
+            <line x1="60" y1="24" x2="60" y2="14" stroke="url(#x09g)" stroke-width="4.5" stroke-linecap="round"></line>
+            <circle cx="60" cy="12" r="3.4" fill="#7fe9dc"></circle>
+            <rect x="28" y="34" width="64" height="54" rx="14" fill="#ffffff" fill-opacity=".08" stroke="url(#x09g)" stroke-width="4.5"></rect>
+            <g fill="none" stroke="url(#x09g)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line>
+            </g>
+            <path d="M34,42 h52" stroke="#ffffff" stroke-width="3" stroke-linecap="round" opacity=".5"></path>
+            <circle cx="74" cy="56" r="3" fill="#7fe9dc"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Glass × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T4 · S7</span></div>
+        </div>
+
+        <!-- 10 Glass × Check -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="x10t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#5fe39a"></stop><stop offset="1" stop-color="#0e8a5a"></stop></linearGradient>
+              <radialGradient id="x10d" cx=".4" cy=".32" r=".78"><stop offset="0" stop-color="#ffffff" stop-opacity=".85"></stop><stop offset=".55" stop-color="#bdf0d2" stop-opacity=".2"></stop><stop offset="1" stop-color="#06542f" stop-opacity=".4"></stop></radialGradient>
+            </defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x10t)"></rect>
+            <circle cx="60" cy="55" r="32" fill="url(#x10d)" stroke="#ffffff" stroke-width="2" stroke-opacity=".45"></circle>
+            <path d="M47,56 L57,67 L77,40" fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round"></path>
+            <ellipse cx="50" cy="42" rx="12" ry="7" fill="#ffffff" opacity=".6"></ellipse>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Glass × Check</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T4 · S3</span></div>
+        </div>
+
+        <!-- 11 Glass × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.32))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs>
+              <linearGradient id="x11t" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#a487f5"></stop><stop offset="1" stop-color="#6b4ed0"></stop></linearGradient>
+              <radialGradient id="x11d" cx=".42" cy=".34" r=".75"><stop offset="0" stop-color="#ffffff" stop-opacity=".85"></stop><stop offset=".5" stop-color="#dccffb" stop-opacity=".22"></stop><stop offset="1" stop-color="#3a2480" stop-opacity=".4"></stop></radialGradient>
+            </defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x11t)"></rect>
+            <circle cx="60" cy="62" r="38" fill="url(#x11d)"></circle>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M32,42 q24,-15 54,-2 q3,7 -9,9 q-25,5 -44,1 q-5,-4 -1,-8 Z"></path>
+              <path d="M42,62 q6,6 12,0"></path><circle cx="76" cy="60" r="13"></circle><line x1="86" y1="70" x2="93" y2="77"></line>
+              <path d="M46,82 q15,12 30,0"></path>
+            </g>
+            <circle cx="76" cy="60" r="3.2" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Glass × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T4 · S6</span></div>
+        </div>
+
+        <!-- 12 Glass × Eye -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 14px 24px rgba(0,0,0,.34))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs>
+              <radialGradient id="x12t" cx=".3" cy=".25" r="1"><stop offset="0" stop-color="#36342f"></stop><stop offset="1" stop-color="#191815"></stop></radialGradient>
+              <radialGradient id="x12i" cx=".4" cy=".35" r=".7"><stop offset="0" stop-color="#7fe9dc"></stop><stop offset="1" stop-color="#0c6b62"></stop></radialGradient>
+            </defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x12t)"></rect>
+            <path d="M24,60 q36,-30 72,0 q-36,30 -72,0 Z" fill="#0d0d0c" stroke="#cfeee9" stroke-width="3.5"></path>
+            <circle cx="60" cy="60" r="15" fill="url(#x12i)"></circle>
+            <circle cx="60" cy="60" r="6" fill="#04211e"></circle>
+            <circle cx="54" cy="54" r="3.5" fill="#ffffff" opacity=".85"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Glass × Eye</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T4 · S10</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ GRADIENT × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">GRADIENT ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">13–18 · saturated wash</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 13 Gradient × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x13" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ec8b6"></stop><stop offset="1" stop-color="#3f7bef"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x13)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,49 q6,6 12,0"></path><circle cx="74" cy="46" r="15"></circle><line x1="85" y1="57" x2="93" y2="65"></line>
+              <path d="M60,68 q-12,12 -22,3 q9,2 17,-4"></path><path d="M60,68 q12,12 22,3 q-9,2 -17,-4"></path>
+              <path d="M52,86 q8,5 16,0"></path>
+            </g>
+            <circle cx="74" cy="46" r="3.4" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Gradient × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T3 · S5</span></div>
+        </div>
+
+        <!-- 14 Gradient × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x14" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9072ee"></stop><stop offset="1" stop-color="#3f7bef"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x14)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="60" y1="24" x2="60" y2="14"></line>
+              <rect x="28" y="34" width="64" height="54" rx="14"></rect>
+              <path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line>
+            </g>
+            <circle cx="60" cy="12" r="3.4" fill="#ffffff"></circle><circle cx="74" cy="56" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Gradient × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T3 · S7</span></div>
+        </div>
+
+        <!-- 15 Gradient × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x15" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7c24a"></stop><stop offset="1" stop-color="#ef6a4c"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x15)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="60" cy="60" r="40"></circle>
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L93,76"></path><path d="M68,73.9 L58,98"></path><path d="M52,73.9 L26,77"></path><path d="M44,60 L27,44"></path><path d="M52,46.1 L62,22"></path><path d="M68,46.1 L94,43"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Gradient × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T3 · S2</span></div>
+        </div>
+
+        <!-- 16 Gradient × Profile -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x16" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ec8b6"></stop><stop offset="1" stop-color="#9072ee"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x16)"></rect>
+            <path d="M86,24 C58,22 38,38 38,58 C38,66 30,66 30,72 C30,77 37,76 38,80 C40,94 56,102 76,98 C92,95 98,80 98,58 C98,38 100,26 86,24 Z" fill="#ffffff" opacity=".18"></path>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="64" cy="54" r="14"></circle><line x1="74" y1="64" x2="82" y2="72"></line>
+              <path d="M83,73 Q88,89 70,93" stroke-width="3" stroke-dasharray="0.1 7"></path>
+            </g>
+            <circle cx="64" cy="54" r="3.4" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Gradient × Profile</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T3 · S9</span></div>
+        </div>
+
+        <!-- 17 Gradient × Monogram -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x17" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f7c24a"></stop><stop offset=".55" stop-color="#ef7a4a"></stop><stop offset="1" stop-color="#ec5f8b"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x17)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"><path d="M37,82 L37,42 L60,64 L83,42 L83,82"></path></g>
+            <circle cx="60" cy="40" r="6" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Gradient × Monogram</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T3 · S8</span></div>
+        </div>
+
+        <!-- 18 Gradient × Critic -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x18" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#5fe39a"></stop><stop offset="1" stop-color="#1eb5a6"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x18)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,53 q6,6 12,0"></path><circle cx="74" cy="50" r="15"></circle><line x1="85" y1="61" x2="93" y2="69"></line>
+              <path d="M94,70 Q99,86 81,91" stroke-width="3.2" stroke-dasharray="0.1 7"></path>
+              <path d="M42,74 q18,16 36,0"></path>
+            </g>
+            <circle cx="74" cy="50" r="3.4" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Gradient × Critic</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T3 · S4</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ ENGRAVED / COIN × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">ENGRAVED / COIN ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">19–24 · struck &amp; debossed</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 19 Coin × Critic -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><radialGradient id="x19" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#e8cf8f"></stop><stop offset=".6" stop-color="#b5944c"></stop><stop offset="1" stop-color="#6e5524"></stop></radialGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x19)"></rect>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#4a3917" stroke-width="2"></circle>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="#5a451d" stroke-width="2" stroke-dasharray="2 4"></circle>
+            <g fill="none" stroke="#4a3917" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".88">
+              <path d="M40,53 q6,6 12,0"></path><circle cx="74" cy="50" r="14"></circle><line x1="84" y1="60" x2="91" y2="67"></line>
+              <path d="M44,74 q16,14 32,0"></path>
+            </g>
+            <circle cx="74" cy="50" r="3.2" fill="#4a3917"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Coin × Critic</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T11 · S4</span></div>
+        </div>
+
+        <!-- 20 Engraved × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x20" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34322e"></stop><stop offset="1" stop-color="#211f1c"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x20)"></rect>
+            <g fill="none" stroke-linejoin="round" stroke-width="5">
+              <g transform="translate(0,1.5)" stroke="#000000" stroke-opacity=".45"><circle cx="60" cy="60" r="40"></circle><path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path><path d="M76,60 L92,75"></path><path d="M68,73.9 L59,96"></path><path d="M52,73.9 L28,77"></path><path d="M44,60 L28,45"></path><path d="M52,46.1 L61,24"></path><path d="M68,46.1 L92,44"></path></g>
+              <g transform="translate(0,-1.3)" stroke="#ffffff" stroke-opacity=".18"><circle cx="60" cy="60" r="40"></circle><path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path><path d="M76,60 L92,75"></path><path d="M68,73.9 L59,96"></path><path d="M52,73.9 L28,77"></path><path d="M44,60 L28,45"></path><path d="M52,46.1 L61,24"></path><path d="M68,46.1 L92,44"></path></g>
+              <g stroke="#26241f"><circle cx="60" cy="60" r="40"></circle><path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path><path d="M76,60 L92,75"></path><path d="M68,73.9 L59,96"></path><path d="M52,73.9 L28,77"></path><path d="M44,60 L28,45"></path><path d="M52,46.1 L61,24"></path><path d="M68,46.1 L92,44"></path></g>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Engraved × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T5 · S2</span></div>
+        </div>
+
+        <!-- 21 Coin × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><radialGradient id="x21" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#e8cf8f"></stop><stop offset=".6" stop-color="#b5944c"></stop><stop offset="1" stop-color="#6e5524"></stop></radialGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x21)"></rect>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#4a3917" stroke-width="2"></circle>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="#5a451d" stroke-width="2" stroke-dasharray="2 4"></circle>
+            <g fill="none" stroke="#4a3917" stroke-width="5" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".88">
+              <path d="M40,50 q6,6 12,0"></path><circle cx="74" cy="47" r="13"></circle><line x1="84" y1="57" x2="91" y2="64"></line>
+              <path d="M60,68 q-11,11 -20,3 q8,2 15,-4"></path><path d="M60,68 q11,11 20,3 q-8,2 -15,-4"></path>
+            </g>
+            <circle cx="74" cy="47" r="3" fill="#4a3917"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Coin × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T11 · S5</span></div>
+        </div>
+
+        <!-- 22 Engraved × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x22" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34322e"></stop><stop offset="1" stop-color="#211f1c"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x22)"></rect>
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.6">
+              <g transform="translate(0,1.4)" stroke="#000000" stroke-opacity=".45"><line x1="60" y1="24" x2="60" y2="15"></line><rect x="28" y="34" width="64" height="54" rx="14"></rect><path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line></g>
+              <g transform="translate(0,-1.2)" stroke="#ffffff" stroke-opacity=".18"><line x1="60" y1="24" x2="60" y2="15"></line><rect x="28" y="34" width="64" height="54" rx="14"></rect><path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line></g>
+              <g stroke="#26241f"><line x1="60" y1="24" x2="60" y2="15"></line><rect x="28" y="34" width="64" height="54" rx="14"></rect><path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line></g>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Engraved × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T5 · S7</span></div>
+        </div>
+
+        <!-- 23 Coin × Monogram -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><radialGradient id="x23" cx=".4" cy=".35" r=".8"><stop offset="0" stop-color="#e8cf8f"></stop><stop offset=".6" stop-color="#b5944c"></stop><stop offset="1" stop-color="#6e5524"></stop></radialGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x23)"></rect>
+            <circle cx="60" cy="60" r="50" fill="none" stroke="#4a3917" stroke-width="2"></circle>
+            <circle cx="60" cy="60" r="46" fill="none" stroke="#5a451d" stroke-width="2" stroke-dasharray="2 4"></circle>
+            <path d="M40,80 L40,46 L60,64 L80,46 L80,80" fill="none" stroke="#4a3917" stroke-width="7" stroke-linecap="round" stroke-linejoin="round" stroke-opacity=".9"></path>
+            <circle cx="60" cy="44" r="4.5" fill="#4a3917"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Coin × Monogram</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T11 · S8</span></div>
+        </div>
+
+        <!-- 24 Engraved × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x24" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#34322e"></stop><stop offset="1" stop-color="#211f1c"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x24)"></rect>
+            <g fill="none" stroke-linecap="round" stroke-linejoin="round" stroke-width="4.6">
+              <g transform="translate(0,1.4)" stroke="#000000" stroke-opacity=".45"><path d="M32,42 q24,-15 54,-2 q3,7 -9,9 q-25,5 -44,1 q-5,-4 -1,-8 Z"></path><line x1="74" y1="31" x2="82" y2="24"></line><path d="M42,62 q6,6 12,0"></path><circle cx="76" cy="60" r="13"></circle><line x1="86" y1="70" x2="93" y2="77"></line><path d="M46,82 q15,12 30,0"></path></g>
+              <g stroke="#26241f"><path d="M32,42 q24,-15 54,-2 q3,7 -9,9 q-25,5 -44,1 q-5,-4 -1,-8 Z"></path><line x1="74" y1="31" x2="82" y2="24"></line><path d="M42,62 q6,6 12,0"></path><circle cx="76" cy="60" r="13"></circle><line x1="86" y1="70" x2="93" y2="77"></line><path d="M46,82 q15,12 30,0"></path></g>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Engraved × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T5 · S6</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ PIXEL × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">PIXEL ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">25–27 · 8-bit</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 25 Pixel × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120" shape-rendering="crispEdges">
+            <rect x="2" y="2" width="116" height="116" rx="8" fill="#16201c"></rect>
+            <g fill="#46c97e"><sc-for list="{{ pxRobot }}" as="p" hint-placeholder-count="40"><rect x="{{ p.x }}" y="{{ p.y }}" width="{{ p.s }}" height="{{ p.s }}"></rect></sc-for></g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Pixel × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T8 · S7</span></div>
+        </div>
+
+        <!-- 26 Pixel × Monocle -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120" shape-rendering="crispEdges">
+            <rect x="2" y="2" width="116" height="116" rx="8" fill="#101a22"></rect>
+            <g fill="#5fb8ff"><sc-for list="{{ pxLens }}" as="p" hint-placeholder-count="26"><rect x="{{ p.x }}" y="{{ p.y }}" width="{{ p.s }}" height="{{ p.s }}"></rect></sc-for></g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Pixel × Monocle</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T8 · S1</span></div>
+        </div>
+
+        <!-- 27 Pixel × Check -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120" shape-rendering="crispEdges">
+            <rect x="2" y="2" width="116" height="116" rx="8" fill="#1c1407"></rect>
+            <g fill="#f2b53f"><sc-for list="{{ pxCheck }}" as="p" hint-placeholder-count="30"><rect x="{{ p.x }}" y="{{ p.y }}" width="{{ p.s }}" height="{{ p.s }}"></rect></sc-for></g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Pixel × Check</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T8 · S3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ GEOMETRIC / LOW-POLY × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">GEOMETRIC / LOW-POLY ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">28–34 · angular construction</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 28 Geometric × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#e2982f"></rect>
+            <g fill="none" stroke="#2a1c05" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M38,46 L54,46"></path>
+              <path d="M74,33 L88,47 L74,61 L60,47 Z"></path>
+              <line x1="85" y1="59" x2="93" y2="67"></line>
+              <path d="M40,70 L52,78 L60,72 L68,78 L80,70"></path>
+            </g>
+            <rect x="42" y="49" width="8" height="8" fill="#2a1c05"></rect>
+            <circle cx="74" cy="47" r="3.4" fill="#2a1c05"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Geometric × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T12 · S5</span></div>
+        </div>
+
+        <!-- 29 Low-Poly × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x29" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#1ec8b6"></stop><stop offset="1" stop-color="#3f7bef"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x29)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linejoin="round" stroke-opacity=".5"><path d="M60,16 L92,34 L92,86 L28,86 L28,34 Z"></path><path d="M28,34 L60,52 L92,34 M60,52 L60,86"></path></g>
+            <g fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="60" y1="26" x2="60" y2="16"></line>
+              <path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line>
+            </g>
+            <circle cx="60" cy="14" r="3.2" fill="#ffffff"></circle><circle cx="74" cy="56" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Low-Poly × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T13 · S7</span></div>
+        </div>
+
+        <!-- 30 Geometric × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#1eb5a6"></rect>
+            <g fill="none" stroke="#04211e" stroke-width="5" stroke-linejoin="round">
+              <path d="M60,20 L94,40 L94,80 L60,100 L26,80 L26,40 Z"></path>
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L88,69"></path><path d="M68,73.9 L62,90"></path><path d="M52,73.9 L34,77"></path><path d="M44,60 L33,49"></path><path d="M52,46.1 L59,30"></path><path d="M68,46.1 L87,43"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Geometric × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T12 · S2</span></div>
+        </div>
+
+        <!-- 31 Low-Poly × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x31" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9072ee"></stop><stop offset="1" stop-color="#ec5f8b"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x31)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linejoin="round" stroke-opacity=".5"><path d="M60,30 L90,46 L80,86 L40,86 L30,46 Z"></path><path d="M30,46 L60,62 L90,46 M60,62 L40,86 M60,62 L80,86"></path></g>
+            <g fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M32,42 q24,-15 54,-2 q3,7 -9,9 q-25,5 -44,1 q-5,-4 -1,-8 Z"></path>
+              <path d="M44,62 q6,6 12,0"></path><circle cx="76" cy="60" r="12"></circle><line x1="85" y1="69" x2="92" y2="76"></line>
+              <path d="M48,80 q14,11 28,0"></path>
+            </g>
+            <circle cx="76" cy="60" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Low-Poly × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T13 · S6</span></div>
+        </div>
+
+        <!-- 32 Geometric × Check -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.26))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#9072ee"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="6" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M60,26 L86,42 L86,72 L60,90 L34,72 L34,42 Z"></path>
+              <path d="M46,57 L57,68 L76,42"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Geometric × Check</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T12 · S3</span></div>
+        </div>
+
+        <!-- 33 Geometric × Profile -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#15212e"></rect>
+            <path d="M84,22 L96,46 L92,74 L74,96 L46,94 L34,72 L40,58 L30,52 L44,44 L48,26 Z" fill="#1eb5a6"></path>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M58,40 L70,46 L70,58 L58,64 L52,52 Z"></path>
+              <line x1="69" y1="63" x2="78" y2="72"></line>
+            </g>
+            <circle cx="62" cy="52" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Geometric × Profile</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T12 · S9</span></div>
+        </div>
+
+        <!-- 34 Low-Poly × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 22px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x34" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#f7c24a"></stop><stop offset="1" stop-color="#ef6a4c"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x34)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="2.6" stroke-linejoin="round" stroke-opacity=".45"><path d="M60,18 L96,40 L96,80 L60,102 L24,80 L24,40 Z"></path><path d="M24,40 L60,60 L96,40 M60,60 L60,102 M24,80 L60,60 L96,80"></path></g>
+            <g fill="none" stroke="#ffffff" stroke-width="4.6" stroke-linejoin="round">
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L90,73"></path><path d="M68,73.9 L60,93"></path><path d="M52,73.9 L31,77"></path><path d="M44,60 L30,47"></path><path d="M52,46.1 L60,27"></path><path d="M68,46.1 L90,44"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Low-Poly × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T13 · S2</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ DUOTONE / BLUEPRINT × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">DUOTONE / BLUEPRINT ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">35–40 · split &amp; technical</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 35 Duotone × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x35" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#1eb5a6"></stop><stop offset=".5" stop-color="#1eb5a6"></stop><stop offset=".5" stop-color="#9072ee"></stop><stop offset="1" stop-color="#9072ee"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x35)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,49 q6,6 12,0"></path><circle cx="74" cy="46" r="15"></circle><line x1="85" y1="57" x2="93" y2="65"></line>
+              <path d="M60,68 q-12,12 -22,3 q9,2 17,-4"></path><path d="M60,68 q12,12 22,3 q-9,2 -17,-4"></path>
+              <path d="M52,86 q8,5 16,0"></path>
+            </g>
+            <circle cx="74" cy="46" r="3.4" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Duotone × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T9 · S5</span></div>
+        </div>
+
+        <!-- 36 Blueprint × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#15212e"></rect>
+            <g fill="none" stroke="#3fd0c0" stroke-width="1.3" stroke-opacity=".45"><line x1="60" y1="14" x2="60" y2="106"></line><line x1="14" y1="60" x2="106" y2="60"></line><circle cx="60" cy="60" r="48" stroke-dasharray="3 4"></circle></g>
+            <g fill="none" stroke="#7ce8db" stroke-width="3.2" stroke-linejoin="round">
+              <circle cx="60" cy="60" r="40"></circle>
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L92,75"></path><path d="M68,73.9 L59,96"></path><path d="M52,73.9 L28,77"></path><path d="M44,60 L28,45"></path><path d="M52,46.1 L61,24"></path><path d="M68,46.1 L92,44"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Blueprint × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T10 · S2</span></div>
+        </div>
+
+        <!-- 37 Duotone × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x37" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f2b53f"></stop><stop offset=".5" stop-color="#f2b53f"></stop><stop offset=".5" stop-color="#ef6a4c"></stop><stop offset="1" stop-color="#ef6a4c"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x37)"></rect>
+            <g fill="none" stroke="#2a1405" stroke-width="4.8" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="60" y1="24" x2="60" y2="14"></line>
+              <rect x="28" y="34" width="64" height="54" rx="14"></rect>
+              <path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line>
+            </g>
+            <circle cx="60" cy="12" r="3.4" fill="#2a1405"></circle><circle cx="74" cy="56" r="3" fill="#2a1405"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Duotone × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T9 · S7</span></div>
+        </div>
+
+        <!-- 38 Blueprint × Critic -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#15212e"></rect>
+            <g fill="none" stroke="#3fd0c0" stroke-width="1.3" stroke-opacity=".4"><circle cx="74" cy="50" r="23" stroke-dasharray="3 4"></circle><line x1="74" y1="20" x2="74" y2="80"></line><line x1="44" y1="50" x2="104" y2="50"></line></g>
+            <g fill="none" stroke="#7ce8db" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,53 q6,6 12,0"></path><circle cx="74" cy="50" r="15"></circle><line x1="85" y1="61" x2="93" y2="69"></line>
+              <path d="M42,74 q18,16 36,0"></path>
+            </g>
+            <circle cx="74" cy="50" r="3" fill="#7ce8db"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Blueprint × Critic</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T10 · S4</span></div>
+        </div>
+
+        <!-- 39 Duotone × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.28))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x39" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ec5f8b"></stop><stop offset=".5" stop-color="#ec5f8b"></stop><stop offset=".5" stop-color="#9072ee"></stop><stop offset="1" stop-color="#9072ee"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x39)"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M32,42 q24,-15 54,-2 q3,7 -9,9 q-25,5 -44,1 q-5,-4 -1,-8 Z"></path><line x1="74" y1="31" x2="82" y2="24"></line>
+              <path d="M42,62 q6,6 12,0"></path><circle cx="76" cy="60" r="13"></circle><line x1="86" y1="70" x2="93" y2="77"></line>
+              <path d="M46,82 q15,12 30,0"></path>
+            </g>
+            <circle cx="76" cy="60" r="3.2" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Duotone × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T9 · S6</span></div>
+        </div>
+
+        <!-- 40 Blueprint × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="#15212e"></rect>
+            <g fill="none" stroke="#3fd0c0" stroke-width="1.3" stroke-opacity=".4"><line x1="60" y1="14" x2="60" y2="106"></line><line x1="14" y1="60" x2="106" y2="60"></line></g>
+            <g fill="none" stroke="#7ce8db" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="60" y1="24" x2="60" y2="14"></line>
+              <rect x="28" y="34" width="64" height="54" rx="14"></rect>
+              <path d="M40,58 q6,6 12,0"></path><circle cx="74" cy="56" r="11"></circle><line x1="82" y1="64" x2="89" y2="71"></line><line x1="48" y1="76" x2="72" y2="76"></line>
+            </g>
+            <circle cx="60" cy="12" r="3" fill="#7ce8db"></circle><circle cx="74" cy="56" r="2.8" fill="#7ce8db"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Blueprint × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T10 · S7</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ STICKER × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">STICKER ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">41–45 · die-cut, chunky</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 41 Sticker × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="6" y="6" width="108" height="108" rx="30" fill="#ffffff"></rect>
+            <rect x="14" y="14" width="92" height="92" rx="24" fill="#1eb5a6"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,50 q6,6 12,0"></path><circle cx="74" cy="47" r="14"></circle><line x1="84" y1="57" x2="91" y2="64"></line>
+              <path d="M60,68 q-11,11 -20,3 q8,2 15,-4"></path><path d="M60,68 q11,11 20,3 q-8,2 -15,-4"></path>
+            </g>
+            <circle cx="74" cy="47" r="4" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Sticker × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T7 · S5</span></div>
+        </div>
+
+        <!-- 42 Sticker × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="6" y="6" width="108" height="108" rx="30" fill="#ffffff"></rect>
+            <rect x="14" y="14" width="92" height="92" rx="24" fill="#9072ee"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="60" y1="30" x2="60" y2="22"></line>
+              <rect x="32" y="38" width="56" height="48" rx="13"></rect>
+              <path d="M43,58 q6,6 12,0"></path><circle cx="74" cy="56" r="10"></circle><line x1="81" y1="63" x2="87" y2="69"></line><line x1="50" y1="74" x2="70" y2="74"></line>
+            </g>
+            <circle cx="60" cy="20" r="4" fill="#ffffff"></circle><circle cx="74" cy="56" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Sticker × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T7 · S7</span></div>
+        </div>
+
+        <!-- 43 Sticker × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="6" y="6" width="108" height="108" rx="30" fill="#ffffff"></rect>
+            <rect x="14" y="14" width="92" height="92" rx="24" fill="#f2b53f"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="60" cy="60" r="34"></circle>
+              <path d="M73,60 L67,71 L53,71 L47,60 L53,49 L67,49 Z"></path>
+              <path d="M73,60 L86,72"></path><path d="M67,71 L60,90"></path><path d="M53,71 L34,75"></path><path d="M47,60 L34,48"></path><path d="M53,49 L60,30"></path><path d="M67,49 L86,46"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Sticker × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T7 · S2</span></div>
+        </div>
+
+        <!-- 44 Sticker × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="6" y="6" width="108" height="108" rx="30" fill="#ffffff"></rect>
+            <rect x="14" y="14" width="92" height="92" rx="24" fill="#ec5f8b"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="6.5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M34,44 q24,-14 52,-2 q3,7 -9,8 q-24,5 -42,1 q-5,-4 -1,-7 Z"></path><line x1="74" y1="34" x2="81" y2="27"></line>
+              <path d="M44,62 q6,6 12,0"></path><circle cx="74" cy="60" r="12"></circle><line x1="83" y1="69" x2="89" y2="75"></line>
+              <path d="M48,80 q14,11 28,0"></path>
+            </g>
+            <circle cx="74" cy="60" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Sticker × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T7 · S6</span></div>
+        </div>
+
+        <!-- 45 Sticker × Check -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <rect x="6" y="6" width="108" height="108" rx="30" fill="#ffffff"></rect>
+            <rect x="14" y="14" width="92" height="92" rx="24" fill="#46c97e"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="60" cy="56" r="28"></circle>
+              <path d="M48,57 L57,67 L74,42"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Sticker × Check</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T7 · S3</span></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ============ OUTLINE / FROSTED × ============ -->
+    <div>
+      <div style="display:flex;align-items:baseline;gap:14px;margin-bottom:16px">
+        <div style="font:700 11px/1 'IBM Plex Sans';letter-spacing:.16em;color:var(--text-1)">OUTLINE / FROSTED ×</div>
+        <div style="flex:1;height:1px;background:var(--border)"></div>
+        <div style="font:500 11px/1 'IBM Plex Mono';color:var(--text-3)">46–50 · light &amp; airy</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:16px">
+
+        <!-- 46 Outline × Gentleman -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <g fill="none" stroke="var(--text-1)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M40,49 q6,6 12,0"></path><circle cx="74" cy="46" r="16"></circle><line x1="86" y1="58" x2="94" y2="66"></line>
+              <path d="M60,68 q-12,12 -22,3 q9,2 17,-4"></path><path d="M60,68 q12,12 22,3 q-9,2 -17,-4"></path>
+              <path d="M52,86 q8,5 16,0"></path>
+            </g>
+            <circle cx="74" cy="46" r="2.8" fill="var(--text-1)"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Outline × Gentleman</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T2 · S5</span></div>
+        </div>
+
+        <!-- 47 Frosted × Robot -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x47" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#3f7bef"></stop><stop offset="1" stop-color="#1ec8b6"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x47)"></rect>
+            <rect x="16" y="16" width="88" height="88" rx="20" fill="#ffffff" fill-opacity=".18" stroke="#ffffff" stroke-opacity=".4" stroke-width="1.5"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="60" y1="30" x2="60" y2="22"></line>
+              <rect x="32" y="38" width="56" height="48" rx="13"></rect>
+              <path d="M43,58 q6,6 12,0"></path><circle cx="74" cy="56" r="10"></circle><line x1="81" y1="63" x2="87" y2="69"></line><line x1="50" y1="74" x2="70" y2="74"></line>
+            </g>
+            <circle cx="60" cy="20" r="3.2" fill="#ffffff"></circle><circle cx="74" cy="56" r="2.8" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Frosted × Robot</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T14 · S7</span></div>
+        </div>
+
+        <!-- 48 Outline × Aperture -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <g fill="none" stroke="var(--accent)" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="60" cy="60" r="40"></circle>
+              <path d="M76,60 L68,73.9 L52,73.9 L44,60 L52,46.1 L68,46.1 Z"></path>
+              <path d="M76,60 L93,76"></path><path d="M68,73.9 L58,98"></path><path d="M52,73.9 L26,77"></path><path d="M44,60 L27,44"></path><path d="M52,46.1 L62,22"></path><path d="M68,46.1 L94,43"></path>
+            </g>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Outline × Aperture</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T2 · S2</span></div>
+        </div>
+
+        <!-- 49 Frosted × Artist -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div style="filter:drop-shadow(0 12px 20px rgba(0,0,0,.3))"><svg width="120" height="120" viewBox="0 0 120 120">
+            <defs><linearGradient id="x49" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#9072ee"></stop><stop offset="1" stop-color="#ec5f8b"></stop></linearGradient></defs>
+            <rect x="2" y="2" width="116" height="116" rx="28" fill="url(#x49)"></rect>
+            <rect x="16" y="16" width="88" height="88" rx="20" fill="#ffffff" fill-opacity=".18" stroke="#ffffff" stroke-opacity=".4" stroke-width="1.5"></rect>
+            <g fill="none" stroke="#ffffff" stroke-width="5" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M34,44 q24,-14 52,-2 q3,7 -9,8 q-24,5 -42,1 q-5,-4 -1,-7 Z"></path><line x1="74" y1="34" x2="81" y2="27"></line>
+              <path d="M44,62 q6,6 12,0"></path><circle cx="74" cy="60" r="12"></circle><line x1="83" y1="69" x2="89" y2="75"></line>
+              <path d="M48,80 q14,11 28,0"></path>
+            </g>
+            <circle cx="74" cy="60" r="3" fill="#ffffff"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Frosted × Artist</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T14 · S6</span></div>
+        </div>
+
+        <!-- 50 Outline × Profile -->
+        <div class="icard" style="background:var(--surface-1);border:1px solid var(--border);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;align-items:center;gap:15px">
+          <div><svg width="120" height="120" viewBox="0 0 120 120">
+            <g fill="none" stroke="var(--text-1)" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M86,24 C58,22 38,38 38,58 C38,66 30,66 30,72 C30,77 37,76 38,80 C40,94 56,102 76,98"></path>
+              <circle cx="64" cy="54" r="14"></circle><line x1="74" y1="64" x2="82" y2="72"></line>
+              <path d="M83,73 Q88,89 70,93" stroke-width="2.4" stroke-dasharray="0.1 7"></path>
+            </g>
+            <circle cx="64" cy="54" r="2.8" fill="var(--text-1)"></circle>
+          </svg></div>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:6px;width:100%"><div style="font-size:13px;font-weight:600">Outline × Profile</div><span style="font:600 9px/1 'IBM Plex Mono';letter-spacing:.06em;color:var(--text-3)">T2 · S9</span></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+class Component extends DCLogic {
+  state = { dark: true };
+
+  parse(map, cell, ox, oy, extra) {
+    const out = [];
+    map.forEach((row, r) => {
+      for (let c = 0; c < row.length; c++) {
+        if (row[c] === "X") out.push({ x: ox + c * cell, y: oy + r * cell, s: cell });
+      }
+    });
+    (extra || []).forEach((e) => out.push({ x: e[0], y: e[1], s: cell }));
+    return out;
+  }
+
+  renderVals() {
+    const dark = this.state.dark;
+
+    const robot = [
+      ".....X.X.....",
+      ".....X.X.....",
+      "..XXXXXXXXX..",
+      "..X.......X..",
+      "..X.XX.XX.X..",
+      "..X.......X..",
+      "..X.XXXXX.X..",
+      "..X.......X..",
+      "..XXXXXXXXX..",
+    ];
+    const lens = [
+      "..XXXXX..",
+      ".X.....X.",
+      "X.......X",
+      "X.......X",
+      "X.......X",
+      "X.......X",
+      "X.......X",
+      ".X.....X.",
+      "..XXXXX..",
+    ];
+    const check = [
+      "..XXXXX..",
+      ".X.....X.",
+      "X.......X",
+      "X.....X.X",
+      "X....X..X",
+      "X.X.X...X",
+      "X..X....X",
+      ".X.....X.",
+      "..XXXXX..",
+    ];
+
+    return {
+      theme: dark ? "dark" : "light",
+      darkOn: dark ? 1 : 0,
+      lightOn: dark ? 0 : 1,
+      setDark: () => this.setState({ dark: true }),
+      setLight: () => this.setState({ dark: false }),
+      pxRobot: this.parse(robot, 8, 10, 18),
+      pxLens: this.parse(lens, 9, 16, 16, [[16 + 72, 16 + 72], [16 + 81, 16 + 81]]),
+      pxCheck: this.parse(check, 9, 16, 14),
+    };
+  }
+}
+</script>
+</body>
+</html>

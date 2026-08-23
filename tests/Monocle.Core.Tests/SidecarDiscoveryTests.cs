@@ -13,8 +13,10 @@ namespace Monocle.Core.Tests;
 /// </summary>
 public class SidecarDiscoveryTests
 {
-    private static SidecarCatalogEntry Entry(string id, string kind = "critique") =>
-        new(id, $"{id} model", kind, 0, "desc", "tradeoffs", $"https://example.invalid/{id}");
+    private static SidecarCatalogEntry Entry(
+        string id, string kind = "critique", string? resource = null, double scaleMin = 0, double scaleMax = 0) =>
+        new(id, $"{id} model", kind, scaleMax, "desc", "tradeoffs", $"https://example.invalid/{id}",
+            resource, scaleMin);
 
     [Fact]
     public void SkipsModelsTheAppAlreadyHas()
@@ -62,6 +64,54 @@ public class SidecarDiscoveryTests
     }
 
     [Fact]
+    public void AModelRunsWhereTheSidecarSaysItRuns()
+    {
+        // Where a sidecar model runs is not a property of the model: the pyiqa metrics land on the
+        // GPU or the CPU depending on what this machine's torch build can actually compile, and the
+        // sidecar resolves that per metric. The app must take its answer rather than assume GPU.
+        var cpu = SidecarModelCatalog.NewModels([Entry("cpu-metric", "quality", resource: "cpu")], new HashSet<string>());
+        Assert.Equal(ResourceKind.Cpu, Assert.Single(cpu).Resource);
+
+        var gpu = SidecarModelCatalog.NewModels([Entry("gpu-metric", "quality", resource: "gpu")], new HashSet<string>());
+        Assert.Equal(ResourceKind.Gpu, Assert.Single(gpu).Resource);
+    }
+
+    [Fact]
+    public void AnOlderSidecarThatNamesNoDeviceIsStillTreatedAsGpu()
+    {
+        // Sidecars predating the resource field only ever hosted the GPU critique models, so the
+        // absent field has to keep meaning what it used to.
+        var added = SidecarModelCatalog.NewModels([Entry("legacy")], new HashSet<string>());
+
+        Assert.Equal(ResourceKind.Gpu, Assert.Single(added).Resource);
+    }
+
+    [Fact]
+    public void CarriesBothEndsOfTheScaleSoAOneToFiveModelNormalisesFromOne()
+    {
+        // LIQE reports 1-5. Normalising it as 0-5 would put its worst possible score at 0.2 instead
+        // of 0, quietly compressing every LIQE reading into the top of the range.
+        var added = SidecarModelCatalog.NewModels(
+            [Entry("liqe", "quality", scaleMin: 1, scaleMax: 5)], new HashSet<string>());
+
+        var info = Assert.Single(added);
+        Assert.Equal(1, info.ScaleMin);
+        Assert.Equal(5, info.ScaleMax);
+    }
+
+    [Fact]
+    public void ACritiqueModelCarriesNoScaleAtAll()
+    {
+        // The critique models report 0/0, which is the sidecar saying "not numeric" — not a scale
+        // that runs from zero to zero, which would make every normalisation of theirs meaningless.
+        var added = SidecarModelCatalog.NewModels([Entry("qwen-like")], new HashSet<string>());
+
+        var info = Assert.Single(added);
+        Assert.Null(info.ScaleMin);
+        Assert.Null(info.ScaleMax);
+    }
+
+    [Fact]
     public async Task ReadsTheCatalogOffTheWire()
     {
         const int port = 18834;
@@ -79,9 +129,9 @@ public class SidecarDiscoveryTests
 
                 // Exactly what python/server.py's GET /models sends.
                 var body = """
-                    {"models":[{"id":"qwen2-vl","name":"Qwen2.5-VL critique","kind":"critique",
-                    "scale_max":0,"description":"d","tradeoffs":"t",
-                    "info_url":"https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct"}]}
+                    {"models":[{"id":"liqe","name":"LIQE","kind":"quality","resource":"cpu",
+                    "scale_min":1,"scale_max":5,"description":"d","tradeoffs":"t",
+                    "info_url":"https://github.com/chaofengc/IQA-PyTorch"}]}
                     """;
                 var bytes = Encoding.UTF8.GetBytes(body);
                 ctx.Response.ContentType = "application/json";
@@ -95,9 +145,12 @@ public class SidecarDiscoveryTests
         var catalog = await client.CatalogAsync();
 
         var entry = Assert.Single(catalog);
-        Assert.Equal("qwen2-vl", entry.Id);
-        Assert.Equal("critique", entry.Kind);
-        Assert.Equal("https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct", entry.InfoUrl);
+        Assert.Equal("liqe", entry.Id);
+        Assert.Equal("quality", entry.Kind);
+        Assert.Equal("cpu", entry.Resource);
+        Assert.Equal(1, entry.ScaleMin);
+        Assert.Equal(5, entry.ScaleMax);
+        Assert.Equal("https://github.com/chaofengc/IQA-PyTorch", entry.InfoUrl);
 
         listener.Stop();
     }

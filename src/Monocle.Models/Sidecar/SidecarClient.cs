@@ -24,13 +24,21 @@ public sealed record SidecarCatalogEntry(
     [property: JsonPropertyName("scale_max")] double ScaleMax,
     [property: JsonPropertyName("description")] string? Description = null,
     [property: JsonPropertyName("tradeoffs")] string? Tradeoffs = null,
-    [property: JsonPropertyName("info_url")] string? InfoUrl = null);
+    [property: JsonPropertyName("info_url")] string? InfoUrl = null,
+    // The sidecar decides which device a model actually runs on — for the pyiqa metrics that is a
+    // per-model answer discovered at score time, not a property of the model. "gpu" unless it says
+    // otherwise, which keeps a pre-resource sidecar reading the way it always did.
+    [property: JsonPropertyName("resource")] string? Resource = null,
+    // Scales that don't start at zero (LIQE is 1-5) normalise wrongly without this, so a model that
+    // omits it is treated as starting at zero — which is what every earlier sidecar meant.
+    [property: JsonPropertyName("scale_min")] double ScaleMin = 0);
 
 public sealed record SidecarScore(
     [property: JsonPropertyName("model")] string Model,
     [property: JsonPropertyName("value")] double? Value,
     [property: JsonPropertyName("text")] string? Text,
-    [property: JsonPropertyName("scale_max")] double ScaleMax);
+    [property: JsonPropertyName("scale_max")] double ScaleMax,
+    [property: JsonPropertyName("scale_min")] double ScaleMin = 0);
 
 /// <summary>
 /// Talks to the optional Python sidecar's local HTTP API (#1). All calls fail soft (return null)

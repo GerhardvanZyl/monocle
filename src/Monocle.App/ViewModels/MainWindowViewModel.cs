@@ -56,6 +56,10 @@ public partial class MainWindowViewModel : ViewModelBase
         _persistPips = _settings.PersistPips;
         PhotoTileViewModel.PersistPips = _settings.PersistPips;
         _experimentalUi = _settings.ExperimentalUi;
+        _cardViz = CardVizChoices.Contains(_settings.CardViz) ? _settings.CardViz : "bars";
+        _pipelineViz = PipelineVizChoices.Contains(_settings.PipelineViz) ? _settings.PipelineViz : "bars";
+        InitCatalog();
+        WatchModelTicks();
         _onlyScoreMissing = _settings.OnlyScoreMissing;
         _sidecarCompute = SidecarComputeChoices.Contains(_settings.SidecarCompute)
             ? _settings.SidecarCompute : SidecarComputeChoices[0];
@@ -163,12 +167,101 @@ public partial class MainWindowViewModel : ViewModelBase
             StatusText = "Sidecar failed to start (is Python installed?).";
             Diagnostics.Log.Warn(StatusText);
         }
+        SidecarRunning = _sidecar.Running;
         await InitModelsAsync();   // refresh availability now the sidecar (may be) up
         SidecarStarting = false;
     }
 
     /// <summary>Selectable scorer models (everything except the always-on heuristic rater).</summary>
     public ObservableCollection<ModelOptionViewModel> Models { get; }
+
+    /// <summary>How many models are ticked — the badge on the rail's Models button, and what the
+    /// Process button is about to run. Kept current by watching each option's IsEnabled, since the
+    /// options are toggled from their own checkboxes rather than through the view model.</summary>
+    public int TickedModelCount => Models.Count(m => m.IsEnabled);
+    public bool HasTickedModels => TickedModelCount > 0;
+    public bool HasRejects => RejectCount > 0;
+
+    /// <summary>True while the Python sidecar process is up — the rail's heartbeat dot.</summary>
+    [ObservableProperty] private bool _sidecarRunning;
+
+    private void WatchModelTicks()
+    {
+        Models.CollectionChanged += (_, e) =>
+        {
+            foreach (var m in e.OldItems?.Cast<ModelOptionViewModel>() ?? Enumerable.Empty<ModelOptionViewModel>())
+                m.PropertyChanged -= OnModelOptionChanged;
+            foreach (var m in e.NewItems?.Cast<ModelOptionViewModel>() ?? Enumerable.Empty<ModelOptionViewModel>())
+                m.PropertyChanged += OnModelOptionChanged;
+            RebuildModelGroups();
+            RefreshTickedModels();
+        };
+    }
+
+    private void OnModelOptionChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(ModelOptionViewModel.IsEnabled))
+        {
+            foreach (var g in ModelGroups) g.RefreshCounts();
+            RefreshTickedModels();
+        }
+        // Availability moves when the sidecar comes up or deps finish installing. It changes what a
+        // band can offer, but never which band a model belongs to — that is its resource, which is
+        // fixed once discovered — so the groups are refreshed rather than rebuilt.
+        else if (e.PropertyName is nameof(ModelOptionViewModel.Available))
+        {
+            foreach (var g in ModelGroups) g.RefreshCounts();
+            RefreshTickedModels();
+        }
+    }
+
+    private void RefreshTickedModels()
+    {
+        OnPropertyChanged(nameof(TickedModelCount));
+        OnPropertyChanged(nameof(HasTickedModels));
+        EnableEveryLocalModelCommand.NotifyCanExecuteChanged();
+    }
+
+    /// <summary>The picker, banded by where each model runs. Rebuilt whenever the model list
+    /// changes — discovery appends to it after the sidecar starts, and a model discovered then is
+    /// exactly the case this grouping exists for (a pyiqa metric lands in CPU or GPU depending on
+    /// what this machine's torch build can compile).</summary>
+    public ObservableCollection<ModelGroupViewModel> ModelGroups { get; } = new();
+
+    private void RebuildModelGroups()
+    {
+        ModelGroups.Clear();
+        foreach (var resource in new[] { ResourceKind.Gpu, ResourceKind.Cpu, ResourceKind.ClaudeTokens })
+        {
+            var inGroup = Models.Where(m => m.Runner.Descriptor.Resource == resource).ToList();
+            if (inGroup.Count > 0)
+                ModelGroups.Add(new ModelGroupViewModel(resource, inGroup));
+        }
+    }
+
+    /// <summary>Models that run on this machine's own hardware — everything but Claude, which costs
+    /// tokens rather than time and so is never swept in by a blanket "enable everything".</summary>
+    private IEnumerable<ModelOptionViewModel> LocalModels =>
+        Models.Where(m => m.Runner.Descriptor.Resource != ResourceKind.ClaudeTokens);
+
+    public bool CanEnableEveryLocalModel => LocalModels.Any(m => m.Available && !m.IsEnabled);
+
+    /// <summary>Tick every model this machine can actually run, CPU or GPU. "Can run" is
+    /// availability as probed, so a model whose deps are missing or whose sidecar is down is left
+    /// alone rather than ticked into failing on every frame.</summary>
+    [RelayCommand(CanExecute = nameof(CanEnableEveryLocalModel))]
+    private void EnableEveryLocalModel()
+    {
+        var ticked = 0;
+        foreach (var m in LocalModels.Where(m => m.Available && !m.IsEnabled))
+        {
+            m.IsEnabled = true;
+            ticked++;
+        }
+        StatusText = ticked == 0
+            ? "Every runnable model was already ticked."
+            : $"Ticked {ticked} more model{(ticked == 1 ? "" : "s")} — {TickedModelCount} now run on Process.";
+    }
 
     /// <summary>Models Monocle knows about but can't run here, grouped by what blocks them (#9).
     /// Fixed at compile time — nothing about them can change while the app runs — so they are
@@ -371,6 +464,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanScan))]
     private string _folderPath = "";
+
+    partial void OnFolderPathChanged(string value) => RefreshShootHeader();
     [ObservableProperty] private bool _foldPairs = true;
 
     partial void OnFoldPairsChanged(bool value) { _settings.FoldPairs = value; _settings.Save(); }
@@ -379,7 +474,8 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBrowse), nameof(IsOverview), nameof(IsRejectsView),
                               nameof(IsSettings), nameof(IsDesign), nameof(IsAiCull),
-                              nameof(IsFilmstrip), nameof(ViewTitle))]
+                              nameof(IsFilmstrip), nameof(IsPipelineView), nameof(ShowFilterBar),
+                              nameof(ViewTitle))]
     private CenterView _view = CenterView.Browse;
 
     public bool IsBrowse => View == CenterView.Browse;
@@ -389,6 +485,11 @@ public partial class MainWindowViewModel : ViewModelBase
     public bool IsSettings => View == CenterView.Settings;
     public bool IsDesign => View == CenterView.Design;
     public bool IsAiCull => View == CenterView.AiCull;
+    public bool IsPipelineView => View == CenterView.Pipeline;
+
+    /// <summary>The filter bar belongs to the views that show frames. The config pages carry their
+    /// own headers and have nothing to filter, so it would only be chrome there.</summary>
+    public bool ShowFilterBar => View is CenterView.Browse or CenterView.Overview or CenterView.Rejects or CenterView.Filmstrip;
 
     public string ViewTitle => View switch
     {
@@ -398,6 +499,7 @@ public partial class MainWindowViewModel : ViewModelBase
         CenterView.Settings => "Settings",
         CenterView.Design => "Design system",
         CenterView.AiCull => "AI Cull — models & process",
+        CenterView.Pipeline => "Pipeline",
         _ => "Browse",
     };
 
@@ -405,6 +507,10 @@ public partial class MainWindowViewModel : ViewModelBase
     /// instead of unconditionally to Browse. Defaults to Browse, which also covers "no sensible
     /// previous view" (e.g. Settings is the very first view somehow).</summary>
     private CenterView _viewBeforeSettings = CenterView.Browse;
+
+    /// <summary>The same for the Pipeline page. It replaced a panel that used to overlay whatever
+    /// you were looking at, so closing it has to put that back rather than always landing on Browse.</summary>
+    private CenterView _viewBeforePipeline = CenterView.Browse;
 
     partial void OnViewChanged(CenterView oldValue, CenterView newValue)
     {
@@ -418,6 +524,8 @@ public partial class MainWindowViewModel : ViewModelBase
         // Settings itself, which would leave CloseSettings with nowhere useful to go.
         if (newValue == CenterView.Settings && oldValue != CenterView.Settings)
             _viewBeforeSettings = oldValue;
+        if (newValue == CenterView.Pipeline && oldValue != CenterView.Pipeline)
+            _viewBeforePipeline = oldValue;
     }
 
     [RelayCommand] private void GoView(string view)
@@ -433,6 +541,23 @@ public partial class MainWindowViewModel : ViewModelBase
         if (View != CenterView.Settings) return;
         View = _viewBeforeSettings == CenterView.Settings ? CenterView.Browse : _viewBeforeSettings;
     }
+
+    /// <summary>Closes the Pipeline page (✕ and Esc) and returns to whichever view it was opened
+    /// from. No-op if Pipeline isn't the current view.</summary>
+    [RelayCommand]
+    private void ClosePipeline()
+    {
+        if (View != CenterView.Pipeline) return;
+        View = _viewBeforePipeline == CenterView.Pipeline ? CenterView.Browse : _viewBeforePipeline;
+    }
+
+    /// <summary>Whether the compact flowchart is pinned beside the centre view, so a run can be
+    /// watched while you keep rating. The Pipeline page shows far more, but it takes the whole
+    /// centre column — and watching stages light up while culling is the thing the old rail panel
+    /// was for. Session-only: a pinned panel is a moment's interest, not a layout preference.</summary>
+    [ObservableProperty] private bool _pipelineDocked;
+
+    [RelayCommand] private void TogglePipelineDock() => PipelineDocked = !PipelineDocked;
 
     // ---- Theme + accent (#8): live-applied via ThemeManager and persisted ----
     [ObservableProperty]
@@ -470,6 +595,51 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnDensityChanged(string value) { _settings.Density = value; _settings.Save(); OnPropertyChanged(nameof(CardPadding)); }
 
     [RelayCommand] private void SetDensity(string density) => Density = density;
+
+    // ---- Indicator styles (design v2) ----
+    // Two independent presentation choices, both persisted and both settable from two places: the
+    // page that shows them (so you can flick between styles while looking at the result) and the
+    // Settings page (so they're discoverable without hunting). One property backs both, so the two
+    // controls can never disagree.
+
+    /// <summary>How a grid tile draws its TQ/AES pair: bars | rings | meter | chips.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCardBars), nameof(IsCardRings), nameof(IsCardMeter), nameof(IsCardChips))]
+    private string _cardViz = "bars";
+
+    public bool IsCardBars => CardViz is "bars";
+    public bool IsCardRings => CardViz is "rings";
+    public bool IsCardMeter => CardViz is "meter";
+    public bool IsCardChips => CardViz is "chips";
+
+    partial void OnCardVizChanged(string value) { _settings.CardViz = value; _settings.Save(); }
+
+    [RelayCommand] private void SetCardViz(string viz) => CardViz = viz;
+
+    /// <summary>How the Pipeline page draws a stage's progress: bars | rings | blocks | minimal |
+    /// flowchart. "flowchart" keeps the original node-and-edge drawing, which predates the design's
+    /// four row styles and is still the only view that shows the stage graph's shape.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPipeBars), nameof(IsPipeRings), nameof(IsPipeBlocks),
+                              nameof(IsPipeMinimal), nameof(IsPipeFlowchart), nameof(IsPipeRows))]
+    private string _pipelineViz = "bars";
+
+    public bool IsPipeBars => PipelineViz is "bars";
+    public bool IsPipeRings => PipelineViz is "rings";
+    public bool IsPipeBlocks => PipelineViz is "blocks";
+    public bool IsPipeMinimal => PipelineViz is "minimal";
+    public bool IsPipeFlowchart => PipelineViz is "flowchart";
+
+    /// <summary>True for every style but the flowchart — i.e. the stage list is what's drawn.</summary>
+    public bool IsPipeRows => !IsPipeFlowchart;
+
+    partial void OnPipelineVizChanged(string value)
+    {
+        _settings.PipelineViz = value; _settings.Save();
+        foreach (var row in PipelineRows) row.Style = value;
+    }
+
+    [RelayCommand] private void SetPipelineViz(string viz) => PipelineViz = viz;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TileWidth))]
@@ -585,11 +755,122 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Pipeline / flowchart (#14-16, #20) ----
     [ObservableProperty] private PipelineRun? _pipeline;
 
-    /// <summary>Whether the rail's pipeline panel is open (#2). Session-only — a flowchart is
-    /// something you glance at during a run, not a layout preference worth persisting.</summary>
-    [ObservableProperty] private bool _showPipeline;
+    /// <summary>The Pipeline page's stage list (design v2). Rebuilt whenever a run starts, because
+    /// the graph's shape depends on the run's options, and refreshed in place on every stage change
+    /// so a running row animates rather than the whole list being replaced.</summary>
+    public ObservableCollection<PipelineRowViewModel> PipelineRows { get; } = new();
 
-    [RelayCommand] private void TogglePipeline() => ShowPipeline = !ShowPipeline;
+    public static readonly string[] CardVizChoices = { "bars", "rings", "meter", "chips" };
+    public static readonly string[] PipelineVizChoices = { "bars", "rings", "blocks", "minimal", "flowchart" };
+
+    private PipelineRun? _rowsSubscription;
+
+    partial void OnPipelineChanged(PipelineRun? oldValue, PipelineRun? newValue)
+    {
+        if (_rowsSubscription is not null) _rowsSubscription.Changed -= OnPipelineRunChanged;
+        _rowsSubscription = newValue;
+        if (newValue is not null) newValue.Changed += OnPipelineRunChanged;
+        BuildPipelineRows();
+    }
+
+    /// <summary>PipelineRun raises Changed from whichever thread advanced the stage, so the hop to
+    /// the UI thread happens here rather than in every caller.</summary>
+    private void OnPipelineRunChanged()
+    {
+        if (Dispatcher.UIThread.CheckAccess()) RefreshPipelineRows();
+        else Dispatcher.UIThread.Post(RefreshPipelineRows);
+    }
+
+    private void BuildPipelineRows()
+    {
+        PipelineRows.Clear();
+        if (Pipeline is not { } run)
+            return;
+
+        var n = 0;
+        foreach (var stage in run.Graph.Stages)
+        {
+            PipelineRows.Add(new PipelineRowViewModel((++n).ToString(), stage.Title, stage.Resource, isSub: false, PipelineViz)
+            {
+                StageId = stage.Id,
+            });
+
+            // The ticked scorers are listed under their stage, each tracking the frames it has
+            // actually scored (see RefreshPipelineRows), so a run says not just which models are in
+            // it but how far each has got — including a model that is failing while its peers run.
+            if (stage.Id != "aesthetic" || run.State(stage.Id).Status == StageStatus.Skipped)
+                continue;
+            // Driven off the run's own tallies, not off IsEnabled: a ticked model whose sidecar is
+            // down is not in the run at all (SelectedScorers filters on Available too), and drawing
+            // a row that sits at "queued" forever would say it was waiting rather than absent.
+            foreach (var m in Models.Where(m => _scoredByModel.ContainsKey(m.Runner.Descriptor.Id)))
+                PipelineRows.Add(new PipelineRowViewModel("", m.Name, m.Runner.Descriptor.Resource, isSub: true, PipelineViz)
+                {
+                    StageId = stage.Id,
+                    ModelId = m.Runner.Descriptor.Id,
+                });
+        }
+
+        RefreshPipelineRows();
+    }
+
+    private void RefreshPipelineRows()
+    {
+        if (Pipeline is not { } run)
+            return;
+        foreach (var row in PipelineRows)
+        {
+            var st = run.State(row.StageId);
+            if (row.ModelId is { } modelId)
+                row.UpdateModel(st.Status, _scoredByModel.GetValueOrDefault(modelId), Total);
+            else
+                row.Update(st.Status, st.Progress, Total);
+        }
+        OnPropertyChanged(nameof(RunStageName));
+        OnPropertyChanged(nameof(RunPercentText));
+    }
+
+    /// <summary>Frames each model has scored in the current run, keyed by ModelDescriptor.Id. Counted
+    /// in the analysis drain loop (UI thread only), so no synchronisation is needed, and reset at the
+    /// start of every run — a model row must describe this run, never the last one.</summary>
+    private readonly Dictionary<string, int> _scoredByModel = new(StringComparer.Ordinal);
+
+    /// <summary>Add a just-finished frame to the per-model tallies. Counts what the frame actually
+    /// carries rather than what was asked for, so a model that threw on this frame (ShootService
+    /// swallows one runner throwing) correctly does not advance.
+    ///
+    /// Scores are matched on age, not merely on model id: every frame has the previous run's scores
+    /// re-attached from the cache before it is analysed, so counting by id alone would march a
+    /// now-failing model to 100% on a shoot it scored successfully last time.</summary>
+    private void CountScored(PhotoTileViewModel tile)
+    {
+        if (_scoredByModel.Count == 0)
+            return;
+        foreach (var score in tile.Item.Scores)
+            if (score.TimestampUtc >= _runStartedUtc && _scoredByModel.ContainsKey(score.ModelId))
+                _scoredByModel[score.ModelId]++;
+    }
+
+    /// <summary>When the current run began, so a cached score from an earlier one is not counted as
+    /// this run's work. Set with the tallies in <see cref="SetupPipeline"/>.</summary>
+    private DateTime _runStartedUtc = DateTime.MinValue;
+
+    /// <summary>The stage the run is on right now, for the status bar's pipeline button. Falls back
+    /// to the last stage that finished, so a settled run reads "Rate" rather than "Idle".</summary>
+    public string RunStageName
+    {
+        get
+        {
+            if (Pipeline is not { } run) return "Idle";
+            var running = run.Graph.Stages.FirstOrDefault(s => run.State(s.Id).Status == StageStatus.Running);
+            if (running is not null) return running.Title;
+            var lastDone = run.Graph.Stages.LastOrDefault(s => run.State(s.Id).Status == StageStatus.Done);
+            return lastDone?.Title ?? "Idle";
+        }
+    }
+
+    public string RunPercentText => Pipeline is { } run ? (int)Math.Round(run.OverallProgress * 100) + "%" : "0%";
+
 
     private List<string> _activeStages = new();
 
@@ -772,7 +1053,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// console panel when <see cref="ShowConsole"/> is on.</summary>
     public ObservableCollection<string> ConsoleLog { get; } = new();
 
-    [ObservableProperty] private bool _showConsole;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConsoleTabActive), nameof(RunLogTabActive))]
+    private bool _showConsole;
 
     partial void OnShowConsoleChanged(bool value) { _settings.ShowConsole = value; _settings.Save(); }
 
@@ -800,8 +1083,29 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // Bottom drawer has two selectable tabs: Console (raw app/sidecar log) and Run log (high-level
     // scan/cull activity: start, scorer failures, completion).
-    [ObservableProperty] private bool _drawerRunLog;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(ConsoleTabActive), nameof(RunLogTabActive))]
+    private bool _drawerRunLog;
+
     [RelayCommand] private void SetDrawerTab(string tab) => DrawerRunLog = tab == "RunLog";
+
+    /// <summary>Status-bar shortcut: open the drawer on the named tab, or close it if that tab is
+    /// already showing — so the same button both reveals and dismisses.</summary>
+    [RelayCommand]
+    private void OpenDrawer(string tab)
+    {
+        var wantRunLog = tab == "RunLog";
+        if (ShowConsole && DrawerRunLog == wantRunLog)
+        {
+            ShowConsole = false;
+            return;
+        }
+        DrawerRunLog = wantRunLog;
+        ShowConsole = true;
+    }
+
+    public bool ConsoleTabActive => ShowConsole && !DrawerRunLog;
+    public bool RunLogTabActive => ShowConsole && DrawerRunLog;
 
     /// <summary>Whole console/run-log joined for the read-only, selectable TextBoxes in the drawer.</summary>
     public string ConsoleText => string.Join("\n", ConsoleLog);
@@ -884,7 +1188,8 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Progress (auto-refreshing, #3, #16) ----
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ProgressText), nameof(HasPhotos), nameof(ShowAestheticHint),
-                              nameof(ShowEmptyStateCard), nameof(ShowAestheticHintStrip))]
+                              nameof(ShowEmptyStateCard), nameof(ShowAestheticHintStrip),
+                              nameof(ShootFrameCountText))]
     private int _total;
 
     /// <summary>True once a shoot has been scanned — drives the Browse empty-state card (onboarding).</summary>
@@ -931,7 +1236,9 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ---- Status-bar aggregates (review progress + pick/reject/unrated tallies, design footer) ----
     [ObservableProperty] private int _pickCount;
-    [ObservableProperty] private int _rejectCount;
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasRejects))]
+    private int _rejectCount;
     [ObservableProperty] private int _unratedCount;
     [ObservableProperty] private int _ratedCount;
     [ObservableProperty]
@@ -939,6 +1246,18 @@ public partial class MainWindowViewModel : ViewModelBase
     private double _reviewFraction;
 
     public string ReviewText => Total == 0 ? "0/0" : $"{RatedCount}/{Total}";
+
+    // ---- Folder-overview stat card sub-lines (design v2) ----
+    public string KeepRateText => Total == 0 ? "no frames yet" : $"{PickCount * 100 / Total}% keep rate";
+    public string RejectRuleText => "rated 1★";
+    public string UnratedShareText => Total == 0 ? "nothing scanned" : $"{RatedCount} of {Total} reviewed";
+    public string PairsText => "RAW + JPG pairs";
+
+    private void RefreshOverviewText()
+    {
+        OnPropertyChanged(nameof(KeepRateText));
+        OnPropertyChanged(nameof(UnratedShareText));
+    }
 
     /// <summary>Recompute the footer tallies from the current photo set.</summary>
     private void RefreshCounts()
@@ -955,6 +1274,8 @@ public partial class MainWindowViewModel : ViewModelBase
         UnratedCount = unrated;
         RatedCount = rated;
         ReviewFraction = Total == 0 ? 0 : (double)RatedCount / Total;
+        RefreshOverviewText();
+        UpdateActiveCatalogCounts();
         OnPropertyChanged(nameof(MoveRejectsEnabled));
         if (IsRejectsView)
             RefreshRejectList();
@@ -996,6 +1317,11 @@ public partial class MainWindowViewModel : ViewModelBase
     [ObservableProperty] private string _notesText = "";
     [ObservableProperty] private string _detailExif = "";
     [ObservableProperty] private string _detailRating = "";
+
+    /// <summary>One-line verdict under the frame's name in the inspector (design v2): the AI's own
+    /// headline where a cull wrote one, and the plain rating summary otherwise — so the line says
+    /// something on an unjudged frame instead of sitting empty.</summary>
+    [ObservableProperty] private string _detailHeadline = "";
 
     partial void OnRatingChanged(RatingFilter value) => ApplyFilter();
     partial void OnReasonFacetChanged(TechnicalReason? value) => ApplyFilter();
@@ -1118,6 +1444,10 @@ public partial class MainWindowViewModel : ViewModelBase
 
             OnPropertyChanged(nameof(ShowAestheticHint));
             OnPropertyChanged(nameof(ShowAestheticHintStrip));
+
+            // Refresh this folder's catalog row if it has one. A scan never creates an entry —
+            // the catalog only grows through an explicit "Add to catalog".
+            RecordScan(folder);
         }
         catch (OperationCanceledException)
         {
@@ -1155,6 +1485,17 @@ public partial class MainWindowViewModel : ViewModelBase
             run.Skip("aesthetic");
 
         run.SkipUnreachableFrom("write");   // safety net: skip dead side-branches (e.g. claude here)
+
+        // One tally per scorer in THIS run. Rebuilt rather than cleared-and-reused so a model that
+        // was ticked last run but not this one leaves no row and no stale count behind.
+        _scoredByModel.Clear();
+        foreach (var r in scorers.Where(r => r.Descriptor.Resource != ResourceKind.ClaudeTokens))
+            _scoredByModel[r.Descriptor.Id] = 0;
+        // A whole second earlier than "now": ModelScore stamps itself when constructed, and a
+        // cached score written moments ago must not be mistaken for one this run produced, while a
+        // score produced immediately after this line must still count.
+        _runStartedUtc = DateTime.UtcNow.AddSeconds(-1);
+
         Pipeline = run;
     }
 
@@ -1171,6 +1512,12 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
+
+        // Every frame is analysed again in this pass, so the counter starts at zero. Scan already
+        // did this; Process did not, which left Analyzed still equal to Total from the preceding
+        // scan and every stage bar pinned at 100% from the first tick of a Process run.
+        Analyzed = 0;
+        ProgressFraction = 0;
         // Task A: per-(frame, model) skip, not per-frame — a frame missing model A but already
         // scored by model B must still run A. Matched on ModelScore.ModelId vs Descriptor.Id (the
         // stable identity both ShootCache and the Claude leg already key on), never DisplayName.
@@ -1207,6 +1554,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     u.Tile.Thumbnail = u.Bmp;
                 u.Tile.Analyzing = false;
                 u.Tile.Analyzed = true;   // this run finished the frame: its pips may go Done
+                CountScored(u.Tile);      // per-model progress for the Pipeline page's model rows
                 u.Tile.RefreshFromItem();
                 // If the user is looking at this frame, surface its just-computed scores and
                 // model critiques (Qwen, Q-Align, …) without waiting for a re-select (#3/#4).
@@ -1324,6 +1672,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         tile.RefreshFromItem();
         DetailRating = FormatRating(tile.Item);
+        DetailHeadline = FormatHeadline(tile.Item);
         ApplyFilter();
         RefreshStats();
         RefreshRevertState();
@@ -2186,6 +2535,7 @@ public partial class MainWindowViewModel : ViewModelBase
         tile.RefreshFromItem();
         if (ReferenceEquals(SelectedPhoto, tile))
             DetailRating = FormatRating(tile.Item);
+        DetailHeadline = FormatHeadline(tile.Item);
         ApplyFilter();
         RefreshStats();
         RefreshRevertState();
@@ -2335,6 +2685,22 @@ public partial class MainWindowViewModel : ViewModelBase
         return string.Join("   ·   ", parts);
     }
 
+    /// <summary>The AI's headline for this frame if a cull wrote one, else a short plain reading of
+    /// the rating. Never the full rationale — that has its own card further down.</summary>
+    private static string FormatHeadline(PhotoItem item)
+    {
+        if (item.Rationale.TryGetValue("headline", out var h) && !string.IsNullOrWhiteSpace(h))
+            return h;
+        return item.Stars switch
+        {
+            0 => "Not yet reviewed",
+            1 => "Reject",
+            2 => "Weak — stronger frames exist",
+            3 => "Solid frame — a keeper",
+            _ => "Strong keeper",
+        };
+    }
+
     private static string FormatMetrics(PhotoItem item)
     {
         if (item.Metrics is not { } m)
@@ -2378,6 +2744,7 @@ public partial class MainWindowViewModel : ViewModelBase
             DetailMetrics = "";
             DetailExif = "";
             DetailRating = "";
+            DetailHeadline = "";
             DetailScores = new ObservableCollection<string>();
             DetailComments = new ObservableCollection<CritiqueLine>();
             HasDetailComments = false;
@@ -2387,6 +2754,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
         NotesText = tile.Item.UserNotes ?? "";
         DetailRating = FormatRating(tile.Item);
+        DetailHeadline = FormatHeadline(tile.Item);
         DetailMetrics = FormatMetrics(tile.Item);
         DetailExif = FormatExif(tile.Item);
         DetailScores = new ObservableCollection<string>(tile.Item.Scores.Select(FormatScore));
@@ -2676,5 +3044,5 @@ public partial class MainWindowViewModel : ViewModelBase
 }
 
 /// <summary>The center pane's current page, chosen from the left navigation rail (#8).</summary>
-public enum CenterView { Browse, Filmstrip, Overview, Rejects, Settings, Design, AiCull }
+public enum CenterView { Browse, Filmstrip, Overview, Rejects, Settings, Design, AiCull, Pipeline }
 

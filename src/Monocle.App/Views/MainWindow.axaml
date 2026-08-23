@@ -138,7 +138,7 @@
 
     <DockPanel>
         <!-- ===== TITLEBAR ===== -->
-        <Border DockPanel.Dock="Top" Height="40" Background="{StaticResource Surface1}"
+        <Border DockPanel.Dock="Top" Height="44" Background="{StaticResource Surface1}"
                 BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto" Margin="14,0,12,0">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
@@ -149,11 +149,27 @@
                     <TextBlock Text="Photo Critic" FontWeight="SemiBold" FontSize="13.5" VerticalAlignment="Center"/>
                 </StackPanel>
                 <Rectangle Grid.Column="1" Width="1" Height="18" Fill="{StaticResource BorderSoft}" Margin="12,0"/>
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="7" VerticalAlignment="Center">
-                    <TextBlock Text="📁" FontSize="12" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                    <TextBlock Text="{Binding FolderPath}" Foreground="{StaticResource Text2}"
+                <!-- Breadcrumb: the shoot's parent path in mono, its own name in bold, then two
+                     pills — how many frames it holds and how current the catalog's copy is. -->
+                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center"
+                            ToolTip.Tip="{Binding FolderPath}">
+                    <TextBlock Text="{Binding ShootParent}" Foreground="{StaticResource Text3}"
                                FontFamily="{StaticResource FontMono}" FontSize="11.5"
                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <TextBlock Text="{Binding ShootName}" FontWeight="SemiBold" FontSize="12"
+                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    <Border Height="20" CornerRadius="10" Padding="8,0" Background="{StaticResource Surface2}"
+                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ShootFrameCountText}" FontFamily="{StaticResource FontMono}"
+                                   FontSize="10.5" FontWeight="Medium" Foreground="{StaticResource Text2}"
+                                   VerticalAlignment="Center"/>
+                    </Border>
+                    <Border Height="20" CornerRadius="10" Padding="8,0" Background="{Binding ShootStateBackground}"
+                            BorderBrush="{Binding ShootStateColor}" BorderThickness="1" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding ShootStateLabel}" FontFamily="{StaticResource FontMono}"
+                                   FontSize="10.5" FontWeight="Medium" Foreground="{Binding ShootStateColor}"
+                                   VerticalAlignment="Center"/>
+                    </Border>
                 </StackPanel>
                 <!-- Theme toggle -->
                 <Button Grid.Column="3" Classes="ghost" Command="{Binding ToggleThemeCommand}"
@@ -188,108 +204,10 @@
             </Grid>
         </Border>
 
-        <!-- ===== TOOLBAR ===== -->
-        <Border DockPanel.Dock="Top" Height="50" Background="{StaticResource Surface1}"
-                BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1" Padding="16,0">
-            <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
-                <!-- Folder field + Scan + Browse -->
-                <Border Grid.Column="0" Background="{StaticResource Surface2}"
-                        BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
-                        CornerRadius="6" Padding="10,0,4,0" Width="340" Height="32" VerticalAlignment="Center">
-                    <Grid ColumnDefinitions="Auto,*,Auto,Auto">
-                        <TextBlock Grid.Column="0" Text="📁" FontSize="12" Foreground="{StaticResource Text3}"
-                                   VerticalAlignment="Center" Margin="0,0,8,0"/>
-                        <TextBox Grid.Column="1" Watermark="Paste a folder path…" Text="{Binding FolderPath}"
-                                 BorderThickness="0" Background="Transparent" VerticalAlignment="Center"/>
-                        <Button Grid.Column="2" Classes="ghost" Content="Browse" Height="24" Padding="9,0" Margin="0,0,4,0"
-                                BorderThickness="0" FontSize="11.5" VerticalAlignment="Center"
-                                Click="OnBrowseClick" ToolTip.Tip="Choose a folder…"/>
-                        <Button Grid.Column="3" Classes="primary" Content="Scan" Height="24" Padding="14,0"
-                                VerticalAlignment="Center"
-                                Command="{Binding ScanCommand}" IsEnabled="{Binding !IsBusy}"/>
-                    </Grid>
-                </Border>
-
-                <!-- Filter pill chips -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" Margin="14,0" VerticalAlignment="Center">
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=All}"
-                            Command="{Binding SetFilterCommand}" CommandParameter="All">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="All"/>
-                            <TextBlock Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star2}"
-                            Content="★ 2+" Command="{Binding SetFilterCommand}" CommandParameter="Star2"/>
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star3}"
-                            Content="★ 3+" Command="{Binding SetFilterCommand}" CommandParameter="Star3"/>
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star4}"
-                            Content="★ 4" Command="{Binding SetFilterCommand}" CommandParameter="Star4"/>
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Pick}"
-                            Command="{Binding SetFilterCommand}" CommandParameter="Pick">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Picks"/>
-                            <TextBlock Text="{Binding PickCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Reject}"
-                            Command="{Binding SetFilterCommand}" CommandParameter="Reject">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Rejects"/>
-                            <TextBlock Text="{Binding RejectCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
-                        </StackPanel>
-                    </Button>
-                    <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Unrated}"
-                            Command="{Binding SetFilterCommand}" CommandParameter="Unrated">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Unrated"/>
-                            <TextBlock Text="{Binding UnratedCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
-                        </StackPanel>
-                    </Button>
-
-                    <!-- Minimum technical (TQ) filter: the chip toggles the filter on/off — its
-                         "off"/numeric readout makes the state unambiguous — and the slider only edits
-                         the threshold while the chip is on. Composes (ANDs) with the rating chips
-                         above via PhotoFilterSpec.MinTechnical. -->
-                    <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
-                    <Button Classes="chip" Classes.on="{Binding TqFilterEnabled}" Command="{Binding ToggleTqFilterCommand}"
-                            ToolTip.Tip="Minimum technical quality (TQ) filter">
-                        <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="TQ ≥"/>
-                            <TextBlock Text="{Binding MinTqDisplay}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.85"/>
-                        </StackPanel>
-                    </Button>
-                    <Slider Minimum="0" Maximum="1" Width="90" Value="{Binding MinTq}"
-                            IsEnabled="{Binding TqFilterEnabled}" VerticalAlignment="Center"
-                            ToolTip.Tip="Drag to set the minimum TQ threshold"/>
-                    <Button Classes="ghost" Content="✕" Padding="6,2" FontSize="10"
-                            Command="{Binding ClearTqFilterCommand}" IsVisible="{Binding TqFilterEnabled}"
-                            ToolTip.Tip="Clear TQ filter"/>
-                </StackPanel>
-
-                <!-- Thumb size + density -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                    <Slider Minimum="150" Maximum="300" Width="100" Value="{Binding ThumbSize}"
-                            VerticalAlignment="Center" ToolTip.Tip="Thumbnail size"/>
-                    <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
-                            BorderThickness="1" CornerRadius="6" Padding="2">
-                        <StackPanel Orientation="Horizontal" Spacing="2">
-                            <Button Classes="rtab" Classes.on="{Binding IsComfortable}" Content="Comfortable"
-                                    Padding="9,3" Height="24" FontWeight="Medium" FontSize="11.5"
-                                    Command="{Binding SetDensityCommand}" CommandParameter="Comfortable"/>
-                            <Button Classes="rtab" Classes.on="{Binding IsCompact}" Content="Compact"
-                                    Padding="9,3" Height="24" FontWeight="Medium" FontSize="11.5"
-                                    Command="{Binding SetDensityCommand}" CommandParameter="Compact"/>
-                        </StackPanel>
-                    </Border>
-                </StackPanel>
-            </Grid>
-        </Border>
-
         <!-- ===== STATUS BAR ===== -->
         <Border DockPanel.Dock="Bottom" Height="32" Background="{StaticResource Surface1}"
                 BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,1,0,0" Padding="16,0">
-            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,*,Auto">
+            <Grid ColumnDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,*">
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="9" VerticalAlignment="Center">
                     <TextBlock Text="Review" Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center"/>
                     <ProgressBar Width="140" Height="6" Minimum="0" Maximum="1"
@@ -310,8 +228,31 @@
                 </StackPanel>
                 <TextBlock Grid.Column="4" Text="{Binding UnratedCount, StringFormat='{}{0} unrated'}"
                            Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center" Margin="14,0,0,0"/>
+                <!-- The drawer and the pipeline, one click from anywhere (design v2). The drawer
+                     buttons open it on the tab they name; the pipeline button reads the run and
+                     navigates to it. -->
+                <StackPanel Grid.Column="5" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center" Margin="16,0,0,0">
+                    <Button Classes="chip" Height="22" FontSize="11" Padding="9,0" Content="Console"
+                            Classes.on="{Binding ConsoleTabActive}"
+                            Command="{Binding OpenDrawerCommand}" CommandParameter="Console"/>
+                    <Button Classes="chip" Height="22" FontSize="11" Padding="9,0" Content="Run log"
+                            Classes.on="{Binding RunLogTabActive}"
+                            Command="{Binding OpenDrawerCommand}" CommandParameter="RunLog"/>
+                    <Button Classes="chip" Height="22" FontSize="11" Padding="9,0"
+                            Command="{Binding GoViewCommand}" CommandParameter="Pipeline">
+                        <StackPanel Orientation="Horizontal" Spacing="7">
+                            <Ellipse Width="6" Height="6" Fill="{StaticResource Accent}" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding RunStageName}"/>
+                            <TextBlock Text="{Binding RunPercentText}" FontFamily="{StaticResource FontMono}" Opacity="0.7"/>
+                        </StackPanel>
+                    </Button>
+                    <Button Classes="chip" Height="22" FontSize="11" Padding="7,0" Content="◧"
+                            Classes.on="{Binding PipelineDocked}" Command="{Binding TogglePipelineDockCommand}"
+                            ToolTip.Tip="Pin a compact flowchart beside the current view"/>
+                </StackPanel>
                 <TextBlock Grid.Column="6" Text="{Binding StatusText}" Foreground="{StaticResource Text2}"
-                           FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                           FontSize="11.5" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"
+                           MaxWidth="420" HorizontalAlignment="Right"/>
             </Grid>
         </Border>
 
@@ -360,180 +301,441 @@
             </DockPanel>
         </Border>
 
-        <!-- ===== BODY: rail | center | right ===== -->
-        <Grid ColumnDefinitions="236,*,392">
+        <!-- ===== BODY: icon rail | left panel | center | inspector ===== -->
+        <Grid ColumnDefinitions="58,290,*,360">
 
-            <!-- ===== LEFT RAIL ===== -->
+            <!-- ===== ICON RAIL =====
+                 Icon-only navigation (design v2). Everything the old text rail reached is still
+                 here: pages are buttons, one-shot actions moved into the ⋯ flyout at the bottom,
+                 and the colour legend became the ◐ flyout beside it. -->
             <Border Grid.Column="0" Background="{StaticResource Surface1}"
                     BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,1,0">
-                <DockPanel Margin="10,12">
-                    <!-- Design system pinned to the bottom -->
-                    <Button DockPanel.Dock="Bottom" Classes="nav" Classes.on="{Binding IsDesign}"
-                            Command="{Binding GoViewCommand}" CommandParameter="Design" Content="◫  Design system"
-                            FontSize="12.5" Margin="0,8,0,0"/>
-                    <!-- Export pinned to the bottom alongside Design system, so it stops competing
-                         with the ordered CULL flow above. Onboarding UI only — classic mode keeps
-                         Export inside the scrolling nav list below instead. -->
-                    <Button DockPanel.Dock="Bottom" Classes="nav action" Command="{Binding ExportCommand}"
-                            FontSize="12.5" Margin="0,4,0,0" IsVisible="{Binding ExperimentalUi}"
-                            ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder.">
-                        <Grid ColumnDefinitions="Auto,*,Auto">
-                            <TextBlock Grid.Column="0" Text="⤓  Export CSV / JSON" VerticalAlignment="Center"/>
-                            <TextBlock Grid.Column="2" Text="▸" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                <DockPanel>
+                    <StackPanel DockPanel.Dock="Bottom" HorizontalAlignment="Center" Spacing="6" Margin="0,0,0,12">
+                        <Button Classes="railbtn" Content="⋯" ToolTip.Tip="Actions">
+                            <Button.Flyout>
+                                <Flyout Placement="RightEdgeAlignedBottom">
+                                    <StackPanel Width="220" Spacing="3" Margin="2">
+                                        <TextBlock Text="ACTIONS" FontSize="10" FontWeight="SemiBold"
+                                                   Foreground="{StaticResource Text3}" Margin="6,2,0,4"/>
+                                        <Button Classes="nav" Command="{Binding RunHeuristicBaselineCommand}"
+                                                IsEnabled="{Binding !IsBusy}" Content="⚡  Heuristic baseline"/>
+                                        <Button Classes="nav" Command="{Binding InteractiveCullCommand}" Content="✦  Interactive cull"/>
+                                        <Button Classes="nav" Command="{Binding ExportCommand}" Content="⤓  Export CSV / JSON"
+                                                ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder."/>
+                                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="6,6"/>
+                                        <Button Classes="nav" Classes.on="{Binding IsDesign}" Command="{Binding GoViewCommand}"
+                                                CommandParameter="Design" Content="◫  Design system"/>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <Button Classes="railbtn" Content="?" ToolTip.Tip="Keyboard shortcuts"
+                                Flyout="{StaticResource ShortcutsFlyout}"/>
+                        <Button Classes="railbtn" Content="◐" ToolTip.Tip="Legend">
+                            <Button.Flyout>
+                                <Flyout Placement="RightEdgeAlignedBottom">
+                                    <StackPanel Spacing="7" Width="180" Margin="2">
+                                        <TextBlock Text="LEGEND" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="9">
+                                            <Border Width="18" Height="13" CornerRadius="3" BorderBrush="{StaticResource Pick}" BorderThickness="2"/>
+                                            <TextBlock Text="Pick (3★+)" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="9">
+                                            <Border Width="18" Height="13" CornerRadius="3" BorderBrush="{StaticResource Reject}" BorderThickness="2"/>
+                                            <TextBlock Text="Reject (1★)" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                                        </StackPanel>
+                                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,2"/>
+                                        <StackPanel Orientation="Horizontal" Spacing="9">
+                                            <Ellipse Width="9" Height="9" Fill="{StaticResource LabRed}"/>
+                                            <TextBlock Text="Soft / focus" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="9">
+                                            <Ellipse Width="9" Height="9" Fill="{StaticResource LabBlue}"/>
+                                            <TextBlock Text="Exposure" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="9">
+                                            <Ellipse Width="9" Height="9" Fill="{StaticResource LabPurple}"/>
+                                            <TextBlock Text="Noise" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                                        </StackPanel>
+                                        <StackPanel Orientation="Horizontal" Spacing="9">
+                                            <Ellipse Width="9" Height="9" Fill="{StaticResource LabYellow}"/>
+                                            <TextBlock Text="2+ problems" Foreground="{StaticResource Text2}" FontSize="11.5"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Flyout>
+                            </Button.Flyout>
+                        </Button>
+                        <!-- Sidecar heartbeat: shown only while the Python sidecar is actually up. -->
+                        <Ellipse Width="8" Height="8" Margin="0,6,0,0" HorizontalAlignment="Center"
+                                 Fill="{StaticResource Pick}" IsVisible="{Binding SidecarRunning}"
+                                 ToolTip.Tip="Python sidecar running"/>
+                    </StackPanel>
+
+                    <StackPanel HorizontalAlignment="Center" Spacing="6" Margin="0,12,0,0">
+                        <Button Classes="railbtn" Classes.on="{Binding IsBrowse}" Content="▦" ToolTip.Tip="Browse"
+                                Command="{Binding GoViewCommand}" CommandParameter="Browse"/>
+                        <Button Classes="railbtn" Classes.on="{Binding IsFilmstrip}" Content="▬" ToolTip.Tip="Filmstrip"
+                                Command="{Binding GoViewCommand}" CommandParameter="Filmstrip"/>
+                        <Panel>
+                            <Button Classes="railbtn" Classes.on="{Binding IsAiCull}" Content="✦" ToolTip.Tip="Models &amp; process"
+                                    Command="{Binding GoViewCommand}" CommandParameter="AiCull"/>
+                            <Border IsVisible="{Binding HasTickedModels}" Background="{StaticResource Accent}"
+                                    CornerRadius="8" MinWidth="15" Height="15" Padding="3,0"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,1,0" IsHitTestVisible="False">
+                                <TextBlock Text="{Binding TickedModelCount}" FontSize="9" FontWeight="SemiBold"
+                                           FontFamily="{StaticResource FontMono}" Foreground="{StaticResource AccentFg}"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Panel>
+                        <Button Classes="railbtn" Classes.on="{Binding IsPipelineView}" Content="⛓" ToolTip.Tip="Pipeline &amp; progress"
+                                Command="{Binding GoViewCommand}" CommandParameter="Pipeline"/>
+                        <Button Classes="railbtn" Classes.on="{Binding IsOverview}" Content="▤" ToolTip.Tip="Folder overview"
+                                Command="{Binding GoViewCommand}" CommandParameter="Overview"/>
+                        <Panel>
+                            <Button Classes="railbtn" Classes.on="{Binding IsRejectsView}" Content="🗑" ToolTip.Tip="Rejects"
+                                    Command="{Binding GoViewCommand}" CommandParameter="Rejects"/>
+                            <Border IsVisible="{Binding HasRejects}" Background="{StaticResource Reject}"
+                                    CornerRadius="8" MinWidth="15" Height="15" Padding="3,0"
+                                    HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,1,1,0" IsHitTestVisible="False">
+                                <TextBlock Text="{Binding RejectCount}" FontSize="9" FontWeight="SemiBold"
+                                           FontFamily="{StaticResource FontMono}" Foreground="White"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </Panel>
+                        <Button Classes="railbtn" Classes.on="{Binding IsSettings}" Content="⚙" ToolTip.Tip="Settings"
+                                Command="{Binding GoViewCommand}" CommandParameter="Settings"/>
+                    </StackPanel>
+                </DockPanel>
+            </Border>
+
+            <!-- ===== LEFT PANEL: catalog + folder browser =====
+                 Two tabs on one job: Folders finds a shoot on disk (reads directory names only),
+                 Catalog lists the ones you kept. A catalogued folder never refreshes on its own —
+                 opening it from here is what scans it. -->
+            <Border Grid.Column="1" Background="{StaticResource Surface1}"
+                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,1,0">
+                <DockPanel>
+                    <Border DockPanel.Dock="Top" Background="{StaticResource Surface2}"
+                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                            CornerRadius="9" Margin="12,12,12,0" Padding="3">
+                        <Grid ColumnDefinitions="*,*">
+                            <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding IsCatalogTab}" Content="Catalog"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="28"
+                                    Command="{Binding SetLeftTabCommand}" CommandParameter="catalog"/>
+                            <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding IsFoldersTab}" Content="Folders"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Height="28"
+                                    Command="{Binding SetLeftTabCommand}" CommandParameter="folders"/>
                         </Grid>
-                    </Button>
-                    <!-- Legend box -->
-                    <Border DockPanel.Dock="Bottom" BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
-                            CornerRadius="9" Padding="11,11" Background="{StaticResource Surface2}" Margin="0,10,0,0">
-                        <StackPanel Spacing="7">
-                            <TextBlock Text="LEGEND" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}"/>
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Border Width="18" Height="13" CornerRadius="3" BorderBrush="{StaticResource Pick}" BorderThickness="2"/>
-                                <TextBlock Text="Pick (3★+)" Foreground="{StaticResource Text2}" FontSize="11.5"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Border Width="18" Height="13" CornerRadius="3" BorderBrush="{StaticResource Reject}" BorderThickness="2"/>
-                                <TextBlock Text="Reject (1★)" Foreground="{StaticResource Text2}" FontSize="11.5"/>
-                            </StackPanel>
-                            <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,2"/>
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Ellipse Width="9" Height="9" Fill="{StaticResource LabRed}"/>
-                                <TextBlock Text="Soft / focus" Foreground="{StaticResource Text2}" FontSize="11.5"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Ellipse Width="9" Height="9" Fill="{StaticResource LabBlue}"/>
-                                <TextBlock Text="Exposure" Foreground="{StaticResource Text2}" FontSize="11.5"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Ellipse Width="9" Height="9" Fill="{StaticResource LabPurple}"/>
-                                <TextBlock Text="Noise" Foreground="{StaticResource Text2}" FontSize="11.5"/>
-                            </StackPanel>
-                            <StackPanel Orientation="Horizontal" Spacing="9">
-                                <Ellipse Width="9" Height="9" Fill="{StaticResource LabYellow}"/>
-                                <TextBlock Text="2+ problems" Foreground="{StaticResource Text2}" FontSize="11.5"/>
-                            </StackPanel>
-                        </StackPanel>
                     </Border>
 
-                    <!-- Nav groups. Fill child of the DockPanel, so on a short window it scrolls within
-                         the space left by the bottom-pinned legend/design instead of overlapping them.
-                         AllowAutoHide=False: the Fluent overlay scrollbar otherwise collapses to an
-                         invisible sliver against the rail, so it looks like there's no scrollbar. -->
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
-                                  AllowAutoHide="False">
-                    <Panel>
-                    <!-- Experimental: numbered CULL flow (onboarding UI). -->
-                    <StackPanel Spacing="4" IsVisible="{Binding ExperimentalUi}">
-                        <TextBlock Text="LIBRARY" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="8,6,0,4"/>
-                        <Button Classes="nav" Classes.on="{Binding IsBrowse}" Command="{Binding GoViewCommand}" CommandParameter="Browse">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="▦  Browse"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="11" Opacity="0.6"/>
+                    <!-- FOLDER BROWSER -->
+                    <DockPanel IsVisible="{Binding IsFoldersTab}">
+                        <!-- The pasted-path field the toolbar used to carry. Still the fastest way in
+                             when you already know the path, and still the only way to reach a folder
+                             the tree can't show (a UNC share, a drive that isn't ready). -->
+                        <Border DockPanel.Dock="Top" Background="{StaticResource Surface2}"
+                                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
+                                CornerRadius="7" Margin="12,10,12,0" Padding="9,0,4,0" Height="32">
+                            <Grid ColumnDefinitions="*,Auto,Auto">
+                                <TextBox Grid.Column="0" Watermark="Paste a folder path…" Text="{Binding FolderPath}"
+                                         BorderThickness="0" Background="Transparent" VerticalAlignment="Center" FontSize="11.5"/>
+                                <Button Grid.Column="1" Classes="ghost" Content="…" Height="24" Padding="7,0" Margin="0,0,4,0"
+                                        BorderThickness="0" FontSize="11.5" VerticalAlignment="Center"
+                                        Click="OnBrowseClick" ToolTip.Tip="Choose a folder…"/>
+                                <Button Grid.Column="2" Classes="primary" Content="Scan" Height="24" Padding="11,0"
+                                        VerticalAlignment="Center"
+                                        Command="{Binding ScanCommand}" IsEnabled="{Binding !IsBusy}"/>
                             </Grid>
-                        </Button>
-                        <Button Classes="nav" Classes.on="{Binding IsFilmstrip}" Command="{Binding GoViewCommand}" CommandParameter="Filmstrip"
-                                Content="▬  Filmstrip"/>
-                        <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
-                                Content="▤  Folder overview"/>
-                        <Button Classes="nav" Classes.on="{Binding ShowPipeline}" Command="{Binding TogglePipelineCommand}"
-                                Content="⛓  Pipeline" ToolTip.Tip="Live analysis flowchart for the current run."/>
+                        </Border>
 
-                        <!-- Ordered cull flow: score → review by hand → handle rejects, plus the
-                             unordered heuristic baseline action. Pages (numbered) navigate; actions
-                             (Classes="action") do something and carry a trailing ▸. -->
-                        <TextBlock Text="CULL" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="8,14,0,4"/>
-                        <Button Classes="nav" Classes.on="{Binding IsAiCull}" Command="{Binding GoViewCommand}" CommandParameter="AiCull">
-                            <Grid ColumnDefinitions="Auto,*">
-                                <Border Grid.Column="0" Width="16" Height="16" CornerRadius="99" Margin="0,0,8,0"
-                                        Background="{StaticResource Surface3}">
-                                    <TextBlock Text="1" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Text2}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                                      AllowAutoHide="False" Padding="0,0,4,0">
+                            <StackPanel Margin="8,12,4,16">
+                                <TextBlock Text="FAVOURITES" FontSize="9.5" FontWeight="SemiBold"
+                                           FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                           Margin="10,6,0,8"/>
+                                <ItemsControl ItemsSource="{Binding Favourites}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:FolderNodeViewModel">
+                                            <Button Classes="treerow" Classes.on="{Binding IsActive}"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).SelectFolderCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="Auto,*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="📁" FontSize="11" Opacity="0.75" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}" FontSize="12.5"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <Ellipse Grid.Column="2" Width="6" Height="6" Fill="{StaticResource Accent}"
+                                                             IsVisible="{Binding InCatalog}" VerticalAlignment="Center"
+                                                             ToolTip.Tip="In catalog"/>
+                                                </Grid>
+                                                <Button.ContextFlyout>
+                                                    <MenuFlyout>
+                                                        <MenuItem Header="Add to catalog"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                        <MenuItem Header="Add to catalog with subfolders"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddTreeToCatalogCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                        <MenuItem Header="Open in File Explorer"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                    </MenuFlyout>
+                                                </Button.ContextFlyout>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <TextBlock Text="LOCAL DRIVES" FontSize="9.5" FontWeight="SemiBold"
+                                           FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                           Margin="10,18,0,8"/>
+                                <ItemsControl ItemsSource="{Binding FolderTree}">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate x:DataType="vm:FolderNodeViewModel">
+                                            <Button Classes="treerow" Classes.on="{Binding IsActive}" Padding="0"
+                                                    Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).SelectFolderCommand}"
+                                                    CommandParameter="{Binding}">
+                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="{Binding Indent}" Height="26">
+                                                    <Button Grid.Column="0" Classes="chev" IsVisible="{Binding HasChildren}"
+                                                            Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).ToggleFolderCommand}"
+                                                            CommandParameter="{Binding}">
+                                                        <Panel>
+                                                            <TextBlock Text="▸" FontSize="9" IsVisible="{Binding !IsExpanded}"/>
+                                                            <TextBlock Text="▾" FontSize="9" IsVisible="{Binding IsExpanded}"/>
+                                                        </Panel>
+                                                    </Button>
+                                                    <TextBlock Grid.Column="1" Text="💽" FontSize="11" IsVisible="{Binding IsDrive}"
+                                                               VerticalAlignment="Center" Margin="4,0,7,0"/>
+                                                    <TextBlock Grid.Column="1" Text="📁" FontSize="11" IsVisible="{Binding IsFolder}"
+                                                               Opacity="0.75" VerticalAlignment="Center" Margin="4,0,7,0"/>
+                                                    <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="12.5"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <Ellipse Grid.Column="3" Width="6" Height="6" Fill="{StaticResource Accent}"
+                                                             IsVisible="{Binding InCatalog}" VerticalAlignment="Center" Margin="6,0"
+                                                             ToolTip.Tip="In catalog"/>
+                                                </Grid>
+                                                <Button.ContextFlyout>
+                                                    <MenuFlyout>
+                                                        <MenuItem Header="Add to catalog"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                        <MenuItem Header="Add to catalog with subfolders"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddTreeToCatalogCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                        <MenuItem Header="Add to favourites"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddFavouriteCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                        <MenuItem Header="Open in File Explorer"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                    </MenuFlyout>
+                                                </Button.ContextFlyout>
+                                            </Button>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+
+                                <Border Margin="10,16,6,0" Padding="11,10" CornerRadius="9"
+                                        Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                        BorderThickness="1">
+                                    <TextBlock Text="Right-click a folder → Add to catalog. Nothing is read from disk until you do."
+                                               FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource Text2}" LineHeight="17"/>
                                 </Border>
-                                <TextBlock Grid.Column="1" Text="Score with AI models" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Button Classes="nav action" Command="{Binding InteractiveCullCommand}">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Border Grid.Column="0" Width="16" Height="16" CornerRadius="99" Margin="0,0,8,0"
-                                        Background="{StaticResource Surface3}">
-                                    <TextBlock Text="2" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Text2}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Review by hand" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="▸" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Button Classes="nav" Classes.on="{Binding IsRejectsView}" Command="{Binding GoViewCommand}" CommandParameter="Rejects">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <Border Grid.Column="0" Width="16" Height="16" CornerRadius="99" Margin="0,0,8,0"
-                                        Background="{StaticResource Surface3}">
-                                    <TextBlock Text="3" FontSize="9.5" FontWeight="Bold" Foreground="{StaticResource Text2}"
-                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                </Border>
-                                <TextBlock Grid.Column="1" Text="Handle rejects" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="{Binding RejectCount}" FontFamily="{StaticResource FontMono}"
-                                           FontSize="11" Foreground="{StaticResource Reject}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                        <Button Classes="nav action" Command="{Binding RunHeuristicBaselineCommand}" IsEnabled="{Binding !IsBusy}">
-                            <Grid ColumnDefinitions="Auto,*,Auto">
-                                <TextBlock Grid.Column="0" Text="⚡  Heuristic baseline" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="2" Text="▸" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                            </Grid>
-                        </Button>
-                    </StackPanel>
+                            </StackPanel>
+                        </ScrollViewer>
+                    </DockPanel>
 
-                    <!-- Classic: original two-group layout (LIBRARY incl. Rejects, AI CULL, CULL with
-                         Export inline). Shown when the onboarding UI is off. -->
-                    <StackPanel Spacing="4" IsVisible="{Binding !ExperimentalUi}">
-                        <TextBlock Text="LIBRARY" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="8,6,0,4"/>
-                        <Button Classes="nav" Classes.on="{Binding IsBrowse}" Command="{Binding GoViewCommand}" CommandParameter="Browse">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="▦  Browse"/>
-                                <TextBlock Grid.Column="1" Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="11" Opacity="0.6"/>
-                            </Grid>
-                        </Button>
-                        <Button Classes="nav" Classes.on="{Binding IsFilmstrip}" Command="{Binding GoViewCommand}" CommandParameter="Filmstrip"
-                                Content="▬  Filmstrip"/>
-                        <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
-                                Content="▤  Folder overview"/>
-                        <Button Classes="nav" Classes.on="{Binding ShowPipeline}" Command="{Binding TogglePipelineCommand}"
-                                Content="⛓  Pipeline" ToolTip.Tip="Live analysis flowchart for the current run."/>
-                        <Button Classes="nav" Classes.on="{Binding IsRejectsView}" Command="{Binding GoViewCommand}" CommandParameter="Rejects">
-                            <Grid ColumnDefinitions="*,Auto">
-                                <TextBlock Grid.Column="0" Text="🗑  Rejects"/>
-                                <TextBlock Grid.Column="1" Text="{Binding RejectCount}" FontFamily="{StaticResource FontMono}"
-                                           FontSize="11" Foreground="{StaticResource Reject}"/>
-                            </Grid>
-                        </Button>
-
-                        <TextBlock Text="AI CULL" FontSize="10" FontWeight="SemiBold"
-                                   Foreground="{StaticResource Text3}" Margin="8,14,0,4"/>
-                        <Button Classes="nav" Classes.on="{Binding IsAiCull}" Command="{Binding GoViewCommand}"
-                                CommandParameter="AiCull" Content="✦  Models &amp; Process"/>
-
-                        <TextBlock Text="CULL" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="8,14,0,4"/>
-                        <Button Classes="nav" Command="{Binding RunHeuristicBaselineCommand}" IsEnabled="{Binding !IsBusy}"
-                                Content="⚡  Heuristic baseline"/>
-                        <Button Classes="nav" Command="{Binding InteractiveCullCommand}" Content="✦  Interactive cull"/>
-
-                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="6,12,6,4"/>
-                        <Button Classes="nav" Command="{Binding ExportCommand}" Content="⤓  Export CSV / JSON" FontSize="12.5"
-                                ToolTip.Tip="Export ratings, metrics, scores and notes to the shoot folder."/>
-                    </StackPanel>
-                    </Panel>
+                    <!-- CATALOG -->
+                    <ScrollViewer IsVisible="{Binding IsCatalogTab}" VerticalScrollBarVisibility="Auto"
+                                  HorizontalScrollBarVisibility="Disabled" AllowAutoHide="False">
+                        <StackPanel Margin="10,12,8,16" Spacing="7">
+                            <TextBlock Text="{Binding CatalogCountText, StringFormat='SCANNED FOLDERS · {0}'}"
+                                       FontSize="9.5" FontWeight="SemiBold" FontFamily="{StaticResource FontMono}"
+                                       Foreground="{StaticResource Text3}" Margin="4,0,0,4"/>
+                            <ItemsControl ItemsSource="{Binding Catalog}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:CatalogEntryViewModel">
+                                        <Button Classes="catalogCard" Classes.on="{Binding IsActive}"
+                                                Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenCatalogEntryCommand}"
+                                                CommandParameter="{Binding}">
+                                            <StackPanel Spacing="7">
+                                                <Grid ColumnDefinitions="*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="1" CornerRadius="5" Padding="6,3" Background="{Binding StateBackground}">
+                                                        <TextBlock Text="{Binding StateLabel}" FontSize="9.5" FontWeight="Medium"
+                                                                   FontFamily="{StaticResource FontMono}" Foreground="{Binding StateColor}"/>
+                                                    </Border>
+                                                </Grid>
+                                                <TextBlock Text="{Binding Path}" FontSize="10.5" FontFamily="{StaticResource FontMono}"
+                                                           Foreground="{StaticResource Text3}" TextTrimming="CharacterEllipsis"/>
+                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                                    <TextBlock Grid.Column="0" Text="{Binding FramesText}" FontSize="10.5"
+                                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text2}"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding PicksText}" FontSize="10.5" Margin="10,0,0,0"
+                                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Pick}"/>
+                                                    <TextBlock Grid.Column="3" Text="{Binding ScannedText}" FontSize="10.5"
+                                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"/>
+                                                </Grid>
+                                            </StackPanel>
+                                            <Button.ContextFlyout>
+                                                <MenuFlyout>
+                                                    <MenuItem Header="Refresh now"
+                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenCatalogEntryCommand}"
+                                                              CommandParameter="{Binding}"/>
+                                                    <MenuItem Header="Show in Folders"
+                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RevealInTreeCommand}"
+                                                              CommandParameter="{Binding Path}"/>
+                                                    <MenuItem Header="Open in File Explorer"
+                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
+                                                              CommandParameter="{Binding Path}"/>
+                                                    <MenuItem Header="Remove from catalog (keeps files)"
+                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RemoveFromCatalogCommand}"
+                                                              CommandParameter="{Binding}"/>
+                                                </MenuFlyout>
+                                            </Button.ContextFlyout>
+                                        </Button>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <Border Margin="4,8,4,0" Padding="11,10" CornerRadius="9"
+                                    Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                    BorderThickness="1">
+                                <TextBlock Text="Catalogued folders never refresh on their own. Right-click → Refresh now."
+                                           FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource Text2}" LineHeight="17"/>
+                            </Border>
+                        </StackPanel>
                     </ScrollViewer>
                 </DockPanel>
             </Border>
 
             <!-- ===== CENTER ===== -->
-            <Panel Grid.Column="1" Background="{StaticResource Bg}">
+            <DockPanel Grid.Column="2" Background="{StaticResource Bg}">
+
+                <!-- FILTER BAR. Shown for the views that show frames; the config pages have their
+                     own headers and nothing to filter. -->
+                <Border DockPanel.Dock="Top" Height="52" IsVisible="{Binding ShowFilterBar}"
+                        BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1" Padding="18,0">
+                    <Grid ColumnDefinitions="*,Auto,Auto" VerticalAlignment="Center">
+                        <ScrollViewer Grid.Column="0" HorizontalScrollBarVisibility="Auto"
+                                      VerticalScrollBarVisibility="Disabled" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="5" VerticalAlignment="Center">
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=All}"
+                                        Command="{Binding SetFilterCommand}" CommandParameter="All">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="All"/>
+                                        <TextBlock Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star2}"
+                                        Content="★ 2+" Command="{Binding SetFilterCommand}" CommandParameter="Star2"/>
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star3}"
+                                        Content="★ 3+" Command="{Binding SetFilterCommand}" CommandParameter="Star3"/>
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Star4}"
+                                        Content="★ 4" Command="{Binding SetFilterCommand}" CommandParameter="Star4"/>
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Pick}"
+                                        Command="{Binding SetFilterCommand}" CommandParameter="Pick">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="Picks"/>
+                                        <TextBlock Text="{Binding PickCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Reject}"
+                                        Command="{Binding SetFilterCommand}" CommandParameter="Reject">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="Rejects"/>
+                                        <TextBlock Text="{Binding RejectCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+                                <Button Classes="chip" Classes.on="{Binding Rating, Converter={StaticResource IsEqual}, ConverterParameter=Unrated}"
+                                        Command="{Binding SetFilterCommand}" CommandParameter="Unrated">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="Unrated"/>
+                                        <TextBlock Text="{Binding UnratedCount}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.7"/>
+                                    </StackPanel>
+                                </Button>
+
+                                <!-- Minimum technical (TQ) filter: the chip toggles the filter on/off — its
+                                     "off"/numeric readout makes the state unambiguous — and the slider only edits
+                                     the threshold while the chip is on. Composes (ANDs) with the rating chips
+                                     above via PhotoFilterSpec.MinTechnical. -->
+                                <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}" Margin="3,0"/>
+                                <Button Classes="chip" Classes.on="{Binding TqFilterEnabled}" Command="{Binding ToggleTqFilterCommand}"
+                                        ToolTip.Tip="Minimum technical quality (TQ) filter">
+                                    <StackPanel Orientation="Horizontal" Spacing="6">
+                                        <TextBlock Text="TQ ≥"/>
+                                        <TextBlock Text="{Binding MinTqDisplay}" FontFamily="{StaticResource FontMono}" FontSize="10" Opacity="0.85"/>
+                                    </StackPanel>
+                                </Button>
+                                <Slider Minimum="0" Maximum="1" Width="90" Value="{Binding MinTq}"
+                                        IsEnabled="{Binding TqFilterEnabled}" VerticalAlignment="Center"
+                                        ToolTip.Tip="Drag to set the minimum TQ threshold"/>
+                                <Button Classes="ghost" Content="✕" Padding="6,2" FontSize="10"
+                                        Command="{Binding ClearTqFilterCommand}" IsVisible="{Binding TqFilterEnabled}"
+                                        ToolTip.Tip="Clear TQ filter"/>
+                            </StackPanel>
+                        </ScrollViewer>
+
+                        <Slider Grid.Column="1" Minimum="150" Maximum="300" Width="90" Value="{Binding ThumbSize}"
+                                VerticalAlignment="Center" Margin="14,0,10,0" ToolTip.Tip="Thumbnail size"/>
+                        <Border Grid.Column="2" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="6" Padding="2" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal" Spacing="2">
+                                <Button Classes="rtab" Classes.on="{Binding IsComfortable}" Content="Comfortable"
+                                        Padding="9,3" Height="24" FontWeight="Medium" FontSize="11.5"
+                                        Command="{Binding SetDensityCommand}" CommandParameter="Comfortable"/>
+                                <Button Classes="rtab" Classes.on="{Binding IsCompact}" Content="Compact"
+                                        Padding="9,3" Height="24" FontWeight="Medium" FontSize="11.5"
+                                        Command="{Binding SetDensityCommand}" CommandParameter="Compact"/>
+                            </StackPanel>
+                        </Border>
+                    </Grid>
+                </Border>
+
+                <!-- PIPELINE DOCK. The Pipeline page owns the detail; this is the old rail panel's
+                     one irreplaceable property — it sits beside the grid rather than replacing it, so
+                     stages can be watched while you carry on rating. Left-aligned and fixed width,
+                     so the grid simply reflows into what is left. -->
+                <Border DockPanel.Dock="Left" IsVisible="{Binding PipelineDocked}" Width="300"
+                        Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                        BorderThickness="0,0,1,0">
+                    <DockPanel Margin="14,12">
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="PIPELINE" FontWeight="SemiBold" FontSize="9.5"
+                                       FontFamily="{StaticResource FontMono}"
+                                       Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Classes="ghost" Content="Open page" FontSize="10.5" Padding="7,2"
+                                    Command="{Binding GoViewCommand}" CommandParameter="Pipeline"/>
+                            <Button Grid.Column="2" Classes="ghost" Content="✕" Padding="7,1" FontSize="11" Margin="4,0,0,0"
+                                    Command="{Binding TogglePipelineDockCommand}" ToolTip.Tip="Unpin"/>
+                        </Grid>
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="{Binding RunStageName}" FontSize="11.5" FontWeight="SemiBold"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            <TextBlock Grid.Column="1" Text="{Binding RunPercentText}" FontSize="11"
+                                       FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text2}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="8">
+                                <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="8"/>
+                            </Border>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
+
+            <Panel>
 
                 <!-- BROWSE GRID -->
-                <Grid IsVisible="{Binding IsBrowse}" RowDefinitions="38,Auto,*">
-                    <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="18,0"
-                          VerticalAlignment="Center">
-                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
+                <Grid IsVisible="{Binding IsBrowse}" RowDefinitions="44,Auto,*">
+                    <!-- Header: what the filter is showing, then the tools that act on the grid.
+                         One horizontal scroller rather than two columns — the centre column is
+                         narrower than it was, and a two-column split let the halves overlap. -->
+                    <ScrollViewer Grid.Row="0" Margin="18,0" VerticalAlignment="Center"
+                                  HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled">
+                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                        <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center">
                             <TextBlock Text="{Binding VisibleCount}" FontWeight="SemiBold" FontSize="12"/>
                             <TextBlock Text="of" Foreground="{StaticResource Text3}" FontSize="12"/>
                             <TextBlock Text="{Binding Total}" Foreground="{StaticResource Text2}" FontSize="12"/>
@@ -542,27 +744,39 @@
                                        VerticalAlignment="Center" IsVisible="{Binding ExperimentalUi}"
                                        ToolTip.Tip="TQ = technical quality from pixel metrics (sharpness, exposure, noise). AES = aesthetic model score — tick a model in Score with AI models and Process to fill it. Both bars read 1–10 on the same colour ramp — the native scale of the scoring models. Stars are the final rating and do not have to follow either."/>
                         </StackPanel>
-                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <!-- Reject stepping (#6): moves the selection, never the filter, so the
-                                 grid around each reject stays visible. Shift+←/→ do the same. -->
-                            <Button Classes="ghost" Content="◀ rej" Padding="7,2" FontSize="11"
-                                    Command="{Binding JumpRejectCommand}" CommandParameter="Prev"
-                                    ToolTip.Tip="Previous reject, in place (Shift+←)"/>
-                            <Button Classes="ghost" Content="rej ▶" Padding="7,2" FontSize="11"
-                                    Command="{Binding JumpRejectCommand}" CommandParameter="Next"
-                                    ToolTip.Tip="Next reject, in place (Shift+→)"/>
-                            <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
-                            <TextBlock Text="Sort" Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center"/>
-                            <ComboBox ItemsSource="{Binding SortKeys}" SelectedItem="{Binding Sort}" Width="120" Height="26"/>
-                            <Button Classes="ghost" Content="▲▼" Command="{Binding ToggleSortDirCommand}" Padding="7,2"
-                                    ToolTip.Tip="Toggle ascending / descending"/>
-                            <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
-                            <TextBlock Text="{Binding BurstGroupCount, StringFormat='{}{0} bursts'}"
-                                       FontFamily="{StaticResource FontMono}" FontSize="11.5" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                            <TextBlock Text="{Binding LargestBurst, StringFormat='· largest {0}'}"
-                                       FontFamily="{StaticResource FontMono}" FontSize="11.5" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                        </StackPanel>
-                    </Grid>
+                        <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}" Margin="4,0"/>
+                        <!-- Reject stepping (#6): moves the selection, never the filter, so the
+                             grid around each reject stays visible. Shift+←/→ do the same. -->
+                        <Button Classes="ghost" Content="◀ rej" Padding="7,2" FontSize="11"
+                                Command="{Binding JumpRejectCommand}" CommandParameter="Prev"
+                                ToolTip.Tip="Previous reject, in place (Shift+←)"/>
+                        <Button Classes="ghost" Content="rej ▶" Padding="7,2" FontSize="11"
+                                Command="{Binding JumpRejectCommand}" CommandParameter="Next"
+                                ToolTip.Tip="Next reject, in place (Shift+→)"/>
+                        <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
+                        <TextBlock Text="Sort" Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center"/>
+                        <ComboBox ItemsSource="{Binding SortKeys}" SelectedItem="{Binding Sort}" Width="120" Height="26"/>
+                        <Button Classes="ghost" Content="▲▼" Command="{Binding ToggleSortDirCommand}" Padding="7,2"
+                                ToolTip.Tip="Toggle ascending / descending"/>
+                        <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
+                        <TextBlock Text="{Binding BurstGroupCount, StringFormat='{}{0} bursts'}"
+                                   FontFamily="{StaticResource FontMono}" FontSize="11.5" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                        <TextBlock Text="{Binding LargestBurst, StringFormat='· largest {0}'}"
+                                   FontFamily="{StaticResource FontMono}" FontSize="11.5" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                        <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
+                        <!-- How each tile draws its TQ/AES pair. Persisted; also in Settings. -->
+                        <TextBlock Text="SCORES" FontFamily="{StaticResource FontMono}" FontSize="9.5" FontWeight="SemiBold"
+                                   Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                        <Button Classes="chip" Classes.on="{Binding IsCardBars}" Content="Bars" FontSize="11" Height="24"
+                                Command="{Binding SetCardVizCommand}" CommandParameter="bars"/>
+                        <Button Classes="chip" Classes.on="{Binding IsCardRings}" Content="Rings" FontSize="11" Height="24"
+                                Command="{Binding SetCardVizCommand}" CommandParameter="rings"/>
+                        <Button Classes="chip" Classes.on="{Binding IsCardMeter}" Content="Meter" FontSize="11" Height="24"
+                                Command="{Binding SetCardVizCommand}" CommandParameter="meter"/>
+                        <Button Classes="chip" Classes.on="{Binding IsCardChips}" Content="Chips" FontSize="11" Height="24"
+                                Command="{Binding SetCardVizCommand}" CommandParameter="chips"/>
+                    </StackPanel>
+                    </ScrollViewer>
 
                     <!-- Onboarding hint: shown once a shoot is scanned until at least one frame has an
                          aesthetic score, so a new user understands why AES reads "—" everywhere.
@@ -726,8 +940,11 @@
                                                             </Grid>
                                                             <!-- TQ over AES: same scale and colour ramp on both rows, so the pair reads
                                                                  as one comparison rather than a bar next to a bare number (#3). MinWidth=0 because
-                                                                 the Fluent ProgressBar's 200px default would overflow the card. -->
-                                                            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+                                                                 the Fluent ProgressBar's 200px default would overflow the card.
+                                                                 Four styles (design v2) draw the same two numbers; only one is ever visible,
+                                                                 and the choice is a persisted setting rather than per-shoot state. -->
+                                                            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4"
+                                                                  IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).IsCardBars}">
                                                                 <TextBlock Grid.Row="0" Grid.Column="0" Text="TQ" FontFamily="{StaticResource FontMono}"
                                                                            FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
                                                                 <ProgressBar Grid.Row="0" Grid.Column="1" Height="4" MinHeight="4" MinWidth="0" Margin="8,0"
@@ -747,6 +964,79 @@
                                                                            FontFamily="{StaticResource FontMono}" FontSize="10"
                                                                            Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
                                                             </Grid>
+
+                                                            <!-- Rings -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="6" Margin="0,1,0,2"
+                                                                        IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).IsCardRings}">
+                                                                <Panel Width="36" Height="36">
+                                                                    <Ellipse Width="34" Height="34" Stroke="{StaticResource SurfaceHi}" StrokeThickness="3"/>
+                                                                    <Arc Width="34" Height="34" Stroke="{Binding TechnicalColor}" StrokeThickness="3"
+                                                                         StartAngle="-90" SweepAngle="{Binding TechnicalSweep}" StrokeLineCap="Round"/>
+                                                                    <TextBlock Text="{Binding TechnicalScoreText}" FontSize="10" FontWeight="SemiBold"
+                                                                               FontFamily="{StaticResource FontMono}"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Panel>
+                                                                <TextBlock Text="TQ" FontFamily="{StaticResource FontMono}" FontSize="9"
+                                                                           Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                <Panel Width="36" Height="36" Margin="8,0,0,0">
+                                                                    <Ellipse Width="34" Height="34" Stroke="{StaticResource SurfaceHi}" StrokeThickness="3"/>
+                                                                    <Arc Width="34" Height="34" Stroke="{Binding AestheticColor}" StrokeThickness="3"
+                                                                         StartAngle="-90" SweepAngle="{Binding AestheticSweep}" StrokeLineCap="Round"/>
+                                                                    <TextBlock Text="{Binding AestheticScoreText}" FontSize="10" FontWeight="SemiBold"
+                                                                               FontFamily="{StaticResource FontMono}"
+                                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                                </Panel>
+                                                                <TextBlock Text="AES" FontFamily="{StaticResource FontMono}" FontSize="9"
+                                                                           Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                            </StackPanel>
+
+                                                            <!-- Meter: ten mono cells per axis. -->
+                                                            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4"
+                                                                  IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).IsCardMeter}">
+                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="TQ" FontFamily="{StaticResource FontMono}"
+                                                                           FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="0" Grid.Column="1" Margin="8,0" VerticalAlignment="Center"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="12">
+                                                                    <Run Text="{Binding TechnicalMeterOn}" Foreground="{Binding TechnicalColor}"/><Run Text="{Binding TechnicalMeterOff}" Foreground="{StaticResource SurfaceHi}"/>
+                                                                </TextBlock>
+                                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding TechnicalScoreText}"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                                                                           Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="AES" FontFamily="{StaticResource FontMono}"
+                                                                           FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="1" Margin="8,0" VerticalAlignment="Center"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="12">
+                                                                    <Run Text="{Binding AestheticMeterOn}" Foreground="{Binding AestheticColor}"/><Run Text="{Binding AestheticMeterOff}" Foreground="{StaticResource SurfaceHi}"/>
+                                                                </TextBlock>
+                                                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding AestheticScoreText}"
+                                                                           FontFamily="{StaticResource FontMono}" FontSize="10"
+                                                                           Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                                                            </Grid>
+
+                                                            <!-- Chips: the two numbers only, for the smallest tiles. -->
+                                                            <StackPanel Orientation="Horizontal" Spacing="6"
+                                                                        IsVisible="{Binding $parent[ListBox].((vm:MainWindowViewModel)DataContext).IsCardChips}">
+                                                                <Border Height="24" CornerRadius="7" Padding="9,0" Background="{StaticResource Surface3}"
+                                                                        BorderBrush="{StaticResource BorderSoft}" BorderThickness="1">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                        <Ellipse Width="6" Height="6" Fill="{Binding TechnicalColor}" VerticalAlignment="Center"/>
+                                                                        <TextBlock Text="TQ" FontFamily="{StaticResource FontMono}" FontSize="9"
+                                                                                   Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                        <TextBlock Text="{Binding TechnicalScoreText}" FontFamily="{StaticResource FontMono}"
+                                                                                   FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                                <Border Height="24" CornerRadius="7" Padding="9,0" Background="{StaticResource Surface3}"
+                                                                        BorderBrush="{StaticResource BorderSoft}" BorderThickness="1">
+                                                                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                                                        <Ellipse Width="6" Height="6" Fill="{Binding AestheticColor}" VerticalAlignment="Center"/>
+                                                                        <TextBlock Text="AES" FontFamily="{StaticResource FontMono}" FontSize="9"
+                                                                                   Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                        <TextBlock Text="{Binding AestheticScoreText}" FontFamily="{StaticResource FontMono}"
+                                                                                   FontSize="11" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                                                                    </StackPanel>
+                                                                </Border>
+                                                            </StackPanel>
                                                         </StackPanel>
                                                     </StackPanel>
                                                 </Border>
@@ -759,106 +1049,174 @@
                     </ListBox>
                 </Grid>
 
-                <!-- AI CULL: models checklist + Process -->
+                <!-- MODELS & PROCESS: grouped model picker + Process (design v2) -->
                 <ScrollViewer IsVisible="{Binding IsAiCull}">
-                    <StackPanel Spacing="12" Margin="18,14" MaxWidth="720" HorizontalAlignment="Left">
-                        <TextBlock Text="MODELS" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
-                        <TextBlock Text="Tick models, then Process. Scan first for metrics; Process runs the ticked models (and Claude, if ticked) every click."
-                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
-                        <Button Classes="ghost" Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
-                                IsEnabled="{Binding !SidecarStarting}" HorizontalAlignment="Left" FontSize="11"
-                                ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
-                        <TextBlock Text="GPU build: set the compute target in Settings → Python sidecar before installing deps."
-                                   Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
-                        <ItemsControl ItemsSource="{Binding Models}">
+                    <StackPanel Spacing="26" Margin="30,26" MaxWidth="860" HorizontalAlignment="Left">
+
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="6" Margin="0,0,20,0">
+                                <TextBlock Text="Models &amp; process" FontSize="21" FontWeight="SemiBold"/>
+                                <TextBlock Text="Tick the models, then Process. Scan first for metrics; Process runs the ticked models (and Claude, if ticked) on every click."
+                                           Foreground="{StaticResource Text2}" FontSize="12.5" TextWrapping="Wrap" MaxWidth="520"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="9" VerticalAlignment="Bottom">
+                                <Button Classes="ghost" Content="Start Python sidecar" Command="{Binding StartSidecarCommand}"
+                                        IsEnabled="{Binding !SidecarStarting}" Height="32" Padding="14,0" FontSize="12.5"
+                                        ToolTip.Tip="Starts the optional sidecar, which hosts the pyiqa quality metrics and the Qwen critique."/>
+                                <!-- Same command as the Process button further down, repeated here because
+                                     the page is long enough that the picker and the button that acts on it
+                                     are rarely on screen together. -->
+                                <Button Classes="primary" Content="Process" Command="{Binding ProcessCommand}"
+                                        IsEnabled="{Binding !CullRunning}" Height="32" Padding="18,0" FontSize="12.5"/>
+                            </StackPanel>
+                        </Grid>
+
+                        <!-- One click to use everything this machine can actually run. Deliberately
+                             excludes Claude: it costs tokens rather than time, so it is never swept
+                             in by a blanket enable. -->
+                        <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="10" Padding="16,14">
+                            <Grid ColumnDefinitions="*,Auto">
+                                <StackPanel Grid.Column="0" Spacing="4" Margin="0,0,16,0">
+                                    <TextBlock Text="Use everything this PC can run" FontSize="13" FontWeight="SemiBold"/>
+                                    <TextBlock Text="Ticks every available CPU and GPU model. A GPU model that turns out not to run on this card falls back to the CPU rather than dropping out. Claude is left alone — it costs tokens, not time."
+                                               Foreground="{StaticResource Text2}" FontSize="11.5" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Classes="primary" Content="Enable all" Height="32" Padding="18,0"
+                                        VerticalAlignment="Center" FontSize="12.5"
+                                        Command="{Binding EnableEveryLocalModelCommand}"/>
+                            </Grid>
+                        </Border>
+
+                        <!-- RUNNABLE HERE, banded by the resource each model runs on: that is what
+                             decides whether you can afford to tick it. -->
+                        <ItemsControl ItemsSource="{Binding ModelGroups}">
                             <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="vm:ModelOptionViewModel">
-                                    <Grid ColumnDefinitions="Auto,*,Auto" Margin="0,3" ToolTip.Tip="{Binding Tradeoffs}">
-                                        <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
-                                                  IsEnabled="{Binding Available}" VerticalAlignment="Top"/>
-                                        <StackPanel Grid.Column="1">
-                                            <TextBlock Text="{Binding Header}" FontSize="12"/>
-                                            <TextBlock Text="{Binding Description}" FontSize="10"
-                                                       Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
-                                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
-                                                <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
-                                                        IsVisible="{Binding ShowInstall}" IsEnabled="{Binding CanInstall}"
-                                                        ToolTip.Tip="{Binding InstallTip}"
-                                                        Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
-                                                        CommandParameter="{Binding}"/>
-                                                <!-- Determinate for downloads (fraction known); indeterminate for pip / ONNX builds. -->
-                                                <ProgressBar Minimum="0" Maximum="1" Value="{Binding InstallProgress}"
-                                                             IsIndeterminate="{Binding InstallIndeterminate}"
-                                                             IsVisible="{Binding Installing}"
-                                                             Width="110" Height="6" VerticalAlignment="Center"
-                                                             Foreground="{StaticResource Accent}"/>
-                                                <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
-                                                           FontSize="10" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
-                                                           IsVisible="{Binding ShowInstallProgress}"/>
-                                                <Button Content="Cancel" FontSize="10" Padding="6,1"
-                                                        IsVisible="{Binding Installing}" Command="{Binding CancelInstallCommand}"
-                                                        ToolTip.Tip="Stops the download/build; nothing partial is left behind."/>
-                                                <Button Content="model card ↗" FontSize="10" Padding="6,1"
-                                                        IsVisible="{Binding HasInfoUrl}" ToolTip.Tip="{Binding InfoUrl}"
-                                                        Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
-                                                        CommandParameter="{Binding InfoUrl}"/>
-                                            </StackPanel>
-                                            <TextBlock Text="{Binding InstallStatus}" FontSize="10" TextWrapping="Wrap" Margin="0,2,0,0"
-                                                       Classes="installStatus" Classes.err="{Binding InstallFailed}"
-                                                       IsVisible="{Binding InstallStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                        </StackPanel>
-                                        <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
-                                                   Foreground="{StaticResource Accent}" VerticalAlignment="Top" Margin="4,0,0,0"/>
-                                    </Grid>
+                                <DataTemplate x:DataType="vm:ModelGroupViewModel">
+                                    <StackPanel Spacing="8" Margin="0,0,0,22">
+                                        <Grid ColumnDefinitions="Auto,*,Auto,Auto">
+                                            <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="9.5" FontWeight="SemiBold"
+                                                       FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                                       VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding CountText}" FontSize="9.5"
+                                                       FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                                       VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                            <Button Grid.Column="2" Classes="ghost" Content="Tick all" FontSize="11" Padding="8,2"
+                                                    Command="{Binding TickAllCommand}"/>
+                                            <Button Grid.Column="3" Classes="ghost" Content="Clear" FontSize="11" Padding="8,2"
+                                                    Margin="4,0,0,0" Command="{Binding UntickAllCommand}"/>
+                                        </Grid>
+                                        <TextBlock Text="{Binding Subtitle}" FontSize="11.5" TextWrapping="Wrap"
+                                                   Foreground="{StaticResource Text3}" MaxWidth="620" HorizontalAlignment="Left"/>
+
+                                        <ItemsControl ItemsSource="{Binding Models}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate x:DataType="vm:ModelOptionViewModel">
+                                                    <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                                                            BorderThickness="1" CornerRadius="10" Padding="15,13" Margin="0,0,0,8"
+                                                            ToolTip.Tip="{Binding Tradeoffs}">
+                                                        <Grid ColumnDefinitions="Auto,*,Auto">
+                                                            <CheckBox Grid.Column="0" IsChecked="{Binding IsEnabled}"
+                                                                      IsEnabled="{Binding Available}" VerticalAlignment="Top"
+                                                                      Margin="0,-2,10,0"/>
+                                                            <StackPanel Grid.Column="1" Spacing="3">
+                                                                <TextBlock Text="{Binding Header}" FontSize="13" FontWeight="SemiBold"/>
+                                                                <TextBlock Text="{Binding Description}" FontSize="11.5" LineHeight="17"
+                                                                           Foreground="{StaticResource Text2}" TextWrapping="Wrap"/>
+                                                                <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,5,0,0">
+                                                                    <Button Content="{Binding InstallLabel}" FontSize="10.5" Padding="9,4"
+                                                                            IsVisible="{Binding ShowInstall}" IsEnabled="{Binding CanInstall}"
+                                                                            ToolTip.Tip="{Binding InstallTip}"
+                                                                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).InstallModelCommand}"
+                                                                            CommandParameter="{Binding}"/>
+                                                                    <!-- Determinate for downloads (fraction known); indeterminate for pip / ONNX builds. -->
+                                                                    <ProgressBar Minimum="0" Maximum="1" Value="{Binding InstallProgress}"
+                                                                                 IsIndeterminate="{Binding InstallIndeterminate}"
+                                                                                 IsVisible="{Binding Installing}"
+                                                                                 Width="110" Height="6" MinWidth="0" VerticalAlignment="Center"
+                                                                                 Foreground="{StaticResource Accent}"/>
+                                                                    <TextBlock Text="{Binding InstallProgress, StringFormat='{}{0:P0}'}"
+                                                                               FontSize="10.5" Foreground="{StaticResource Accent}" VerticalAlignment="Center"
+                                                                               IsVisible="{Binding ShowInstallProgress}"/>
+                                                                    <Button Content="Cancel" FontSize="10.5" Padding="9,4"
+                                                                            IsVisible="{Binding Installing}" Command="{Binding CancelInstallCommand}"
+                                                                            ToolTip.Tip="Stops the download/build; nothing partial is left behind."/>
+                                                                    <Button Content="model card ↗" FontSize="10.5" Padding="9,4"
+                                                                            IsVisible="{Binding HasInfoUrl}" ToolTip.Tip="{Binding InfoUrl}"
+                                                                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
+                                                                            CommandParameter="{Binding InfoUrl}"/>
+                                                                </StackPanel>
+                                                                <TextBlock Text="{Binding InstallStatus}" FontSize="10.5" TextWrapping="Wrap" Margin="0,3,0,0"
+                                                                           Classes="installStatus" Classes.err="{Binding InstallFailed}"
+                                                                           IsVisible="{Binding InstallStatus, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                            </StackPanel>
+                                                            <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10.5"
+                                                                       FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                                                       VerticalAlignment="Top" Margin="10,1,0,0"/>
+                                                        </Grid>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>
-                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
+
+                        <TextBlock Text="GPU build: set the compute target in Settings → Python sidecar before installing deps."
+                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
 
                         <!-- ===== NOT RUNNABLE HERE (#9): models worth knowing about that this machine
                              can't run, grouped by what blocks them — the blocker is shared far more often
-                             than it is unique, and one amber line over eight rows beats eight copies of it.
-                             They can't be ticked, installed or weighted, so they sit below the picker
+                             than it is unique, and one amber line over several rows beats a copy of it per
+                             row. They can't be ticked, installed or weighted, so they sit below the picker
                              rather than greyed out inside it. ===== -->
-                        <TextBlock Text="NOT RUNNABLE HERE" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
-                        <TextBlock Text="Models Monocle knows about but can&apos;t run on this machine. Each group leads with the reason."
-                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
-                        <ItemsControl ItemsSource="{Binding BlockedModelGroups}">
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate x:DataType="mm:BlockedModelGroup">
-                                    <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6"
-                                            Padding="10,8" Margin="0,0,0,8">
-                                        <StackPanel Spacing="6">
-                                            <TextBlock Text="{Binding Reason}" FontSize="10.5" TextWrapping="Wrap"
-                                                       Foreground="{StaticResource LabYellow}"/>
-                                            <ItemsControl ItemsSource="{Binding Models}">
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate x:DataType="mm:ModelDescriptor">
-                                                        <Grid Margin="0,3" ToolTip.Tip="{Binding Tradeoffs}">
-                                                            <StackPanel>
-                                                                <TextBlock Text="{Binding DisplayName}" FontSize="12"
-                                                                           Foreground="{StaticResource Text2}"/>
-                                                                <TextBlock Text="{Binding Description}" FontSize="10"
-                                                                           Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
-                                                                <!-- Only the models whose situation differs from the group's carry a line here. -->
-                                                                <TextBlock Text="{Binding UnavailableReason}" FontSize="10"
-                                                                           Foreground="{StaticResource LabYellow}" TextWrapping="Wrap"
-                                                                           Margin="0,2,0,0"
-                                                                           IsVisible="{Binding UnavailableReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
-                                                                <Button Content="model card ↗" FontSize="10" Padding="6,1" Margin="0,3,0,0"
-                                                                        HorizontalAlignment="Left" ToolTip.Tip="{Binding InfoUrl}"
-                                                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
-                                                                        CommandParameter="{Binding InfoUrl}"/>
-                                                            </StackPanel>
-                                                        </Grid>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="NOT RUNNABLE HERE" FontSize="9.5" FontWeight="SemiBold"
+                                       FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"/>
+                            <TextBlock Text="Models Monocle knows about but can&apos;t run on this machine. Each group leads with the reason."
+                                       Foreground="{StaticResource Text2}" FontSize="11.5" TextWrapping="Wrap"/>
+                            <ItemsControl ItemsSource="{Binding BlockedModelGroups}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="mm:BlockedModelGroup">
+                                        <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="10"
+                                                Background="{StaticResource Surface1}" Margin="0,0,0,10" ClipToBounds="True">
+                                            <StackPanel>
+                                                <Border Background="#1AE6A33C" Padding="15,10">
+                                                    <TextBlock Text="{Binding Reason}" FontSize="11.5" TextWrapping="Wrap"
+                                                               LineHeight="17" Foreground="{StaticResource LabYellow}"/>
+                                                </Border>
+                                                <ItemsControl ItemsSource="{Binding Models}">
+                                                    <ItemsControl.ItemTemplate>
+                                                        <DataTemplate x:DataType="mm:ModelDescriptor">
+                                                            <Border Padding="15,11" BorderBrush="{StaticResource BorderSoft}"
+                                                                    BorderThickness="0,1,0,0" ToolTip.Tip="{Binding Tradeoffs}">
+                                                                <StackPanel Spacing="3">
+                                                                    <TextBlock Text="{Binding DisplayName}" FontSize="12.5" FontWeight="Medium"
+                                                                               Foreground="{StaticResource Text2}"/>
+                                                                    <TextBlock Text="{Binding Description}" FontSize="11.5" LineHeight="17"
+                                                                               Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
+                                                                    <!-- Only the models whose situation differs from the group's carry a line here. -->
+                                                                    <TextBlock Text="{Binding UnavailableReason}" FontSize="11.5"
+                                                                               Foreground="{StaticResource LabYellow}" TextWrapping="Wrap"
+                                                                               Margin="0,2,0,0" LineHeight="17"
+                                                                               IsVisible="{Binding UnavailableReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                    <Button Content="model card ↗" FontSize="10.5" Padding="9,4" Margin="0,4,0,0"
+                                                                            HorizontalAlignment="Left" ToolTip.Tip="{Binding InfoUrl}"
+                                                                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
+                                                                            CommandParameter="{Binding InfoUrl}"/>
+                                                                </StackPanel>
+                                                            </Border>
+                                                        </DataTemplate>
+                                                    </ItemsControl.ItemTemplate>
+                                                </ItemsControl>
+                                            </StackPanel>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
                         <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
 
                         <!-- ===== CONFIGURABLE WEIGHTED SCORING: combine every model's output into a
@@ -1053,43 +1411,49 @@
 
                 <!-- FOLDER OVERVIEW -->
                 <ScrollViewer IsVisible="{Binding IsOverview}">
-                    <StackPanel Margin="26,22" Spacing="18" MaxWidth="900" HorizontalAlignment="Left">
-                        <TextBlock Text="Folder overview" FontSize="20" FontWeight="Bold"/>
-                        <Grid ColumnDefinitions="*,*,*,*" >
-                            <Border Grid.Column="0" Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                                    BorderThickness="1" CornerRadius="9" Padding="15,14" Margin="0,0,6,0">
+                    <!-- Stretches rather than hugging its content: the four stat cards share the row
+                         equally, which a left-aligned parent would collapse to their text width. -->
+                    <StackPanel Margin="30,26" Spacing="22" MaxWidth="900" HorizontalAlignment="Stretch">
+                        <StackPanel Spacing="5">
+                            <TextBlock Text="Folder overview" FontSize="21" FontWeight="SemiBold"/>
+                            <TextBlock Text="{Binding FolderPath}" FontSize="11.5" FontFamily="{StaticResource FontMono}"
+                                       Foreground="{StaticResource Text3}" TextTrimming="CharacterEllipsis"/>
+                        </StackPanel>
+                        <Grid ColumnDefinitions="*,*,*,*" ColumnSpacing="12">
+                            <Border Grid.Column="0" Classes="statCard">
                                 <StackPanel>
-                                    <TextBlock Text="FRAMES" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                    <TextBlock Text="{Binding Total}" FontSize="26" FontWeight="Bold" FontFamily="{StaticResource FontMono}" Margin="0,8,0,0"/>
+                                    <TextBlock Classes="statKey" Text="FRAMES"/>
+                                    <TextBlock Classes="statValue" Text="{Binding Total}"/>
+                                    <TextBlock Classes="statSub" Text="{Binding PairsText}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="1" Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                                    BorderThickness="1" CornerRadius="9" Padding="15,14" Margin="3,0">
+                            <Border Grid.Column="1" Classes="statCard">
                                 <StackPanel>
-                                    <TextBlock Text="PICKS" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                    <TextBlock Text="{Binding PickCount}" FontSize="26" FontWeight="Bold" FontFamily="{StaticResource FontMono}"
-                                               Foreground="{StaticResource Pick}" Margin="0,8,0,0"/>
+                                    <TextBlock Classes="statKey" Text="PICKS"/>
+                                    <TextBlock Classes="statValue" Text="{Binding PickCount}" Foreground="{StaticResource Pick}"/>
+                                    <TextBlock Classes="statSub" Text="{Binding KeepRateText}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="2" Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                                    BorderThickness="1" CornerRadius="9" Padding="15,14" Margin="3,0">
+                            <Border Grid.Column="2" Classes="statCard">
                                 <StackPanel>
-                                    <TextBlock Text="REJECTS" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                    <TextBlock Text="{Binding RejectCount}" FontSize="26" FontWeight="Bold" FontFamily="{StaticResource FontMono}"
-                                               Foreground="{StaticResource Reject}" Margin="0,8,0,0"/>
+                                    <TextBlock Classes="statKey" Text="REJECTS"/>
+                                    <TextBlock Classes="statValue" Text="{Binding RejectCount}" Foreground="{StaticResource Reject}"/>
+                                    <TextBlock Classes="statSub" Text="{Binding RejectRuleText}"/>
                                 </StackPanel>
                             </Border>
-                            <Border Grid.Column="3" Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                                    BorderThickness="1" CornerRadius="9" Padding="15,14" Margin="6,0,0,0">
+                            <Border Grid.Column="3" Classes="statCard">
                                 <StackPanel>
-                                    <TextBlock Text="UNRATED" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                    <TextBlock Text="{Binding UnratedCount}" FontSize="26" FontWeight="Bold" FontFamily="{StaticResource FontMono}"
-                                               Foreground="{StaticResource Text2}" Margin="0,8,0,0"/>
+                                    <TextBlock Classes="statKey" Text="UNRATED"/>
+                                    <TextBlock Classes="statValue" Text="{Binding UnratedCount}" Foreground="{StaticResource Text2}"/>
+                                    <TextBlock Classes="statSub" Text="{Binding UnratedShareText}"/>
                                 </StackPanel>
                             </Border>
                         </Grid>
+                        <!-- The star histogram the design asks for, plus the technical-vs-aesthetic
+                             scatter it doesn't — both already live in ChartsControl, and the scatter is
+                             the only view that shows the two axes disagreeing about a frame. -->
                         <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                                BorderThickness="1" CornerRadius="9" Padding="18" Height="360">
+                                BorderThickness="1" CornerRadius="10" Padding="20" Height="360">
                             <ctl:ChartsControl Stats="{Binding Stats}"/>
                         </Border>
                     </StackPanel>
@@ -1097,16 +1461,19 @@
 
                 <!-- REJECTS -->
                 <ScrollViewer IsVisible="{Binding IsRejectsView}">
-                    <StackPanel Margin="26,22" Spacing="16" MaxWidth="760" HorizontalAlignment="Left">
-                        <TextBlock Text="Reject management" FontSize="20" FontWeight="Bold"/>
-                        <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Text2}" FontSize="13"
-                                   Text="Rejects stay in place by default — culling just rates them 1★. Opt in below to move them into a _Rejects subfolder, carrying every sidecar (.xmp, .txt) with them. Files are moved, never deleted."/>
+                    <StackPanel Margin="30,26" Spacing="18" MaxWidth="760" HorizontalAlignment="Left">
+                        <StackPanel Spacing="6">
+                            <TextBlock Text="Reject management" FontSize="21" FontWeight="SemiBold"/>
+                            <TextBlock TextWrapping="Wrap" Foreground="{StaticResource Text2}" FontSize="13" LineHeight="20"
+                                       MaxWidth="560" HorizontalAlignment="Left"
+                                       Text="Rejects stay in place by default — culling just rates them 1★. Opt in below to move them into a _Rejects subfolder, carrying every sidecar (.xmp, .txt) with them. Files are moved, never deleted."/>
+                        </StackPanel>
                         <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                                BorderThickness="1" CornerRadius="9">
+                                BorderThickness="1" CornerRadius="10" ClipToBounds="True">
                             <StackPanel>
-                                <Border Padding="14,11" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
+                                <Border Padding="15,12" BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,0,0,1">
                                     <TextBlock Text="{Binding RejectCount, StringFormat='{}{0} frames rated 1★'}"
-                                               FontSize="12" FontWeight="SemiBold" Foreground="{StaticResource Text2}"/>
+                                               FontSize="12.5" FontWeight="SemiBold" Foreground="{StaticResource Text2}"/>
                                 </Border>
                                 <ItemsControl ItemsSource="{Binding RejectList}">
                                     <ItemsControl.ItemTemplate>
@@ -1118,8 +1485,8 @@
                                             <Border BorderBrush="{Binding SelectionBrush}" BorderThickness="2" CornerRadius="7"
                                                     Margin="10,3" Background="{StaticResource Surface2}" Cursor="Hand"
                                                     PointerPressed="OnTilePressed" DoubleTapped="OnTileDoubleTapped">
-                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,7">
-                                                    <Border Grid.Column="0" Width="46" Height="34" CornerRadius="5" ClipToBounds="True"
+                                                <Grid ColumnDefinitions="Auto,*,Auto" Margin="11,8">
+                                                    <Border Grid.Column="0" Width="46" Height="34" CornerRadius="6" ClipToBounds="True"
                                                             BorderBrush="{StaticResource Reject}" BorderThickness="2" Background="{StaticResource Surface3}">
                                                         <!-- Uniform here too, to match the grid: a portrait reject shows whole and
                                                              letterboxed rather than cropped to this chip (#8). -->
@@ -1137,12 +1504,13 @@
                             </StackPanel>
                         </Border>
                         <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderStrong}"
-                                BorderThickness="1" CornerRadius="9" Padding="16">
-                            <StackPanel Spacing="13">
-                                <TextBlock Text="{Binding RejectSummary}" TextWrapping="Wrap" FontSize="12.5" Foreground="{StaticResource Text2}"/>
+                                BorderThickness="1" CornerRadius="10" Padding="18">
+                            <StackPanel Spacing="14">
+                                <TextBlock Text="{Binding RejectSummary}" TextWrapping="Wrap" FontSize="12.5"
+                                           LineHeight="19" Foreground="{StaticResource Text2}"/>
                                 <CheckBox IsChecked="{Binding MoveRejectsConfirmed}" Content="I understand — actually move the rejects"
                                           FontSize="13"/>
-                                <Button Classes="primary" HorizontalAlignment="Left"
+                                <Button Classes="primary" HorizontalAlignment="Left" Height="34" Padding="18,0" FontSize="12.5"
                                         Content="{Binding RejectCount, StringFormat='Move {0} rejects to _Rejects'}"
                                         Command="{Binding MoveRejectsCommand}" IsEnabled="{Binding MoveRejectsEnabled}"/>
                             </StackPanel>
@@ -1197,6 +1565,57 @@
                                                 Command="{Binding SetAccentCommand}" CommandParameter="violet"
                                                 Classes.on="{Binding Accent, Converter={StaticResource IsEqual}, ConverterParameter=violet}"/>
                                     </StackPanel>
+                                </Grid>
+                            </StackPanel>
+                        </Border>
+                        <!-- Indicators: how progress and scores are drawn. Both are also settable
+                             from the page that shows them; this is the same property, so the two
+                             controls always agree. -->
+                        <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="9" Padding="20">
+                            <StackPanel Spacing="16">
+                                <TextBlock Text="Indicators" FontWeight="SemiBold" FontSize="13"/>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Text="Grid card scores" FontSize="13"/>
+                                        <TextBlock Text="How each thumbnail draws its TQ / AES pair" FontSize="11.5"
+                                                   Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                            BorderThickness="1" CornerRadius="6" Padding="2" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="2">
+                                            <Button Classes="rtab" Classes.on="{Binding IsCardBars}" Content="Bars" Padding="11,5" Height="28"
+                                                    Command="{Binding SetCardVizCommand}" CommandParameter="bars"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsCardRings}" Content="Rings" Padding="11,5" Height="28"
+                                                    Command="{Binding SetCardVizCommand}" CommandParameter="rings"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsCardMeter}" Content="Meter" Padding="11,5" Height="28"
+                                                    Command="{Binding SetCardVizCommand}" CommandParameter="meter"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsCardChips}" Content="Chips" Padding="11,5" Height="28"
+                                                    Command="{Binding SetCardVizCommand}" CommandParameter="chips"/>
+                                        </StackPanel>
+                                    </Border>
+                                </Grid>
+                                <Grid ColumnDefinitions="*,Auto">
+                                    <StackPanel Grid.Column="0" Margin="0,0,16,0">
+                                        <TextBlock Text="Pipeline progress" FontSize="13"/>
+                                        <TextBlock Text="How the Pipeline page draws a stage. Flowchart is the node-and-edge drawing — the only one that shows the graph&apos;s shape."
+                                                   FontSize="11.5" Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
+                                            BorderThickness="1" CornerRadius="6" Padding="2" VerticalAlignment="Center">
+                                        <StackPanel Orientation="Horizontal" Spacing="2">
+                                            <Button Classes="rtab" Classes.on="{Binding IsPipeBars}" Content="Bars" Padding="10,5" Height="28"
+                                                    Command="{Binding SetPipelineVizCommand}" CommandParameter="bars"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsPipeRings}" Content="Rings" Padding="10,5" Height="28"
+                                                    Command="{Binding SetPipelineVizCommand}" CommandParameter="rings"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsPipeBlocks}" Content="Meter" Padding="10,5" Height="28"
+                                                    Command="{Binding SetPipelineVizCommand}" CommandParameter="blocks"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsPipeMinimal}" Content="Minimal" Padding="10,5" Height="28"
+                                                    Command="{Binding SetPipelineVizCommand}" CommandParameter="minimal"/>
+                                            <Button Classes="rtab" Classes.on="{Binding IsPipeFlowchart}" Content="Flowchart" Padding="10,5" Height="28"
+                                                    Command="{Binding SetPipelineVizCommand}" CommandParameter="flowchart"/>
+                                        </StackPanel>
+                                    </Border>
                                 </Grid>
                             </StackPanel>
                         </Border>
@@ -1394,31 +1813,120 @@
                     </StackPanel>
                 </ScrollViewer>
 
-                <!-- PIPELINE (#2). A sibling of the centre views in the body grid rather than a popup,
-                     which is what makes it line up with the rail: same grid row, so its top edge and its
-                     height ARE the rail's, with nothing to bind or keep in sync. The ScrollViewer is the
-                     DockPanel's fill child, so it takes whatever height is left and the flowchart scrolls
-                     when a Claude run adds stages. -->
-                <Border IsVisible="{Binding ShowPipeline}" Width="300" HorizontalAlignment="Left"
-                        Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
-                        BorderThickness="0,0,1,0">
-                    <DockPanel Margin="14,12">
-                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
-                            <TextBlock Grid.Column="0" Text="PIPELINE" FontWeight="SemiBold" FontSize="11"
-                                       Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                            <Button Grid.Column="1" Classes="ghost" Content="✕" Padding="7,1" FontSize="11"
-                                    Command="{Binding TogglePipelineCommand}" ToolTip.Tip="Close (Esc)"/>
+                <!-- PIPELINE (#2, design v2). A full centre page rather than a side panel: stages
+                     light up as the run reaches them, and the ticked models are nested under the
+                     Aesthetic models stage so a run says which models it is actually running.
+                     The indicator style is a persisted preference — it can also be set in Settings. -->
+                <ScrollViewer IsVisible="{Binding IsPipelineView}">
+                    <StackPanel Spacing="22" Margin="30,26" MaxWidth="760" HorizontalAlignment="Left">
+                        <Grid ColumnDefinitions="*,Auto">
+                            <StackPanel Grid.Column="0" Spacing="6">
+                                <TextBlock Text="Pipeline" FontSize="21" FontWeight="SemiBold"/>
+                                <TextBlock Text="Stages light up as the run reaches them. Greyed stages are skipped for this run."
+                                           Foreground="{StaticResource Text2}" FontSize="12.5" TextWrapping="Wrap"/>
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6" VerticalAlignment="Top">
+                                <Button Classes="ghost" Content="◧ Pin beside the grid" FontSize="11.5" Padding="10,4"
+                                        Classes.on="{Binding PipelineDocked}"
+                                        Command="{Binding TogglePipelineDockCommand}"
+                                        ToolTip.Tip="Keep a compact flowchart visible while you carry on rating"/>
+                                <Button Classes="ghost" Content="✕" Padding="9,2" FontSize="12"
+                                        Command="{Binding ClosePipelineCommand}" ToolTip.Tip="Close (Esc)"/>
+                            </StackPanel>
                         </Grid>
-                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,10"
-                                   Text="Live analysis flow — stages light up as each runs; greyed stages are skipped for this run."
-                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
-                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
-                            <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
-                                <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="8"/>
-                            </Border>
-                        </ScrollViewer>
-                    </DockPanel>
-                </Border>
+
+                        <Border Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="10" Padding="20,18">
+                            <StackPanel Spacing="12">
+                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                    <TextBlock Text="INDICATOR" FontSize="9.5" FontWeight="SemiBold"
+                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                    <Button Classes="chip" Classes.on="{Binding IsPipeBars}" Content="Bars" FontSize="11" Height="24"
+                                            Command="{Binding SetPipelineVizCommand}" CommandParameter="bars"/>
+                                    <Button Classes="chip" Classes.on="{Binding IsPipeRings}" Content="Rings" FontSize="11" Height="24"
+                                            Command="{Binding SetPipelineVizCommand}" CommandParameter="rings"/>
+                                    <Button Classes="chip" Classes.on="{Binding IsPipeBlocks}" Content="Meter" FontSize="11" Height="24"
+                                            Command="{Binding SetPipelineVizCommand}" CommandParameter="blocks"/>
+                                    <Button Classes="chip" Classes.on="{Binding IsPipeMinimal}" Content="Minimal" FontSize="11" Height="24"
+                                            Command="{Binding SetPipelineVizCommand}" CommandParameter="minimal"/>
+                                    <Button Classes="chip" Classes.on="{Binding IsPipeFlowchart}" Content="Flowchart" FontSize="11" Height="24"
+                                            Command="{Binding SetPipelineVizCommand}" CommandParameter="flowchart"
+                                            ToolTip.Tip="The node-and-edge drawing — the only view that shows the stage graph's shape."/>
+                                </StackPanel>
+                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
+                                    <Ellipse Grid.Column="0" Width="8" Height="8" VerticalAlignment="Center"
+                                             Fill="{StaticResource Accent}"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding RunStageName}" FontSize="13" FontWeight="SemiBold"
+                                               VerticalAlignment="Center" Margin="10,0,0,0"/>
+                                    <TextBlock Grid.Column="3" Text="{Binding ProgressText}" FontSize="11"
+                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text2}"
+                                               VerticalAlignment="Center"/>
+                                </Grid>
+                                <ProgressBar Height="8" MinHeight="8" MinWidth="0" Minimum="0" Maximum="1"
+                                             Value="{Binding ProgressFraction}" ShowProgressText="False"/>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Flowchart style: the original node-and-edge drawing, kept because it is the
+                             only view that shows how the stages depend on one another. -->
+                        <Border IsVisible="{Binding IsPipeFlowchart}" BorderBrush="{StaticResource BorderSoft}"
+                                BorderThickness="1" CornerRadius="10" Background="{StaticResource Surface1}">
+                            <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="12"/>
+                        </Border>
+
+                        <ItemsControl IsVisible="{Binding IsPipeRows}" ItemsSource="{Binding PipelineRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PipelineRowViewModel">
+                                    <Border Margin="{Binding Indent}" Padding="{Binding Pad}"
+                                            CornerRadius="{Binding Radius}" Background="{Binding Background}"
+                                            BorderBrush="{Binding Line}" BorderThickness="1">
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="Auto,Auto,*,Auto,Auto,Auto,Auto">
+                                                <!-- Rings style: a ring in place of the stage number. -->
+                                                <Panel Grid.Column="0" IsVisible="{Binding ShowRing}"
+                                                       Width="{Binding RingSize}" Height="{Binding RingSize}" Margin="0,0,12,0">
+                                                    <Ellipse Stroke="{StaticResource Surface3}" StrokeThickness="3"
+                                                             Width="{Binding RingSize}" Height="{Binding RingSize}"/>
+                                                    <Arc Stroke="{Binding Fill}" StrokeThickness="3" StartAngle="-90"
+                                                         SweepAngle="{Binding Sweep}" StrokeLineCap="Round"
+                                                         Width="{Binding RingSize}" Height="{Binding RingSize}"/>
+                                                    <TextBlock Text="{Binding PercentText}" FontSize="8" FontWeight="SemiBold"
+                                                               FontFamily="{StaticResource FontMono}" Foreground="{Binding Foreground}"
+                                                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                </Panel>
+                                                <TextBlock Grid.Column="1" Text="{Binding Number}" IsVisible="{Binding ShowNumber}"
+                                                           Width="14" FontSize="10" FontFamily="{StaticResource FontMono}"
+                                                           Foreground="{StaticResource Text3}" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                <TextBlock Grid.Column="2" Text="{Binding Name}" FontSize="{Binding NameSize}"
+                                                           FontWeight="{Binding NameWeight}" Foreground="{Binding Foreground}"
+                                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="3" IsVisible="{Binding ShowBlocks}" VerticalAlignment="Center"
+                                                           FontFamily="{StaticResource FontMono}" FontSize="11" Margin="8,0">
+                                                    <Run Text="{Binding MeterOn}" Foreground="{Binding Fill}"/><Run Text="{Binding MeterOff}" Foreground="{StaticResource SurfaceHi}"/>
+                                                </TextBlock>
+                                                <TextBlock Grid.Column="4" Text="{Binding FramesText}" FontSize="10.5"
+                                                           FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"
+                                                           VerticalAlignment="Center" Margin="8,0"/>
+                                                <TextBlock Grid.Column="5" Text="{Binding PercentText}" FontSize="10.5" Width="52"
+                                                           TextAlignment="Right" FontFamily="{StaticResource FontMono}"
+                                                           Foreground="{Binding Foreground}" VerticalAlignment="Center"/>
+                                                <TextBlock Grid.Column="6" Text="{Binding Tag}" FontSize="10.5" Width="52"
+                                                           TextAlignment="Right" FontFamily="{StaticResource FontMono}"
+                                                           Foreground="{Binding TagColor}" VerticalAlignment="Center"/>
+                                            </Grid>
+                                            <ProgressBar IsVisible="{Binding ShowBar}" Height="3" MinHeight="3" MinWidth="0"
+                                                         Margin="26,0,0,0" Minimum="0" Maximum="1" Value="{Binding Fraction}"
+                                                         Foreground="{Binding Fill}" Background="{StaticResource Surface3}"
+                                                         ShowProgressText="False"/>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                    </StackPanel>
+                </ScrollViewer>
 
                 <!-- In-app enlarged photo overlay (keeps chrome visible) -->
                 <Border IsVisible="{Binding IsEnlarged}" Background="#E61C1B18">
@@ -1445,9 +1953,10 @@
                     </DockPanel>
                 </Border>
             </Panel>
+            </DockPanel>
 
-            <!-- ===== RIGHT PANEL ===== -->
-            <Border Grid.Column="2" Background="{StaticResource Surface1}"
+            <!-- ===== INSPECTOR (right panel) ===== -->
+            <Border Grid.Column="3" Background="{StaticResource Surface1}"
                     BorderBrush="{StaticResource BorderSoft}" BorderThickness="1,0,0,0">
                 <DockPanel>
                     <Panel>
@@ -1460,12 +1969,18 @@
                                        Foreground="{StaticResource Text3}" FontSize="12" TextWrapping="Wrap"
                                        TextAlignment="Center" HorizontalAlignment="Center" VerticalAlignment="Center"
                                        Margin="24"/>
-                            <StackPanel Spacing="12" Margin="14" IsVisible="{Binding HasSelection}">
-                                <Border CornerRadius="9" ClipToBounds="True" Background="{StaticResource Surface3}">
+                            <StackPanel Spacing="14" Margin="16" IsVisible="{Binding HasSelection}">
+                                <Border CornerRadius="10" ClipToBounds="True" Background="{StaticResource Surface3}">
                                     <Panel Height="260">
                                         <Image Source="{Binding DetailPreview}" Stretch="Uniform" DoubleTapped="OnPreviewDoubleTapped"/>
                                     </Panel>
                                 </Border>
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="{Binding SelectedPhoto.Title}" FontFamily="{StaticResource FontMono}"
+                                               FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding DetailHeadline}" FontSize="12" TextWrapping="Wrap"
+                                               Foreground="{StaticResource Text2}"/>
+                                </StackPanel>
                                 <StackPanel Orientation="Horizontal" Spacing="6">
                                     <Button Classes="ghost" Content="Enlarge" Click="OnFullscreenClick"
                                             ToolTip.Tip="Enlarge in-app ( F ) — scroll to zoom, drag to pan, Esc to close"/>
@@ -1511,14 +2026,19 @@
                                 <TextBlock Text="{Binding DetailRating}" Foreground="{StaticResource Text2}" TextWrapping="Wrap" FontSize="11"/>
                                 <TextBlock Text="{Binding DetailExif}" Foreground="{StaticResource Text3}" TextWrapping="Wrap" FontSize="11"/>
 
-                                <TextBlock Text="METRICS" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
+                                <TextBlock Text="METRICS" FontWeight="SemiBold" FontSize="9.5" FontFamily="{StaticResource FontMono}"
+                                           Foreground="{StaticResource Text3}"/>
+                                <!-- Kept as one mono block rather than the design's six metric cards:
+                                     the block carries every metric the analysis produced, and a fixed
+                                     grid of six would have to drop the rest. -->
                                 <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
-                                        BorderThickness="1" CornerRadius="6" Padding="11">
+                                        BorderThickness="1" CornerRadius="8" Padding="13">
                                     <TextBlock Text="{Binding DetailMetrics}" FontFamily="{StaticResource FontMono}"
-                                               FontSize="11" TextWrapping="Wrap" Foreground="{StaticResource Text1}"/>
+                                               FontSize="11.5" LineHeight="18" TextWrapping="Wrap" Foreground="{StaticResource Text1}"/>
                                 </Border>
 
-                                <TextBlock Text="SCORES (BY MODEL)" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
+                                <TextBlock Text="SCORES (BY MODEL)" FontWeight="SemiBold" FontSize="9.5" FontFamily="{StaticResource FontMono}"
+                                           Foreground="{StaticResource Text3}"/>
                                 <ItemsControl ItemsSource="{Binding DetailScores}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
@@ -1531,18 +2051,20 @@
                                 <!-- AI critique (#2/#3/#4): Claude's verdict + every model's commentary,
                                      what works and what doesn't. Hidden when no model has spoken yet. -->
                                 <TextBlock Text="AI CRITIQUE — WHAT WORKS / WHAT DOESN'T" FontWeight="SemiBold"
-                                           FontSize="11" Foreground="{StaticResource Text3}"
+                                           FontSize="9.5" FontFamily="{StaticResource FontMono}"
+                                           Foreground="{StaticResource Text3}"
                                            IsVisible="{Binding HasDetailComments}"/>
                                 <ItemsControl ItemsSource="{Binding DetailComments}" IsVisible="{Binding HasDetailComments}">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:CritiqueLine">
                                             <Border Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
-                                                    BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,2">
-                                                <StackPanel Spacing="3">
-                                                    <TextBlock Text="{Binding Author}" FontWeight="SemiBold" FontSize="10.5"
+                                                    BorderThickness="1" CornerRadius="8" Padding="12,11" Margin="0,3">
+                                                <StackPanel Spacing="4">
+                                                    <TextBlock Text="{Binding Author}" FontWeight="SemiBold" FontSize="9.5"
+                                                               FontFamily="{StaticResource FontMono}"
                                                                Foreground="{StaticResource Accent}"/>
-                                                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" FontSize="11.5"
-                                                               Foreground="{StaticResource Text1}"/>
+                                                    <TextBlock Text="{Binding Body}" TextWrapping="Wrap" FontSize="12"
+                                                               LineHeight="19" Foreground="{StaticResource Text1}"/>
                                                 </StackPanel>
                                             </Border>
                                         </DataTemplate>
@@ -1550,7 +2072,8 @@
                                 </ItemsControl>
 
                                 <TextBlock Text="MY NOTES (saved to On1 description + .txt)" FontWeight="SemiBold"
-                                           FontSize="11" Foreground="{StaticResource Text3}"/>
+                                           FontSize="9.5" FontFamily="{StaticResource FontMono}"
+                                           Foreground="{StaticResource Text3}"/>
                                 <TextBox Text="{Binding NotesText}" AcceptsReturn="True" Height="90"
                                          FontFamily="{StaticResource FontSans}" TextWrapping="Wrap"
                                          Watermark="Your own thoughts on this image…"/>

@@ -48,6 +48,15 @@ public partial class PhotoTileViewModel : ViewModelBase
     [ObservableProperty] private string _aestheticScoreText = "—";
     [ObservableProperty] private IBrush _technicalColor = Brushes.Transparent;
     [ObservableProperty] private IBrush _aestheticColor = Brushes.Transparent;
+    // The same two fractions, pre-rendered for the card styles that aren't a bar: a sweep angle for
+    // the "Rings" arcs and a ten-cell block string for "Meter". Derived here rather than in a
+    // converter so all four card styles read one already-clamped number (see SetTechnical).
+    [ObservableProperty] private double _technicalSweep;
+    [ObservableProperty] private double _aestheticSweep;
+    [ObservableProperty] private string _technicalMeterOn = "";
+    [ObservableProperty] private string _technicalMeterOff = MeterEmpty;
+    [ObservableProperty] private string _aestheticMeterOn = "";
+    [ObservableProperty] private string _aestheticMeterOff = MeterEmpty;
     [ObservableProperty] private string _modelsText = "";
     [ObservableProperty] private IBrush _statusBorder = CardBorder;
     [ObservableProperty] private IBrush _reasonDot = Brushes.Transparent;
@@ -290,6 +299,7 @@ public partial class PhotoTileViewModel : ViewModelBase
             TechnicalFraction = Math.Clamp(v, 0, 1);
             TechnicalScoreText = ScoreDisplay.Format(v);
             TechnicalColor = v >= 0.78 ? PickBrush : v >= 0.55 ? StarBrush : RejectBrush;
+            SetTechnicalShapes(TechnicalFraction);
         }
         else
         {
@@ -297,6 +307,7 @@ public partial class PhotoTileViewModel : ViewModelBase
             TechnicalFraction = 0;
             TechnicalScoreText = "—";
             TechnicalColor = Brushes.Transparent;
+            SetTechnicalShapes(0);
         }
     }
 
@@ -311,6 +322,7 @@ public partial class PhotoTileViewModel : ViewModelBase
             AestheticFraction = Math.Clamp(v, 0, 1);
             AestheticScoreText = ScoreDisplay.Format(v);
             AestheticColor = v >= 0.78 ? PickBrush : v >= 0.55 ? StarBrush : RejectBrush;
+            SetAestheticShapes(AestheticFraction);
         }
         else
         {
@@ -318,7 +330,31 @@ public partial class PhotoTileViewModel : ViewModelBase
             AestheticFraction = 0;
             AestheticScoreText = "—";
             AestheticColor = Brushes.Transparent;
+            SetAestheticShapes(0);
         }
+    }
+
+    // ---- Card indicator shapes (design v2): the ring sweep and the block meter ----
+    private const string MeterEmpty = "░░░░░░░░░░";
+
+    /// <summary>Ten cells, so a fraction reads as a coarse bar even in a mono font. Rounds rather
+    /// than truncates: 0.95 should look full, not one cell short.</summary>
+    private static (string On, string Off) Meter(double fraction)
+    {
+        var n = Math.Clamp((int)Math.Round(fraction * 10), 0, 10);
+        return (new string('█', n), new string('░', 10 - n));
+    }
+
+    private void SetTechnicalShapes(double fraction)
+    {
+        TechnicalSweep = fraction * 360;
+        (TechnicalMeterOn, TechnicalMeterOff) = Meter(fraction);
+    }
+
+    private void SetAestheticShapes(double fraction)
+    {
+        AestheticSweep = fraction * 360;
+        (AestheticMeterOn, AestheticMeterOff) = Meter(fraction);
     }
 
     private void RefreshPipelineStrip()

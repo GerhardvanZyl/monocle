@@ -12,6 +12,29 @@ public static class FolderScanner
     /// Scan <paramref name="folderPath"/> (non-recursive) and return one PhotoItem per frame.
     /// When <paramref name="foldPairs"/> is false, RAW and JPG are returned as separate items.
     /// </summary>
+    /// <summary>How many frames <see cref="Scan"/> would find in this folder, without decoding
+    /// anything or reading a sidecar — just the file names. Used to tell a catalogued shoot that
+    /// has grown on disk from one that hasn't, which has to count frames the way the scan does: with
+    /// folding on, a RAW+JPG pair is one frame and two files, so counting files would report every
+    /// pair-shooting folder as having twice as many images as it was scanned with.
+    /// Returns 0 for a folder that has gone away or can't be read.</summary>
+    public static int CountFrames(string folderPath, bool foldPairs = true)
+    {
+        try
+        {
+            var files = Directory.EnumerateFiles(folderPath)
+                .Where(p => SupportedFormats.IsSupported(Path.GetExtension(p)));
+            return foldPairs
+                ? files.Select(Path.GetFileNameWithoutExtension)
+                       .Distinct(StringComparer.OrdinalIgnoreCase).Count()
+                : files.Count();
+        }
+        catch
+        {
+            return 0;
+        }
+    }
+
     public static IReadOnlyList<PhotoItem> Scan(string folderPath, bool foldPairs = true)
     {
         if (!Directory.Exists(folderPath))
