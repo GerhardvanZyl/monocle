@@ -109,24 +109,24 @@ public partial class MainWindowViewModel
         MarkCataloguedNodes();
     }
 
+    /// <summary>The favourites to show. Once the user has edited the list, settings holds all of it
+    /// - otherwise removing Pictures would only bring it back on the next start. The three shell
+    /// folders are the seed for a settings file that has never had one saved.</summary>
     private IEnumerable<string> DefaultFavourites()
     {
-        var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
-        foreach (var folder in new[]
-                 {
-                     Environment.SpecialFolder.DesktopDirectory,
-                     Environment.SpecialFolder.MyPictures,
-                     Environment.SpecialFolder.MyDocuments,
-                 })
-        {
-            var path = Environment.GetFolderPath(folder);
-            if (!string.IsNullOrEmpty(path) && seen.Add(path))
-                yield return path;
-        }
+        if (_settings.Favourites.Count > 0)
+            return _settings.Favourites.Where(p => !string.IsNullOrWhiteSpace(p))
+                                       .Distinct(StringComparer.OrdinalIgnoreCase);
 
-        foreach (var path in _settings.Favourites)
-            if (!string.IsNullOrWhiteSpace(path) && seen.Add(path))
-                yield return path;
+        return new[]
+            {
+                Environment.SpecialFolder.DesktopDirectory,
+                Environment.SpecialFolder.MyPictures,
+                Environment.SpecialFolder.MyDocuments,
+            }
+            .Select(Environment.GetFolderPath)
+            .Where(p => !string.IsNullOrEmpty(p))
+            .Distinct(StringComparer.OrdinalIgnoreCase);
     }
 
     private static IEnumerable<FolderNodeViewModel> DriveRoots()
@@ -427,9 +427,29 @@ public partial class MainWindowViewModel
             return;
 
         Favourites.Add(new FolderNodeViewModel(Path.GetFileName(path.TrimEnd('\\', '/')), path, 0, isDrive: false));
-        _settings.Favourites.Add(path);
-        _settings.Save();
+        MarkCataloguedNodes();
+        SaveFavourites();
         StatusText = $"Added to favourites · {path}";
+    }
+
+    [RelayCommand]
+    private void RemoveFavourite(string? path)
+    {
+        var node = Favourites.FirstOrDefault(f => string.Equals(f.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (node is null)
+            return;
+
+        Favourites.Remove(node);
+        SaveFavourites();
+        StatusText = $"Removed from favourites (folder untouched) - {node.Path}";
+    }
+
+    /// <summary>Persist the whole favourites list, not just the added ones: a removed shell folder
+    /// has to stay removed, and it can only do that if settings describes the list in full.</summary>
+    private void SaveFavourites()
+    {
+        _settings.Favourites = Favourites.Select(f => f.Path).ToList();
+        _settings.Save();
     }
 
     /// <summary>Write the catalog's current counts back to settings. Called on every mutation — the

@@ -454,18 +454,21 @@
                                                 <Button.ContextFlyout>
                                                     <MenuFlyout>
                                                         <MenuItem Header="Add to catalog and open"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogAndOpenCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddToCatalogAndOpenCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to catalog"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to catalog with subfolders"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddTreeToCatalogCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddTreeToCatalogCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Open in File Explorer"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
                                                                   CommandParameter="{Binding Path}"/>
-                                                    </MenuFlyout>
+                                                    <MenuItem Header="Remove from favourites"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveFavouriteCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
+                                                        </MenuFlyout>
                                                 </Button.ContextFlyout>
                                             </Button>
                                         </DataTemplate>
@@ -504,19 +507,19 @@
                                                 <Button.ContextFlyout>
                                                     <MenuFlyout>
                                                         <MenuItem Header="Add to catalog and open"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogAndOpenCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddToCatalogAndOpenCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to catalog"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to catalog with subfolders"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddTreeToCatalogCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddTreeToCatalogCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to favourites"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddFavouriteCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).AddFavouriteCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Open in File Explorer"
-                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
+                                                                  Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
                                                                   CommandParameter="{Binding Path}"/>
                                                     </MenuFlyout>
                                                 </Button.ContextFlyout>
@@ -571,16 +574,16 @@
                                             <Button.ContextFlyout>
                                                 <MenuFlyout>
                                                     <MenuItem Header="Refresh now"
-                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenCatalogEntryCommand}"
+                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenCatalogEntryCommand}"
                                                               CommandParameter="{Binding}"/>
                                                     <MenuItem Header="Show in Folders"
-                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RevealInTreeCommand}"
+                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RevealInTreeCommand}"
                                                               CommandParameter="{Binding Path}"/>
                                                     <MenuItem Header="Open in File Explorer"
-                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
+                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenInExplorerCommand}"
                                                               CommandParameter="{Binding Path}"/>
                                                     <MenuItem Header="Remove from catalog (keeps files)"
-                                                              Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).RemoveFromCatalogCommand}"
+                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RemoveFromCatalogCommand}"
                                                               CommandParameter="{Binding}"/>
                                                 </MenuFlyout>
                                             </Button.ContextFlyout>
