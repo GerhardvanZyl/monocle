@@ -3,6 +3,7 @@
         xmlns:vm="using:Monocle.App.ViewModels"
         xmlns:ctl="using:Monocle.App.Controls"
         xmlns:conv="using:Monocle.App.Converters"
+        xmlns:mm="using:Monocle.Models"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1440" d:DesignHeight="900"
@@ -769,8 +770,6 @@
                                 ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
                         <TextBlock Text="GPU build: set the compute target in Settings → Python sidecar before installing deps."
                                    Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
-                        <TextBlock Text="Rows marked (unavailable) are models Monocle knows about but can&apos;t run on this machine — the amber line says what stands in the way."
-                                   Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
                         <ItemsControl ItemsSource="{Binding Models}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ModelOptionViewModel">
@@ -781,11 +780,6 @@
                                             <TextBlock Text="{Binding Header}" FontSize="12"/>
                                             <TextBlock Text="{Binding Description}" FontSize="10"
                                                        Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
-                                            <!-- Catalogue-only entries (#9): models worth knowing about that this
-                                                 machine can't run. The blocker is the whole point of the row. -->
-                                            <TextBlock Text="{Binding BlockedReason}" IsVisible="{Binding IsBlocked}"
-                                                       FontSize="10" Foreground="{StaticResource LabYellow}"
-                                                       TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
                                                 <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
                                                         IsVisible="{Binding ShowInstall}" IsEnabled="{Binding CanInstall}"
@@ -816,6 +810,52 @@
                                         <TextBlock Grid.Column="2" Text="{Binding ResourceText}" FontSize="10"
                                                    Foreground="{StaticResource Accent}" VerticalAlignment="Top" Margin="4,0,0,0"/>
                                     </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <Rectangle Height="1" Fill="{StaticResource BorderSoft}" Margin="0,4"/>
+
+                        <!-- ===== NOT RUNNABLE HERE (#9): models worth knowing about that this machine
+                             can't run, grouped by what blocks them — the blocker is shared far more often
+                             than it is unique, and one amber line over eight rows beats eight copies of it.
+                             They can't be ticked, installed or weighted, so they sit below the picker
+                             rather than greyed out inside it. ===== -->
+                        <TextBlock Text="NOT RUNNABLE HERE" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
+                        <TextBlock Text="Models Monocle knows about but can&apos;t run on this machine. Each group leads with the reason."
+                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
+                        <ItemsControl ItemsSource="{Binding BlockedModelGroups}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="mm:BlockedModelGroup">
+                                    <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6"
+                                            Padding="10,8" Margin="0,0,0,8">
+                                        <StackPanel Spacing="6">
+                                            <TextBlock Text="{Binding Reason}" FontSize="10.5" TextWrapping="Wrap"
+                                                       Foreground="{StaticResource LabYellow}"/>
+                                            <ItemsControl ItemsSource="{Binding Models}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate x:DataType="mm:ModelDescriptor">
+                                                        <Grid Margin="0,3" ToolTip.Tip="{Binding Tradeoffs}">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding DisplayName}" FontSize="12"
+                                                                           Foreground="{StaticResource Text2}"/>
+                                                                <TextBlock Text="{Binding Description}" FontSize="10"
+                                                                           Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
+                                                                <!-- Only the models whose situation differs from the group's carry a line here. -->
+                                                                <TextBlock Text="{Binding UnavailableReason}" FontSize="10"
+                                                                           Foreground="{StaticResource LabYellow}" TextWrapping="Wrap"
+                                                                           Margin="0,2,0,0"
+                                                                           IsVisible="{Binding UnavailableReason, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                                <Button Content="model card ↗" FontSize="10" Padding="6,1" Margin="0,3,0,0"
+                                                                        HorizontalAlignment="Left" ToolTip.Tip="{Binding InfoUrl}"
+                                                                        Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenUrlCommand}"
+                                                                        CommandParameter="{Binding InfoUrl}"/>
+                                                            </StackPanel>
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </Border>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

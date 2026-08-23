@@ -170,6 +170,11 @@ public partial class MainWindowViewModel : ViewModelBase
     /// <summary>Selectable scorer models (everything except the always-on heuristic rater).</summary>
     public ObservableCollection<ModelOptionViewModel> Models { get; }
 
+    /// <summary>Models Monocle knows about but can't run here, grouped by what blocks them (#9).
+    /// Fixed at compile time — nothing about them can change while the app runs — so they are
+    /// catalogue rows below the picker rather than unavailable entries inside it.</summary>
+    public IReadOnlyList<BlockedModelGroup> BlockedModelGroups => UnsupportedModelCatalog.Groups;
+
     // InitModelsAsync runs from the constructor, StartSidecarAsync and InstallModelAsync's finally,
     // and `await`s availability probes mid-rebuild. Serialize it so two invocations can't interleave
     // their Clear()/Add() and corrupt the bound Models collection.
@@ -193,9 +198,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 var available = await runner.IsAvailableAsync();
                 if (!available && _unavailableLogged.Add(runner.Descriptor.Id))
                     Diagnostics.Log.Info(
-                        runner.Descriptor.UnavailableReason is { } why
-                        ? $"[models] {runner.Descriptor.DisplayName} not runnable here — {why}"
-                        : runner is Monocle.Models.Onnx.OnnxScoreRunner onnx
+                        runner is Monocle.Models.Onnx.OnnxScoreRunner onnx
                         ? $"[models] {runner.Descriptor.DisplayName} unavailable — weights file not found: {onnx.ModelPath}"
                         : $"[models] {runner.Descriptor.DisplayName} unavailable (not installed / sidecar not ready)");
                 if (existing.TryGetValue(runner.Descriptor.Id, out var vm))
@@ -630,9 +633,7 @@ public partial class MainWindowViewModel : ViewModelBase
             EffectiveWeight(_settings.TechnicalWeights, defaults.Technical, ScoreCompositor.PixelTechnicalId),
             OnWeightRowChanged));
 
-        // Catalogue-only entries (#9) never produce a score, so they get no weight row to tune.
-        foreach (var d in _registry.All.Select(r => r.Descriptor)
-                     .Where(d => d.ScaleMax is not null && d.UnavailableReason is null))
+        foreach (var d in _registry.All.Select(r => r.Descriptor).Where(d => d.ScaleMax is not null))
         {
             if (d.OutputKind is ScoreKind.Technical or ScoreKind.Quality)
                 TechnicalWeightRows.Add(new WeightRowViewModel(d.Id, d.DisplayName,
