@@ -439,6 +439,8 @@
                                 <TextBlock Grid.Column="1" Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="11" Opacity="0.6"/>
                             </Grid>
                         </Button>
+                        <Button Classes="nav" Classes.on="{Binding IsFilmstrip}" Command="{Binding GoViewCommand}" CommandParameter="Filmstrip"
+                                Content="▬  Filmstrip"/>
                         <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
                                 Content="▤  Folder overview"/>
                         <Button Classes="nav" Flyout="{StaticResource PipelineFlyout}" Content="⛓  Pipeline"
@@ -499,6 +501,8 @@
                                 <TextBlock Grid.Column="1" Text="{Binding Total}" FontFamily="{StaticResource FontMono}" FontSize="11" Opacity="0.6"/>
                             </Grid>
                         </Button>
+                        <Button Classes="nav" Classes.on="{Binding IsFilmstrip}" Command="{Binding GoViewCommand}" CommandParameter="Filmstrip"
+                                Content="▬  Filmstrip"/>
                         <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
                                 Content="▤  Folder overview"/>
                         <Button Classes="nav" Flyout="{StaticResource PipelineFlyout}" Content="⛓  Pipeline"
@@ -1231,6 +1235,68 @@
                         </Border>
                     </StackPanel>
                 </ScrollViewer>
+
+                <!-- FILMSTRIP: one big frame plus a horizontal strip of its neighbours (#7).
+                     Shares SelectedPhoto (and therefore DetailPreview, the right pane, the star
+                     keys and ←/→) with the grid, so switching views never loses your place. -->
+                <DockPanel IsVisible="{Binding IsFilmstrip}">
+                    <Border DockPanel.Dock="Bottom" Height="132" Background="{StaticResource Surface1}"
+                            BorderBrush="{StaticResource BorderSoft}" BorderThickness="0,1,0,0">
+                        <!-- Selection is NOT bound to SelectedItem: ApplyFilter clears VisiblePhotos on
+                             every rating, and the ListBox would push that transient empty selection back
+                             into SelectedPhoto and blank the pane. Tiles report clicks themselves, exactly
+                             as the grid's do, and the view scrolls the strip on selection instead. -->
+                        <ListBox x:Name="Filmstrip" ItemsSource="{Binding VisiblePhotos}"
+                                 Background="Transparent" Padding="8,10"
+                                 ScrollViewer.HorizontalScrollBarVisibility="Auto"
+                                 ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                            <ListBox.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <VirtualizingStackPanel Orientation="Horizontal"/>
+                                </ItemsPanelTemplate>
+                            </ListBox.ItemsPanel>
+                            <ListBox.Styles>
+                                <Style Selector="ListBoxItem">
+                                    <Setter Property="Padding" Value="0"/>
+                                    <Setter Property="Background" Value="Transparent"/>
+                                </Style>
+                                <Style Selector="ListBoxItem:selected /template/ ContentPresenter#PART_ContentPresenter">
+                                    <Setter Property="Background" Value="Transparent"/>
+                                </Style>
+                            </ListBox.Styles>
+                            <ListBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PhotoTileViewModel">
+                                    <Border BorderBrush="{Binding SelectionBrush}" BorderThickness="2"
+                                            CornerRadius="7" Margin="3" Padding="0"
+                                            PointerPressed="OnTilePressed" DoubleTapped="OnTileDoubleTapped">
+                                        <Border Background="{StaticResource Surface2}" ClipToBounds="True"
+                                                BorderBrush="{Binding StatusBorder}" BorderThickness="2" CornerRadius="5">
+                                            <StackPanel Width="128">
+                                                <Panel Height="74" Background="{StaticResource Surface3}">
+                                                    <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
+                                                </Panel>
+                                                <Grid ColumnDefinitions="*,Auto" Margin="5,3">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Title}" FontSize="9.5"
+                                                               FontFamily="{StaticResource FontMono}" TextTrimming="CharacterEllipsis"
+                                                               VerticalAlignment="Center" Margin="0,0,4,0"/>
+                                                    <TextBlock Grid.Column="1" Text="{Binding StarsFilled}"
+                                                               Foreground="{StaticResource Star}" FontSize="9.5"/>
+                                                </Grid>
+                                            </StackPanel>
+                                        </Border>
+                                    </Border>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                    </Border>
+                    <Panel Background="{StaticResource Bg}">
+                        <Image Source="{Binding DetailPreview}" Stretch="Uniform" Margin="18"
+                               DoubleTapped="OnPreviewDoubleTapped"/>
+                        <TextBlock IsVisible="{Binding !HasSelection}" Text="Nothing to show — scan a folder first."
+                                   Foreground="{StaticResource Text3}" FontSize="12"
+                                   HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Panel>
+                </DockPanel>
 
                 <!-- DESIGN SYSTEM -->
                 <ScrollViewer IsVisible="{Binding IsDesign}">

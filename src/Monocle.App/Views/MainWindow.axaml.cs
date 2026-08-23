@@ -17,12 +17,14 @@ public partial class MainWindow : Window
 {
     private ListBox? _grid;
     private ListBox? _consoleList;
+    private ListBox? _filmstrip;
 
     public MainWindow()
     {
         InitializeComponent();
         _grid = this.FindControl<ListBox>("PhotoGrid");
         _consoleList = this.FindControl<ListBox>("ConsoleList");
+        _filmstrip = this.FindControl<ListBox>("Filmstrip");
         AddHandler(KeyDownEvent, OnKeyDown, RoutingStrategies.Tunnel);
         DataContextChanged += OnDataContextChanged;
     }
@@ -52,6 +54,19 @@ public partial class MainWindow : Window
     {
         if (e.PropertyName == nameof(MainWindowViewModel.ThumbSize) && Vm is not null)
             ApplyTileMetrics(Vm.ThumbSize);
+        // The strip doesn't own the selection (see MainWindow.axaml), so it has to follow it — the
+        // selection moves from the keys, the grid, an undo, and a jump-to-reject (#7).
+        if (e.PropertyName is nameof(MainWindowViewModel.SelectedPhoto) or nameof(MainWindowViewModel.View))
+            ScrollFilmstripToSelection();
+    }
+
+    private void ScrollFilmstripToSelection()
+    {
+        if (Vm is not { IsFilmstrip: true, SelectedPhoto: { } tile })
+            return;
+        var index = Vm.VisiblePhotos.IndexOf(tile);
+        if (index >= 0)
+            _filmstrip?.ScrollIntoView(index);
     }
 
     /// <summary>Push the toolbar thumbnail-size into the DynamicResources the tile template binds (#8),
@@ -208,11 +223,15 @@ public partial class MainWindow : Window
             case Key.OemCloseBrackets: Vm.RotateRightCommand.Execute(null); e.Handled = true; break;
             case Key.Left or Key.H: MoveSelection(-1); e.Handled = true; break;
             case Key.Right or Key.L: MoveSelection(1); e.Handled = true; break;
-            // In the Rejects view there is no grid (one column), so Up/Down page by one like Left/Right.
-            case Key.Up: MoveSelection(Vm.IsRejectsView ? -1 : -Math.Max(1, Vm.Columns)); e.Handled = true; break;
-            case Key.Down: MoveSelection(Vm.IsRejectsView ? 1 : Math.Max(1, Vm.Columns)); e.Handled = true; break;
+            // Rejects (one column) and the Filmstrip (one row) have no grid to page by, so Up/Down
+            // move a single frame there, same as Left/Right.
+            case Key.Up: MoveSelection(SingleFileView ? -1 : -Math.Max(1, Vm.Columns)); e.Handled = true; break;
+            case Key.Down: MoveSelection(SingleFileView ? 1 : Math.Max(1, Vm.Columns)); e.Handled = true; break;
         }
     }
+
+    /// <summary>Views that lay frames out in a single line, where paging by a grid row is meaningless.</summary>
+    private bool SingleFileView => Vm is { } vm && (vm.IsRejectsView || vm.IsFilmstrip);
 
     /// <summary>Scroll the (row-virtualized) grid to a tile an undo/redo just changed, so the user
     /// sees which frame moved even when it is off screen. No-op outside the Browse grid, whose
@@ -246,10 +265,11 @@ public partial class MainWindow : Window
         var next = Math.Clamp(index + delta, 0, list.Count - 1);
         Vm.SelectedPhoto = list[next];
 
-        if (!Vm.IsRejectsView)
+        if (Vm.IsBrowse)
         {
             // Scroll the row containing the new selection into view (the ListBox virtualizes rows).
-            // The Rejects view is a plain (non-virtualized) ItemsControl, so no scroll call is needed.
+            // Rejects is a plain (non-virtualized) ItemsControl and the filmstrip scrolls itself, so
+            // neither needs a call here.
             var cols = Math.Max(1, Vm.Columns);
             var rowIndex = next / cols;
             if (rowIndex >= 0 && rowIndex < Vm.PhotoRows.Count)

@@ -348,10 +348,12 @@ public partial class MainWindowViewModel : ViewModelBase
     // ---- Navigation: left-rail center view + right-panel tab (Photo Critic layout, #8) ----
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsBrowse), nameof(IsOverview), nameof(IsRejectsView),
-                              nameof(IsSettings), nameof(IsDesign), nameof(IsAiCull), nameof(ViewTitle))]
+                              nameof(IsSettings), nameof(IsDesign), nameof(IsAiCull),
+                              nameof(IsFilmstrip), nameof(ViewTitle))]
     private CenterView _view = CenterView.Browse;
 
     public bool IsBrowse => View == CenterView.Browse;
+    public bool IsFilmstrip => View == CenterView.Filmstrip;
     public bool IsOverview => View == CenterView.Overview;
     public bool IsRejectsView => View == CenterView.Rejects;
     public bool IsSettings => View == CenterView.Settings;
@@ -360,6 +362,7 @@ public partial class MainWindowViewModel : ViewModelBase
 
     public string ViewTitle => View switch
     {
+        CenterView.Filmstrip => "Filmstrip",
         CenterView.Overview => "Folder overview",
         CenterView.Rejects => "Reject management",
         CenterView.Settings => "Settings",
@@ -376,6 +379,9 @@ public partial class MainWindowViewModel : ViewModelBase
     partial void OnViewChanged(CenterView oldValue, CenterView newValue)
     {
         if (newValue == CenterView.Rejects) RefreshRejectList();
+        // The filmstrip is all preview and no metadata, so it needs a selection to show anything.
+        if (newValue == CenterView.Filmstrip && SelectedPhoto is null && VisiblePhotos.Count > 0)
+            SelectedPhoto = VisiblePhotos[0];
         // The shoot-wide revert count is O(frames), so it's computed when its page is actually open.
         if (newValue == CenterView.AiCull) RefreshRevertState();
         // Guard against opening Settings twice in a row (or re-entrant sets) making "previous" be
@@ -2583,5 +2589,5 @@ public partial class MainWindowViewModel : ViewModelBase
 }
 
 /// <summary>The center pane's current page, chosen from the left navigation rail (#8).</summary>
-public enum CenterView { Browse, Overview, Rejects, Settings, Design, AiCull }
+public enum CenterView { Browse, Filmstrip, Overview, Rejects, Settings, Design, AiCull }
 
