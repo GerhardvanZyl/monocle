@@ -544,7 +544,7 @@
                             <TextBlock Text="frames" Foreground="{StaticResource Text2}" FontSize="12" Margin="2,0,0,0"/>
                             <TextBlock Text="ⓘ" Foreground="{StaticResource Text3}" FontSize="12.5" Margin="6,0,0,0"
                                        VerticalAlignment="Center" IsVisible="{Binding ExperimentalUi}"
-                                       ToolTip.Tip="TQ = technical quality from pixel metrics (sharpness, exposure, noise), 0–1. AES = aesthetic model score, 0–10 — tick a model in Score with AI models and Process to fill it. Stars are the final rating and do not have to follow TQ."/>
+                                       ToolTip.Tip="TQ = technical quality from pixel metrics (sharpness, exposure, noise). AES = aesthetic model score — tick a model in Score with AI models and Process to fill it. Both bars read 1–10 on the same colour ramp — the native scale of the scoring models. Stars are the final rating and do not have to follow either."/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                             <TextBlock Text="Sort" Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center"/>
@@ -719,22 +719,26 @@
                                                                     <TextBlock Text="{Binding StarsEmpty}" Foreground="{StaticResource Text3}" FontSize="12"/>
                                                                 </StackPanel>
                                                             </Grid>
-                                                            <Grid ColumnDefinitions="Auto,*,Auto,Auto,Auto,Auto">
-                                                                <TextBlock Grid.Column="0" Text="TQ" FontFamily="{StaticResource FontMono}"
+                                                            <!-- TQ over AES: same scale and colour ramp on both rows, so the pair reads
+                                                                 as one comparison rather than a bar next to a bare number (#3). MinWidth=0 because
+                                                                 the Fluent ProgressBar's 200px default would overflow the card. -->
+                                                            <Grid ColumnDefinitions="Auto,*,Auto" RowDefinitions="Auto,Auto" RowSpacing="4">
+                                                                <TextBlock Grid.Row="0" Grid.Column="0" Text="TQ" FontFamily="{StaticResource FontMono}"
                                                                            FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
-                                                                <!-- MinWidth=0: the Fluent ProgressBar defaults to a 200px min width, which would
-                                                                     overflow this star/score column and render the bar on top of the AES text (#4). -->
-                                                                <ProgressBar Grid.Column="1" Height="4" MinHeight="4" MinWidth="0" Margin="8,0"
+                                                                <ProgressBar Grid.Row="0" Grid.Column="1" Height="4" MinHeight="4" MinWidth="0" Margin="8,0"
                                                                              Minimum="0" Maximum="1" Value="{Binding TechnicalFraction}"
                                                                              Foreground="{Binding TechnicalColor}" Background="{StaticResource SurfaceHi}"
                                                                              ShowProgressText="False" VerticalAlignment="Center"/>
-                                                                <TextBlock Grid.Column="2" Text="{Binding TechnicalScoreText}"
+                                                                <TextBlock Grid.Row="0" Grid.Column="2" Text="{Binding TechnicalScoreText}"
                                                                            FontFamily="{StaticResource FontMono}" FontSize="10"
-                                                                           Foreground="{StaticResource Text2}" VerticalAlignment="Center" Margin="0,0,8,0"/>
-                                                                <Rectangle Grid.Column="3" Width="1" Height="11" Fill="{StaticResource BorderSoft}" Margin="0,0,8,0"/>
-                                                                <TextBlock Grid.Column="4" Text="AES" FontFamily="{StaticResource FontMono}"
-                                                                           FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center" Margin="0,0,5,0"/>
-                                                                <TextBlock Grid.Column="5" Text="{Binding AestheticScoreText}"
+                                                                           Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="0" Text="AES" FontFamily="{StaticResource FontMono}"
+                                                                           FontSize="9" Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                                                <ProgressBar Grid.Row="1" Grid.Column="1" Height="4" MinHeight="4" MinWidth="0" Margin="8,0"
+                                                                             Minimum="0" Maximum="1" Value="{Binding AestheticFraction}"
+                                                                             Foreground="{Binding AestheticColor}" Background="{StaticResource SurfaceHi}"
+                                                                             ShowProgressText="False" VerticalAlignment="Center"/>
+                                                                <TextBlock Grid.Row="1" Grid.Column="2" Text="{Binding AestheticScoreText}"
                                                                            FontFamily="{StaticResource FontMono}" FontSize="10"
                                                                            Foreground="{StaticResource Text2}" VerticalAlignment="Center"/>
                                                             </Grid>

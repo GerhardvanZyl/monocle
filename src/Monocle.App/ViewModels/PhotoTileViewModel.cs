@@ -41,8 +41,13 @@ public partial class PhotoTileViewModel : ViewModelBase
     // Card "TQ" bar + compact mono score strings used by the design's tile footer.
     [ObservableProperty] private double _technicalFraction;
     [ObservableProperty] private string _technicalScoreText = "—";
+    // AES gets the same bar treatment as TQ (#3): same scale, same colour thresholds, so the two
+    // bars under a thumbnail are directly comparable at a glance. Both fill 0..1 and print 1-10
+    // via ScoreDisplay — see there for why the readout is not the fill.
+    [ObservableProperty] private double _aestheticFraction;
     [ObservableProperty] private string _aestheticScoreText = "—";
     [ObservableProperty] private IBrush _technicalColor = Brushes.Transparent;
+    [ObservableProperty] private IBrush _aestheticColor = Brushes.Transparent;
     [ObservableProperty] private string _modelsText = "";
     [ObservableProperty] private IBrush _statusBorder = CardBorder;
     [ObservableProperty] private IBrush _reasonDot = Brushes.Transparent;
@@ -252,8 +257,7 @@ public partial class PhotoTileViewModel : ViewModelBase
 
         if (AestheticWeighted)
         {
-            AestheticText = composite.Aesthetic is { } wa ? $"A {wa:0.00}" : "";
-            AestheticScoreText = composite.Aesthetic is { } wa2 ? $"{wa2:0.00}" : "—";
+            SetAesthetic(composite.Aesthetic);
         }
         else
         {
@@ -262,8 +266,7 @@ public partial class PhotoTileViewModel : ViewModelBase
                 .Select(s => s.Normalized!.Value)
                 .DefaultIfEmpty(double.NaN)
                 .Average();
-            AestheticText = double.IsNaN(aesthetic) ? "" : $"A {aesthetic:0.00}";
-            AestheticScoreText = double.IsNaN(aesthetic) ? "—" : $"{aesthetic * 10:0.0}";
+            SetAesthetic(double.IsNaN(aesthetic) ? null : aesthetic);
         }
 
         ModelsText = string.Join(", ", Item.Scores.Select(s => s.ModelDisplayName).Distinct());
@@ -283,9 +286,9 @@ public partial class PhotoTileViewModel : ViewModelBase
     {
         if (tq is { } v)
         {
-            TechnicalText = $"T {v:0.00}";
+            TechnicalText = $"T {ScoreDisplay.Format(v)}";
             TechnicalFraction = Math.Clamp(v, 0, 1);
-            TechnicalScoreText = $"{v:0.00}";
+            TechnicalScoreText = ScoreDisplay.Format(v);
             TechnicalColor = v >= 0.78 ? PickBrush : v >= 0.55 ? StarBrush : RejectBrush;
         }
         else
@@ -294,6 +297,27 @@ public partial class PhotoTileViewModel : ViewModelBase
             TechnicalFraction = 0;
             TechnicalScoreText = "—";
             TechnicalColor = Brushes.Transparent;
+        }
+    }
+
+    /// <summary>AES counterpart of <see cref="SetTechnical"/>. Both axes are normalised 0..1 and both
+    /// print through <see cref="ScoreDisplay"/>, so the two bars share one scale — an AES reading
+    /// "7.2" beside a TQ reading "0.72" made the pair impossible to compare (#3).</summary>
+    private void SetAesthetic(double? aes)
+    {
+        if (aes is { } v)
+        {
+            AestheticText = $"A {ScoreDisplay.Format(v)}";
+            AestheticFraction = Math.Clamp(v, 0, 1);
+            AestheticScoreText = ScoreDisplay.Format(v);
+            AestheticColor = v >= 0.78 ? PickBrush : v >= 0.55 ? StarBrush : RejectBrush;
+        }
+        else
+        {
+            AestheticText = "";
+            AestheticFraction = 0;
+            AestheticScoreText = "—";
+            AestheticColor = Brushes.Transparent;
         }
     }
 

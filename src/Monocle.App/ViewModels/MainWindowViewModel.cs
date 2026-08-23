@@ -517,7 +517,9 @@ public partial class MainWindowViewModel : ViewModelBase
     [NotifyPropertyChangedFor(nameof(MinTqDisplay))]
     private double _minTq = 0.5;
 
-    public string MinTqDisplay => TqFilterEnabled ? $"{MinTq:0.00}" : "off";
+    // MinTq stays 0..1 (that is what PhotoQuery filters on and what settings persist); only the
+    // readout is 1-10, so the threshold reads as the same number the tile's TQ bar prints.
+    public string MinTqDisplay => TqFilterEnabled ? ScoreDisplay.Format(MinTq) : "off";
 
     partial void OnTqFilterEnabledChanged(bool value) => ApplyFilter();
     partial void OnMinTqChanged(double value) { if (TqFilterEnabled) ApplyFilter(); }
