@@ -8,7 +8,7 @@ dependencies are installed; torch/transformers are imported lazily on the first 
 
 Endpoints (JSON):
   GET  /health  -> {"status":"ok","models":[ids],"ready":[ids],"loaded":[ids]}
-  GET  /models  -> {"models":[{id,name,kind,scale_max,description,tradeoffs}, ...]}
+  GET  /models  -> {"models":[{id,name,kind,scale_max,description,tradeoffs,info_url}, ...]}
   POST /score   -> body {"model":id,"image_b64":...,"kind":"quality|aesthetic|critique"}
                    resp {"model":id,"value":float|null,"text":str|null,"kind":..,"scale_max":n}
 
@@ -41,6 +41,7 @@ CATALOG = [
                        "(Qwen2.5-VL-7B) when MONOCLE_QWEN_LLAMA_URL is set; otherwise loads "
                        "Qwen2-VL-7B in-process through transformers.",
         "tradeoffs": "Rich, flexible critique. Heavy; not a calibrated numeric score.",
+        "info_url": "https://huggingface.co/Qwen/Qwen2.5-VL-7B-Instruct",
     },
     {
         "id": "mage-vl",
@@ -53,6 +54,7 @@ CATALOG = [
                        "it produces commentary, not a calibrated numeric score.",
         "tradeoffs": "Rich, flexible critique. Heavy; not a calibrated numeric score. Loads through "
                      "transformers in-process only (no llama.cpp GPU route).",
+        "info_url": "https://huggingface.co/microsoft/Mage-VL",
     },
 ]
 

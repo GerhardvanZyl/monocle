@@ -14,6 +14,18 @@ public sealed record SidecarHealth(
     // don't send this; null there means "fall back to Models" (see SidecarRunner.IsAvailableAsync).
     [property: JsonPropertyName("ready")] string[]? Ready = null);
 
+/// <summary>One entry of the sidecar's own model catalog, as served by GET /models. This is the
+/// same shape python/server.py's CATALOG uses, so a model added there arrives here complete
+/// enough to build a picker row from (#28).</summary>
+public sealed record SidecarCatalogEntry(
+    [property: JsonPropertyName("id")] string Id,
+    [property: JsonPropertyName("name")] string Name,
+    [property: JsonPropertyName("kind")] string Kind,
+    [property: JsonPropertyName("scale_max")] double ScaleMax,
+    [property: JsonPropertyName("description")] string? Description = null,
+    [property: JsonPropertyName("tradeoffs")] string? Tradeoffs = null,
+    [property: JsonPropertyName("info_url")] string? InfoUrl = null);
+
 public sealed record SidecarScore(
     [property: JsonPropertyName("model")] string Model,
     [property: JsonPropertyName("value")] double? Value,
@@ -55,6 +67,24 @@ public sealed class SidecarClient : IDisposable
             return null;
         }
     }
+
+    /// <summary>The sidecar's model catalog. Empty when it isn't running or is too old to serve
+    /// /models — a missing catalog just means nothing new to show, never an error.</summary>
+    public async Task<IReadOnlyList<SidecarCatalogEntry>> CatalogAsync(CancellationToken ct = default)
+    {
+        try
+        {
+            var body = await _http.GetFromJsonAsync<SidecarCatalogResponse>("/models", ct).ConfigureAwait(false);
+            return body?.Models ?? [];
+        }
+        catch
+        {
+            return [];
+        }
+    }
+
+    private sealed record SidecarCatalogResponse(
+        [property: JsonPropertyName("models")] SidecarCatalogEntry[] Models);
 
     // The scan analyses frames up to 8-wide, but the sidecar's GPU backend (llama.cpp Vulkan, or
     // in-process transformers) has a single inference slot, and the stdlib HTTP server's listen

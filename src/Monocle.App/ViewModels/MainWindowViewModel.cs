@@ -207,11 +207,35 @@ public partial class MainWindowViewModel : ViewModelBase
                     Models.Add(new ModelOptionViewModel(runner, available,
                         enabled: runner.Descriptor.Id == AestheticRunner.ModelId));
             }
+
+            await AddDiscoveredSidecarModelsAsync();
         }
         finally
         {
             _modelsInitGate.Release();
         }
+    }
+
+    /// <summary>Pick up models the running sidecar knows about that this app doesn't. Called from
+    /// inside InitModelsAsync's gate, so the registry and Models are only ever touched by one
+    /// caller at a time. A model added to python/server.py needs no C# entry to appear (#28).</summary>
+    private async Task AddDiscoveredSidecarModelsAsync()
+    {
+        var known = _registry.All.Select(r => r.Descriptor.Id).ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var discovered = await SidecarModelCatalog.DiscoverAsync(_sidecar, known).ConfigureAwait(true);
+        if (discovered.Count == 0)
+            return;
+
+        foreach (var runner in discovered)
+        {
+            _registry.Register(runner);
+            Models.Add(new ModelOptionViewModel(runner, await runner.IsAvailableAsync().ConfigureAwait(true), enabled: false));
+            Diagnostics.Log.Info($"[models] {runner.Descriptor.DisplayName} discovered from the sidecar's catalog");
+        }
+
+        // A discovered model can carry a numeric scale, and an unweighted model contributes nothing
+        // to the composites — so the weight table is rebuilt rather than left as it was at startup.
+        BuildWeightRows();
     }
 
     // Set while "Heuristic baseline" runs so the scan rates with the heuristic only (no scorers).
@@ -627,6 +651,11 @@ public partial class MainWindowViewModel : ViewModelBase
 
     private void BuildWeightRows()
     {
+        // Rebuilt, not appended to: sidecar discovery can call this again once the registry has
+        // grown, and the rows are cheap value-carrying VMs whose weights come back from settings.
+        TechnicalWeightRows.Clear();
+        AestheticWeightRows.Clear();
+
         var defaults = ScoreCompositor.DefaultWeights(_registry.All.Select(r => r.Descriptor));
 
         TechnicalWeightRows.Add(new WeightRowViewModel(ScoreCompositor.PixelTechnicalId, "Pixel technical quality (TQ)",
