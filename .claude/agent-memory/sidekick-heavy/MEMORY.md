@@ -1,0 +1,3 @@
+- [Sidecar write invariants](monocle-sidecar-invariants.md) — 0★ never clears xmp:Rating, the headline merge is additive, keywords leak; read-back is the only truth
+- [Staleness guard](monocle-staleness-guard.md) — how undo/revert avoid destroying On1/Lightroom edits, and why the baseline must never be re-seeded on scan
+- [Runtime GUI verification](monocle-runtime-verification.md) — build lock from a running app, focusing the window, wheel doesn't scroll, settings.json restore

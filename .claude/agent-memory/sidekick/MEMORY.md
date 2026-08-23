@@ -1,0 +1,2 @@
+- [Monocle Avalonia build/test workflow](monocle-build-workflow.md) — dotnet path, orphaned dotnet.exe host locks, PrintWindow can't capture Flyouts, UI Automation for offscreen testing
+- [Python sidecar conventions](python-sidecar-conventions.md) — server.py lazy-import/readiness pattern, 400-vs-503 split, SidecarClient retry-by-status-code, MCP never drives sidecar scoring
