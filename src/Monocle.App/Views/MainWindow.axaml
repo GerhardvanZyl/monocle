@@ -658,7 +658,10 @@
                                                     <StackPanel>
                                                         <!-- Image area -->
                                                         <Panel Height="{DynamicResource TileImageHeight}" Background="{StaticResource Surface3}" ClipToBounds="True">
-                                                            <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+                                                            <!-- Uniform, not UniformToFill: a portrait frame must show the WHOLE
+                                                                 photo, with empty space at its sides, rather than being cropped
+                                                                 to the tile (#8). -->
+                                                            <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
                                                             <!-- per-photo pipeline pips overlay (#7); hovering a pip names its stage (tip set per-pip in code) -->
                                                             <ctl:PipelinePipsControl States="{Binding PipelineStates}"
                                                                                      Progress="{Binding ActivePipProgress}"
@@ -1043,7 +1046,9 @@
                                                 <Grid ColumnDefinitions="Auto,*,Auto" Margin="10,7">
                                                     <Border Grid.Column="0" Width="46" Height="34" CornerRadius="5" ClipToBounds="True"
                                                             BorderBrush="{StaticResource Reject}" BorderThickness="2" Background="{StaticResource Surface3}">
-                                                        <Image Source="{Binding Thumbnail}" Stretch="UniformToFill"/>
+                                                        <!-- Uniform here too, to match the grid: a portrait reject shows whole and
+                                                             letterboxed rather than cropped to this chip (#8). -->
+                                                        <Image Source="{Binding Thumbnail}" Stretch="Uniform"/>
                                                     </Border>
                                                     <TextBlock Grid.Column="1" Text="{Binding Title}" Margin="13,0,0,0"
                                                                FontFamily="{StaticResource FontMono}" FontSize="12.5" VerticalAlignment="Center"/>
