@@ -557,6 +557,13 @@ public partial class MainWindowViewModel : ViewModelBase
 
     // ---- Pipeline / flowchart (#14-16, #20) ----
     [ObservableProperty] private PipelineRun? _pipeline;
+
+    /// <summary>Whether the rail's pipeline panel is open (#2). Session-only — a flowchart is
+    /// something you glance at during a run, not a layout preference worth persisting.</summary>
+    [ObservableProperty] private bool _showPipeline;
+
+    [RelayCommand] private void TogglePipeline() => ShowPipeline = !ShowPipeline;
+
     private List<string> _activeStages = new();
 
     // ---- Claude cull (#5, #11) ----

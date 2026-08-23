@@ -23,22 +23,6 @@
          re-parents its content to whichever button opened it most recently; only one can be open
          at a time so there's no conflict. -->
     <Window.Resources>
-        <!-- Pipeline flowchart, opened from the left rail (#2). Placed to the right of the rail
-             button so it overlays the grid rather than the rail itself. MaxHeight + ScrollViewer:
-             the flowchart measures itself to its stage count and a Claude run adds stages. -->
-        <Flyout x:Key="PipelineFlyout" Placement="RightEdgeAlignedTop">
-            <ScrollViewer MaxHeight="620" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel Width="300" Spacing="10" Margin="2">
-                    <TextBlock Text="PIPELINE" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
-                    <TextBlock Text="Live analysis flow — stages light up as each runs; greyed stages are skipped for this run."
-                               Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
-                    <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
-                        <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="8"/>
-                    </Border>
-                </StackPanel>
-            </ScrollViewer>
-        </Flyout>
-
         <Flyout x:Key="ShortcutsFlyout" Placement="BottomEdgeAlignedRight">
             <StackPanel Width="290" Spacing="12" Margin="2">
                 <TextBlock Text="KEYBOARD SHORTCUTS" FontSize="10" FontWeight="SemiBold"
@@ -450,8 +434,8 @@
                                 Content="▬  Filmstrip"/>
                         <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
                                 Content="▤  Folder overview"/>
-                        <Button Classes="nav" Flyout="{StaticResource PipelineFlyout}" Content="⛓  Pipeline"
-                                ToolTip.Tip="Live analysis flowchart for the current run."/>
+                        <Button Classes="nav" Classes.on="{Binding ShowPipeline}" Command="{Binding TogglePipelineCommand}"
+                                Content="⛓  Pipeline" ToolTip.Tip="Live analysis flowchart for the current run."/>
 
                         <!-- Ordered cull flow: score → review by hand → handle rejects, plus the
                              unordered heuristic baseline action. Pages (numbered) navigate; actions
@@ -512,8 +496,8 @@
                                 Content="▬  Filmstrip"/>
                         <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
                                 Content="▤  Folder overview"/>
-                        <Button Classes="nav" Flyout="{StaticResource PipelineFlyout}" Content="⛓  Pipeline"
-                                ToolTip.Tip="Live analysis flowchart for the current run."/>
+                        <Button Classes="nav" Classes.on="{Binding ShowPipeline}" Command="{Binding TogglePipelineCommand}"
+                                Content="⛓  Pipeline" ToolTip.Tip="Live analysis flowchart for the current run."/>
                         <Button Classes="nav" Classes.on="{Binding IsRejectsView}" Command="{Binding GoViewCommand}" CommandParameter="Rejects">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="🗑  Rejects"/>
@@ -1369,6 +1353,32 @@
                         </StackPanel>
                     </StackPanel>
                 </ScrollViewer>
+
+                <!-- PIPELINE (#2). A sibling of the centre views in the body grid rather than a popup,
+                     which is what makes it line up with the rail: same grid row, so its top edge and its
+                     height ARE the rail's, with nothing to bind or keep in sync. The ScrollViewer is the
+                     DockPanel's fill child, so it takes whatever height is left and the flowchart scrolls
+                     when a Claude run adds stages. -->
+                <Border IsVisible="{Binding ShowPipeline}" Width="300" HorizontalAlignment="Left"
+                        Background="{StaticResource Surface1}" BorderBrush="{StaticResource BorderSoft}"
+                        BorderThickness="0,0,1,0">
+                    <DockPanel Margin="14,12">
+                        <Grid DockPanel.Dock="Top" ColumnDefinitions="*,Auto" Margin="0,0,0,8">
+                            <TextBlock Grid.Column="0" Text="PIPELINE" FontWeight="SemiBold" FontSize="11"
+                                       Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                            <Button Grid.Column="1" Classes="ghost" Content="✕" Padding="7,1" FontSize="11"
+                                    Command="{Binding TogglePipelineCommand}" ToolTip.Tip="Close (Esc)"/>
+                        </Grid>
+                        <TextBlock DockPanel.Dock="Top" Margin="0,0,0,10"
+                                   Text="Live analysis flow — stages light up as each runs; greyed stages are skipped for this run."
+                                   Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
+                        <ScrollViewer HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+                            <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
+                                <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="8"/>
+                            </Border>
+                        </ScrollViewer>
+                    </DockPanel>
+                </Border>
 
                 <!-- In-app enlarged photo overlay (keeps chrome visible) -->
                 <Border IsVisible="{Binding IsEnlarged}" Background="#E61C1B18">

@@ -212,6 +212,7 @@ public partial class MainWindow : Window
             case Key.P: Vm.SetStarsCommand.Execute("4"); e.Handled = true; break;          // pick
             case Key.R or Key.X: Vm.SetStarsCommand.Execute("1"); e.Handled = true; break;  // reject
             case Key.Escape when Vm.IsEnlarged: Vm.CloseEnlarged(); e.Handled = true; break;
+            case Key.Escape when Vm.ShowPipeline: Vm.TogglePipelineCommand.Execute(null); e.Handled = true; break;
             case Key.Escape when Vm.IsSettings: Vm.CloseSettingsCommand.Execute(null); e.Handled = true; break;
             case Key.F:
                 if (Vm.IsEnlarged) Vm.CloseEnlarged(); else OpenFullscreen();
