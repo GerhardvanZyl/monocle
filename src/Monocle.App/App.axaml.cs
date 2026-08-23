@@ -27,11 +27,14 @@ public partial class App : Application
             // Used by the /cull "launch the viewer" flow so ratings can be watched live.
             var arg = desktop.Args?.FirstOrDefault();
             if (!string.IsNullOrWhiteSpace(arg) && System.IO.Directory.Exists(arg))
-            {
                 vm.FolderPath = arg;
-                if (vm.ScanCommand.CanExecute(null))
-                    vm.ScanCommand.Execute(null);
-            }
+
+            // Otherwise reopen the last shoot (the constructor restores FolderPath from settings,
+            // and only when that folder still exists). Everything the previous session computed —
+            // metrics, EXIF, model scores, preview JPEGs — comes back out of .monocle-cache, so this
+            // is a reload rather than a re-scan; it also picks up files added since (#1).
+            if (vm.ScanCommand.CanExecute(null))
+                vm.ScanCommand.Execute(null);
         }
 
         base.OnFrameworkInitializationCompleted();
