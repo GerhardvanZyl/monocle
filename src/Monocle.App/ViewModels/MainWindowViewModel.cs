@@ -280,7 +280,7 @@ public partial class MainWindowViewModel : ViewModelBase
                 // NIMA / aesthetic-predictor-v2.5 ship no canonical single-file ONNX, so build them
                 // in-app from their reference PyTorch models via python/export_onnx.py (#1, #5).
                 StatusText = $"Building {model.Name} (Python)…";
-                RightTab = RightTab.RunLog;   // export is chatty; surface it
+                ShowConsole = DrawerRunLog = true;   // export is chatty; surface it in the drawer
                 void Append(string line) => Dispatcher.UIThread.Post(() =>
                 {
                     CullLog.Add(line);
@@ -396,19 +396,6 @@ public partial class MainWindowViewModel : ViewModelBase
     {
         if (View != CenterView.Settings) return;
         View = _viewBeforeSettings == CenterView.Settings ? CenterView.Browse : _viewBeforeSettings;
-    }
-
-    [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsDetailTab), nameof(IsPipelineTab), nameof(IsRunLogTab))]
-    private RightTab _rightTab = RightTab.Detail;
-
-    public bool IsDetailTab => RightTab == RightTab.Detail;
-    public bool IsPipelineTab => RightTab == RightTab.Pipeline;
-    public bool IsRunLogTab => RightTab == RightTab.RunLog;
-
-    [RelayCommand] private void SetRightTab(string tab)
-    {
-        if (Enum.TryParse<RightTab>(tab, out var t)) RightTab = t;
     }
 
     // ---- Theme + accent (#8): live-applied via ThemeManager and persisted ----
@@ -2566,7 +2553,6 @@ public partial class MainWindowViewModel : ViewModelBase
     private void InteractiveCull()
     {
         View = CenterView.Browse;
-        RightTab = RightTab.Detail;
         var firstUnrated = VisiblePhotos.FirstOrDefault(t => t.Item.Stars <= 0) ?? VisiblePhotos.FirstOrDefault();
         if (firstUnrated is not null)
             SelectedPhoto = firstUnrated;
@@ -2597,5 +2583,3 @@ public partial class MainWindowViewModel : ViewModelBase
 /// <summary>The center pane's current page, chosen from the left navigation rail (#8).</summary>
 public enum CenterView { Browse, Overview, Rejects, Settings, Design, AiCull }
 
-/// <summary>The right panel's current tab (#8).</summary>
-public enum RightTab { Detail, Pipeline, RunLog }

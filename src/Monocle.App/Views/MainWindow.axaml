@@ -23,6 +23,22 @@
          re-parents its content to whichever button opened it most recently; only one can be open
          at a time so there's no conflict. -->
     <Window.Resources>
+        <!-- Pipeline flowchart, opened from the left rail (#2). Placed to the right of the rail
+             button so it overlays the grid rather than the rail itself. MaxHeight + ScrollViewer:
+             the flowchart measures itself to its stage count and a Claude run adds stages. -->
+        <Flyout x:Key="PipelineFlyout" Placement="RightEdgeAlignedTop">
+            <ScrollViewer MaxHeight="620" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel Width="300" Spacing="10" Margin="2">
+                    <TextBlock Text="PIPELINE" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
+                    <TextBlock Text="Live analysis flow — stages light up as each runs; greyed stages are skipped for this run."
+                               Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
+                    <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
+                        <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="8"/>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Flyout>
+
         <Flyout x:Key="ShortcutsFlyout" Placement="BottomEdgeAlignedRight">
             <StackPanel Width="290" Spacing="12" Margin="2">
                 <TextBlock Text="KEYBOARD SHORTCUTS" FontSize="10" FontWeight="SemiBold"
@@ -425,6 +441,8 @@
                         </Button>
                         <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
                                 Content="▤  Folder overview"/>
+                        <Button Classes="nav" Flyout="{StaticResource PipelineFlyout}" Content="⛓  Pipeline"
+                                ToolTip.Tip="Live analysis flowchart for the current run."/>
 
                         <!-- Ordered cull flow: score → review by hand → handle rejects, plus the
                              unordered heuristic baseline action. Pages (numbered) navigate; actions
@@ -483,6 +501,8 @@
                         </Button>
                         <Button Classes="nav" Classes.on="{Binding IsOverview}" Command="{Binding GoViewCommand}" CommandParameter="Overview"
                                 Content="▤  Folder overview"/>
+                        <Button Classes="nav" Flyout="{StaticResource PipelineFlyout}" Content="⛓  Pipeline"
+                                ToolTip.Tip="Live analysis flowchart for the current run."/>
                         <Button Classes="nav" Classes.on="{Binding IsRejectsView}" Command="{Binding GoViewCommand}" CommandParameter="Rejects">
                             <Grid ColumnDefinitions="*,Auto">
                                 <TextBlock Grid.Column="0" Text="🗑  Rejects"/>
@@ -1287,20 +1307,10 @@
             <Border Grid.Column="2" Background="{StaticResource Surface1}"
                     BorderBrush="{StaticResource BorderSoft}" BorderThickness="1,0,0,0">
                 <DockPanel>
-                    <!-- Tab row -->
-                    <Border DockPanel.Dock="Top" Height="38" BorderBrush="{StaticResource BorderSoft}"
-                            BorderThickness="0,0,0,1" Padding="6,4">
-                        <Grid ColumnDefinitions="*,*" >
-                            <Button Grid.Column="0" Classes="rtab" Classes.on="{Binding IsDetailTab}" Content="Detail"
-                                    HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="Detail"/>
-                            <Button Grid.Column="1" Classes="rtab" Classes.on="{Binding IsPipelineTab}" Content="Pipeline"
-                                    HorizontalAlignment="Stretch" Command="{Binding SetRightTabCommand}" CommandParameter="Pipeline"/>
-                        </Grid>
-                    </Border>
-
                     <Panel>
-                        <!-- DETAIL TAB -->
-                        <ScrollViewer IsVisible="{Binding IsDetailTab}">
+                        <!-- DETAIL. The Pipeline used to be a second tab here; it now lives behind the
+                             "Pipeline" button in the left rail, so the detail pane keeps the full height (#2). -->
+                        <ScrollViewer>
                           <Panel>
                             <TextBlock IsVisible="{Binding ShowDetailPlaceholder}"
                                        Text="Select a photo to see its metrics, scores and AI critique."
@@ -1404,21 +1414,6 @@
                                 <Button Classes="ghost" Content="Save notes" Command="{Binding SaveNotesCommand}" HorizontalAlignment="Right"/>
                             </StackPanel>
                           </Panel>
-                        </ScrollViewer>
-
-                        <!-- PIPELINE TAB -->
-                        <ScrollViewer IsVisible="{Binding IsPipelineTab}">
-                            <StackPanel Spacing="10" Margin="14">
-                                <TextBlock Text="PIPELINE" FontWeight="SemiBold" FontSize="11" Foreground="{StaticResource Text3}"/>
-                                <TextBlock Text="Live analysis flow — stages light up as each runs; greyed stages are skipped for this run."
-                                           Foreground="{StaticResource Text3}" FontSize="11" TextWrapping="Wrap"/>
-                                <!-- No fixed height: the flowchart measures itself to its stage count so the
-                                     border wraps every stage (incl. "Write sidecars") and the ScrollViewer
-                                     scrolls if it ever exceeds the panel (#6). -->
-                                <Border BorderBrush="{StaticResource BorderSoft}" BorderThickness="1" CornerRadius="6">
-                                    <ctl:FlowchartControl Run="{Binding Pipeline}" Margin="8"/>
-                                </Border>
-                            </StackPanel>
                         </ScrollViewer>
 
                     </Panel>
