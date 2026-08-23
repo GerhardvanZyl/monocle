@@ -104,6 +104,13 @@
                         </StackPanel>
                         <TextBlock Grid.Column="1" Text="Row up / down" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
                     </Grid>
+                    <Grid ColumnDefinitions="Auto,*">
+                        <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="3" Width="100">
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="⇧←"/></Border>
+                            <Border Classes="keyChip"><TextBlock Classes="keyChipText" Text="⇧→"/></Border>
+                        </StackPanel>
+                        <TextBlock Grid.Column="1" Text="Previous / next reject" Foreground="{StaticResource Text2}" FontSize="11.5" VerticalAlignment="Center"/>
+                    </Grid>
                 </StackPanel>
 
                 <TextBlock Text="PHOTO" FontSize="10" FontWeight="SemiBold" Foreground="{StaticResource Text3}" Margin="0,4,0,0"/>
@@ -551,6 +558,15 @@
                                        ToolTip.Tip="TQ = technical quality from pixel metrics (sharpness, exposure, noise). AES = aesthetic model score — tick a model in Score with AI models and Process to fill it. Both bars read 1–10 on the same colour ramp — the native scale of the scoring models. Stars are the final rating and do not have to follow either."/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <!-- Reject stepping (#6): moves the selection, never the filter, so the
+                                 grid around each reject stays visible. Shift+←/→ do the same. -->
+                            <Button Classes="ghost" Content="◀ rej" Padding="7,2" FontSize="11"
+                                    Command="{Binding JumpRejectCommand}" CommandParameter="Prev"
+                                    ToolTip.Tip="Previous reject, in place (Shift+←)"/>
+                            <Button Classes="ghost" Content="rej ▶" Padding="7,2" FontSize="11"
+                                    Command="{Binding JumpRejectCommand}" CommandParameter="Next"
+                                    ToolTip.Tip="Next reject, in place (Shift+→)"/>
+                            <Rectangle Width="1" Height="14" Fill="{StaticResource BorderSoft}"/>
                             <TextBlock Text="Sort" Foreground="{StaticResource Text3}" FontSize="11.5" VerticalAlignment="Center"/>
                             <ComboBox ItemsSource="{Binding SortKeys}" SelectedItem="{Binding Sort}" Width="120" Height="26"/>
                             <Button Classes="ghost" Content="▲▼" Command="{Binding ToggleSortDirCommand}" Padding="7,2"

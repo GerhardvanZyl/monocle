@@ -221,6 +221,12 @@ public partial class MainWindow : Window
             case Key.V: Vm.ToggleVariantCommand.Execute(null); e.Handled = true; break;
             case Key.OemOpenBrackets: Vm.RotateLeftCommand.Execute(null); e.Handled = true; break;
             case Key.OemCloseBrackets: Vm.RotateRightCommand.Execute(null); e.Handled = true; break;
+            // Shift+←/→ steps reject-to-reject without disturbing the filter, so each one is seen
+            // among its neighbours (#6). Must precede the plain arrow cases, which ignore modifiers.
+            case Key.Left when e.KeyModifiers.HasFlag(KeyModifiers.Shift):
+                Vm.JumpRejectCommand.Execute("Prev"); e.Handled = true; break;
+            case Key.Right when e.KeyModifiers.HasFlag(KeyModifiers.Shift):
+                Vm.JumpRejectCommand.Execute("Next"); e.Handled = true; break;
             case Key.Left or Key.H: MoveSelection(-1); e.Handled = true; break;
             case Key.Right or Key.L: MoveSelection(1); e.Handled = true; break;
             // Rejects (one column) and the Filmstrip (one row) have no grid to page by, so Up/Down

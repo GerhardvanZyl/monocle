@@ -2561,6 +2561,51 @@ public partial class MainWindowViewModel : ViewModelBase
         finally { _heuristicOnly = false; }
     }
 
+    /// <summary>Step the selection to the next/previous reject in the CURRENT grid order, leaving the
+    /// filter alone (#6). Filtering down to rejects answers "which are they"; this answers "what was
+    /// around them", which is the question you actually have when double-checking a cull — the frame
+    /// lands in place with its neighbours still on screen. Wraps once so the last leads to the first.</summary>
+    [RelayCommand]
+    private void JumpReject(string direction)
+    {
+        var list = IsRejectsView ? RejectList : VisiblePhotos;
+        if (list.Count == 0)
+        {
+            StatusText = "Nothing to step through.";
+            return;
+        }
+        var step = string.Equals(direction, "Prev", StringComparison.OrdinalIgnoreCase) ? -1 : 1;
+        // No selection: start just outside the list so the first step lands on an end, not the middle.
+        var start = SelectedPhoto is { } sel && list.Contains(sel) ? list.IndexOf(sel) : (step > 0 ? -1 : 0);
+        var index = NextRejectIndex(list.Select(t => t.Item.IsReject).ToList(), start, step);
+        if (index < 0)
+        {
+            StatusText = "No rejects in the current view.";
+            return;
+        }
+
+        var target = list[index];
+        SelectedPhoto = target;
+        ScrollToTileRequested?.Invoke(target);
+        var ordinal = list.Take(index + 1).Count(t => t.Item.IsReject);
+        var total = list.Count(t => t.Item.IsReject);
+        StatusText = $"Reject {ordinal} of {total} — {target.Title} (frame {index + 1} of {list.Count}).";
+    }
+
+    /// <summary>Index of the first reject reached from <paramref name="start"/> stepping by
+    /// <paramref name="step"/>, wrapping at most once round the list; -1 when there is none. Split
+    /// out of <see cref="JumpReject"/> so the wrap arithmetic is testable without a view model.</summary>
+    public static int NextRejectIndex(IReadOnlyList<bool> isReject, int start, int step)
+    {
+        for (var i = 1; i <= isReject.Count; i++)
+        {
+            var index = (((start + step * i) % isReject.Count) + isReject.Count) % isReject.Count;
+            if (isReject[index])
+                return index;
+        }
+        return -1;
+    }
+
     /// <summary>Manual culling: focus the grid + detail pane on the first unrated frame.</summary>
     [RelayCommand]
     private void InteractiveCull()
