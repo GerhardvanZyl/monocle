@@ -431,24 +431,6 @@
 
                     <!-- FOLDER BROWSER -->
                     <DockPanel IsVisible="{Binding IsFoldersTab}">
-                        <!-- The pasted-path field the toolbar used to carry. Still the fastest way in
-                             when you already know the path, and still the only way to reach a folder
-                             the tree can't show (a UNC share, a drive that isn't ready). -->
-                        <Border DockPanel.Dock="Top" Background="{StaticResource Surface2}"
-                                BorderBrush="{StaticResource BorderSoft}" BorderThickness="1"
-                                CornerRadius="7" Margin="12,10,12,0" Padding="9,0,4,0" Height="32">
-                            <Grid ColumnDefinitions="*,Auto,Auto">
-                                <TextBox Grid.Column="0" Watermark="Paste a folder path…" Text="{Binding FolderPath}"
-                                         BorderThickness="0" Background="Transparent" VerticalAlignment="Center" FontSize="11.5"/>
-                                <Button Grid.Column="1" Classes="ghost" Content="…" Height="24" Padding="7,0" Margin="0,0,4,0"
-                                        BorderThickness="0" FontSize="11.5" VerticalAlignment="Center"
-                                        Click="OnBrowseClick" ToolTip.Tip="Choose a folder…"/>
-                                <Button Grid.Column="2" Classes="primary" Content="Scan" Height="24" Padding="11,0"
-                                        VerticalAlignment="Center"
-                                        Command="{Binding ScanCommand}" IsEnabled="{Binding !IsBusy}"/>
-                            </Grid>
-                        </Border>
-
                         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
                                       AllowAutoHide="False" Padding="0,0,4,0">
                             <StackPanel Margin="8,12,4,16">
@@ -471,6 +453,9 @@
                                                 </Grid>
                                                 <Button.ContextFlyout>
                                                     <MenuFlyout>
+                                                        <MenuItem Header="Add to catalog and open"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogAndOpenCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to catalog"
                                                                   Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
                                                                   CommandParameter="{Binding Path}"/>
@@ -494,6 +479,7 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:FolderNodeViewModel">
                                             <Button Classes="treerow" Classes.on="{Binding IsActive}" Padding="0"
+                                                    DoubleTapped="OnFolderDoubleTapped"
                                                     Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).SelectFolderCommand}"
                                                     CommandParameter="{Binding}">
                                                 <Grid ColumnDefinitions="Auto,Auto,*,Auto" Margin="{Binding Indent}" Height="26">
@@ -517,6 +503,9 @@
                                                 </Grid>
                                                 <Button.ContextFlyout>
                                                     <MenuFlyout>
+                                                        <MenuItem Header="Add to catalog and open"
+                                                                  Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogAndOpenCommand}"
+                                                                  CommandParameter="{Binding Path}"/>
                                                         <MenuItem Header="Add to catalog"
                                                                   Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).AddToCatalogCommand}"
                                                                   CommandParameter="{Binding Path}"/>
@@ -539,7 +528,7 @@
                                 <Border Margin="10,16,6,0" Padding="11,10" CornerRadius="9"
                                         Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
                                         BorderThickness="1">
-                                    <TextBlock Text="Right-click a folder → Add to catalog. Nothing is read from disk until you do."
+                                    <TextBlock Text="Double-click a folder to catalogue and open it, or right-click for more. Nothing is read from disk until you do."
                                                FontSize="11.5" TextWrapping="Wrap" Foreground="{StaticResource Text2}" LineHeight="17"/>
                                 </Border>
                             </StackPanel>

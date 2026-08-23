@@ -387,6 +387,26 @@ public partial class MainWindowViewModel
         await ScanAsync();   // records the scan against this entry when it finishes
     }
 
+    /// <summary>Catalogue a folder and open it in one action. The tree is the way into a shoot, so
+    /// "add it, find it in the other tab, click it" is three steps for what is one intention. Adding
+    /// is still explicit — this is the same explicit add, with the scan the user obviously wants
+    /// next.</summary>
+    [RelayCommand]
+    private async Task AddToCatalogAndOpenAsync(string? path)
+    {
+        path = (path ?? FolderPath)?.Trim();
+        if (string.IsNullOrEmpty(path) || !Directory.Exists(path))
+        {
+            StatusText = "Folder not found.";
+            return;
+        }
+
+        AddToCatalog(path);
+        var entry = Catalog.FirstOrDefault(c => string.Equals(c.Path, path, StringComparison.OrdinalIgnoreCase));
+        if (entry is not null)
+            await OpenCatalogEntryAsync(entry);
+    }
+
     [RelayCommand]
     private void OpenInExplorer(string? path)
     {

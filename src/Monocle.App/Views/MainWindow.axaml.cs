@@ -86,6 +86,16 @@ public partial class MainWindow : Window
             Vm.GridWidth = e.NewSize.Width;
     }
 
+    /// <summary>Double-clicking a folder in the tree catalogues and opens it. The chevron handles
+    /// its own clicks, so expanding never reaches this.</summary>
+    private void OnFolderDoubleTapped(object? sender, TappedEventArgs e)
+    {
+        if (Vm is null || (sender as Control)?.DataContext is not FolderNodeViewModel node)
+            return;
+        Vm.AddToCatalogAndOpenCommand.Execute(node.Path);
+        e.Handled = true;
+    }
+
     private async void OnBrowseClick(object? sender, RoutedEventArgs e)
     {
         try
