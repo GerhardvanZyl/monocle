@@ -53,6 +53,42 @@ public class SidecarClientTests
     }
 
     [Fact]
+    public async Task ScorePostsALengthDelimitedBodyTheStdlibServerCanRead()
+    {
+        // Python's http.server reads exactly Content-Length bytes. A chunked request (what
+        // PostAsJsonAsync sends) left it reading nothing, so every sidecar score came back
+        // "bad request: missing 'model', 'image_b64'".
+        const int port = 18835;
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        long length = -1;
+        string body = "";
+        var server = Task.Run(async () =>
+        {
+            var ctx = await listener.GetContextAsync();
+            length = ctx.Request.ContentLength64;
+            body = await new StreamReader(ctx.Request.InputStream).ReadToEndAsync();
+            var bytes = Encoding.UTF8.GetBytes("""{"model":"qwen2-vl","value":null,"text":"ok","scale_max":0}""");
+            ctx.Response.ContentLength64 = bytes.Length;
+            ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+            ctx.Response.Close();
+        });
+
+        var client = new SidecarClient($"http://127.0.0.1:{port}");
+        var score = await client.ScoreAsync("qwen2-vl", new byte[] { 1, 2, 3 }, "critique");
+        await server;
+        listener.Stop();
+
+        Assert.True(length > 0, "the sidecar request must carry a Content-Length, not be chunked");
+        Assert.Equal(length, Encoding.UTF8.GetByteCount(body));
+        Assert.Contains("\"model\":\"qwen2-vl\"", body);   // the anonymous payload still serialises whole
+        Assert.Contains("image_b64", body);
+        Assert.Equal("ok", score!.Text);
+    }
+
+    [Fact]
     public async Task HealthReturnsNullWhenNothingListening()
     {
         var client = new SidecarClient("http://127.0.0.1:18832");

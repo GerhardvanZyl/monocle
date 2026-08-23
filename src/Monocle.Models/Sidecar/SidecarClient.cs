@@ -1,5 +1,6 @@
 using System.Net.Http;
 using System.Net.Http.Json;
+using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 
@@ -110,7 +111,13 @@ public sealed class SidecarClient : IDisposable
 
     private async Task<SidecarScore?> PostScoreAsync(object payload, CancellationToken ct)
     {
-        using var resp = await _http.PostAsJsonAsync("/score", payload, ct).ConfigureAwait(false);
+        // Serialize up front and post a length-delimited body. The sidecar is Python's stdlib
+        // http.server, which reads exactly Content-Length bytes; PostAsJsonAsync streams the JSON
+        // with Transfer-Encoding: chunked and no length, so the server read nothing and rejected
+        // every score with "bad request: missing 'model', 'image_b64'" (HttpListener in the tests
+        // de-chunks for you, which is why this only ever failed against the real sidecar).
+        using var content = new StringContent(JsonSerializer.Serialize(payload), Encoding.UTF8, "application/json");
+        using var resp = await _http.PostAsync("/score", content, ct).ConfigureAwait(false);
         if (!resp.IsSuccessStatusCode)
         {
             // Surface the sidecar's own error (e.g. "requires torchvision", model OOM/download fault)
