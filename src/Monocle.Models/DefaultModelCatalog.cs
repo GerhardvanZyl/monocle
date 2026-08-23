@@ -25,6 +25,8 @@ public static class DefaultModelCatalog
             registry.Register(runner);
         foreach (var claude in ClaudeCullRunner.Catalog)
             registry.Register(claude);
+        foreach (var blocked in UnsupportedModelCatalog.BuildRunners())
+            registry.Register(blocked);
         return registry;
     }
 }

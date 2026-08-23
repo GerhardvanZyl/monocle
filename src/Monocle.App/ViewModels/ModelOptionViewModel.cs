@@ -44,7 +44,12 @@ public partial class ModelOptionViewModel : ViewModelBase
         _ => "Claude tokens",
     };
 
-    public string Header => Available ? Name : $"{Name} (not installed)";
+    /// <summary>Why this model can't run here at all (#9); null for models that merely aren't
+    /// installed yet, which get an install button instead.</summary>
+    public string? BlockedReason => Runner.Descriptor.UnavailableReason;
+    public bool IsBlocked => BlockedReason is not null;
+
+    public string Header => Available ? Name : IsBlocked ? $"{Name} (unavailable)" : $"{Name} (not installed)";
 
     [ObservableProperty] private bool _isEnabled;
 

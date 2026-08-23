@@ -41,4 +41,10 @@ public sealed class ModelDescriptor
     /// <summary>Link to the model's source/card (Hugging Face, project page), or null for
     /// purely local algorithms that have no external page.</summary>
     public string? InfoUrl { get; init; }
+
+    /// <summary>Why this model can never become available on this machine — set only for the
+    /// catalogue entries in <see cref="UnsupportedModelCatalog"/>, which exist so the picker can
+    /// show what else is out there and what stands in the way (#9). Null for every real runner,
+    /// whose availability is a runtime question answered by IsAvailableAsync instead.</summary>
+    public string? UnavailableReason { get; init; }
 }

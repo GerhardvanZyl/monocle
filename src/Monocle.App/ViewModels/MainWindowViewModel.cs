@@ -192,7 +192,10 @@ public partial class MainWindowViewModel : ViewModelBase
                     continue;
                 var available = await runner.IsAvailableAsync();
                 if (!available && _unavailableLogged.Add(runner.Descriptor.Id))
-                    Diagnostics.Log.Info(runner is Monocle.Models.Onnx.OnnxScoreRunner onnx
+                    Diagnostics.Log.Info(
+                        runner.Descriptor.UnavailableReason is { } why
+                        ? $"[models] {runner.Descriptor.DisplayName} not runnable here — {why}"
+                        : runner is Monocle.Models.Onnx.OnnxScoreRunner onnx
                         ? $"[models] {runner.Descriptor.DisplayName} unavailable — weights file not found: {onnx.ModelPath}"
                         : $"[models] {runner.Descriptor.DisplayName} unavailable (not installed / sidecar not ready)");
                 if (existing.TryGetValue(runner.Descriptor.Id, out var vm))
@@ -620,7 +623,9 @@ public partial class MainWindowViewModel : ViewModelBase
             EffectiveWeight(_settings.TechnicalWeights, defaults.Technical, ScoreCompositor.PixelTechnicalId),
             OnWeightRowChanged));
 
-        foreach (var d in _registry.All.Select(r => r.Descriptor).Where(d => d.ScaleMax is not null))
+        // Catalogue-only entries (#9) never produce a score, so they get no weight row to tune.
+        foreach (var d in _registry.All.Select(r => r.Descriptor)
+                     .Where(d => d.ScaleMax is not null && d.UnavailableReason is null))
         {
             if (d.OutputKind is ScoreKind.Technical or ScoreKind.Quality)
                 TechnicalWeightRows.Add(new WeightRowViewModel(d.Id, d.DisplayName,

@@ -769,6 +769,8 @@
                                 ToolTip.Tip="Starts the optional sidecar for the full HuggingFace zoo (Q-Align, Qwen2-VL)."/>
                         <TextBlock Text="GPU build: set the compute target in Settings → Python sidecar before installing deps."
                                    Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
+                        <TextBlock Text="Rows marked (unavailable) are models Monocle knows about but can&apos;t run on this machine — the amber line says what stands in the way."
+                                   Foreground="{StaticResource Text3}" FontSize="10.5" TextWrapping="Wrap"/>
                         <ItemsControl ItemsSource="{Binding Models}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:ModelOptionViewModel">
@@ -779,6 +781,11 @@
                                             <TextBlock Text="{Binding Header}" FontSize="12"/>
                                             <TextBlock Text="{Binding Description}" FontSize="10"
                                                        Foreground="{StaticResource Text3}" TextWrapping="Wrap"/>
+                                            <!-- Catalogue-only entries (#9): models worth knowing about that this
+                                                 machine can't run. The blocker is the whole point of the row. -->
+                                            <TextBlock Text="{Binding BlockedReason}" IsVisible="{Binding IsBlocked}"
+                                                       FontSize="10" Foreground="{StaticResource LabYellow}"
+                                                       TextWrapping="Wrap" Margin="0,2,0,0"/>
                                             <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,2,0,0">
                                                 <Button Content="{Binding InstallLabel}" FontSize="10" Padding="6,1"
                                                         IsVisible="{Binding ShowInstall}" IsEnabled="{Binding CanInstall}"
