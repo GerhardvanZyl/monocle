@@ -183,6 +183,20 @@ public static class UnsupportedModelCatalog
                                   + "the InternVL3 vision tower.",
                 InfoUrl = "https://huggingface.co/OpenGVLab/InternVL3-8B",
             },
+            new()
+            {
+                Id = "mage-vl", DisplayName = "Mage-VL critique", Category = ModelCategory.MllmCritique,
+                Description = "Microsoft's ~5B vision-language model (codec-native visual encoder + a "
+                            + "Qwen3-4B decoder) writing a natural-language critique, like Qwen2.5-VL does. "
+                            + "Commentary, not a calibrated score.",
+                Tradeoffs = "Half the size of the Qwen critique for comparable prose. Transformers only — "
+                          + "there is no llama.cpp route, so it can't join the Vulkan server.",
+                Resource = ResourceKind.Gpu, OutputKind = ScoreKind.Aesthetic,
+                UnavailableReason = "The Python sidecar already implements it, but its remote code imports "
+                                  + "mamba_ssm, which ships only as a CUDA extension — loading dies with "
+                                  + "\"requires mamba_ssm\" on this GPU.",
+                InfoUrl = "https://huggingface.co/microsoft/Mage-VL",
+            },
         }),
 
         new("Was wired up here and has been removed: its dependencies broke and nothing on this "

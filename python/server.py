@@ -123,8 +123,12 @@ def _mage_ready():
     (see CATALOG) — it only ever loads through transformers, so apply the same lesson as
     _qwen_ready: report ready only once deps import AND a GPU is actually visible, never merely
     because the packages are installed, or a CPU-only box would report it ready and then fail
-    every frame at score time (CPU inference of a ~5B VLM is impractically slow)."""
-    return _deps_ready() and _gpu_ready()
+    every frame at score time (CPU inference of a ~5B VLM is impractically slow).
+
+    mamba_ssm is probed on top of the shared deps because Mage-VL's remote code imports it and
+    nothing else here does: without this the server answers ready and then 503s at score time with
+    "requires mamba_ssm", which is the exact failure this function exists to prevent."""
+    return _deps_ready() and _gpu_ready() and importlib.util.find_spec("mamba_ssm") is not None
 
 
 def _ready_models():
