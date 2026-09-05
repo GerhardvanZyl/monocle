@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Threading;
 using System.Xml;
 using Monocle.Core.Cache;
 using Monocle.Core.Imaging;
@@ -50,6 +51,70 @@ public class ConcurrencyTests : IDisposable
                 catch (Exception ex) { errors.Add(ex); }
                 return ValueTask.CompletedTask;
             });
+
+        Assert.Empty(errors);
+    }
+
+    [Fact]
+    public async Task DisposeMidFlightNeverThrowsFromLiveWorkers()
+    {
+        // The production defect (R1): RunScanAsync disposed the ShootCache while up to 8
+        // Parallel.ForEachAsync workers were still issuing commands against it, producing 656
+        // "ExecuteReader can only be called when the connection is open" in ~100ms. Every method
+        // must treat a mid-flight Dispose as "this shoot is gone" (a miss / no-op), never a throw.
+        var cache = new ShootCache(_dir);
+        var errors = new ConcurrentBag<Exception>();
+        const int threads = 8;
+        const int iterationsPerThread = 3000;
+
+        // Each worker signals once, after its FIRST iteration, so Dispose below is guaranteed to
+        // land while every thread still has ~3000 iterations left. That makes the race
+        // deterministic: Dispose always happens mid-flight, not "usually" depending on how fast
+        // the worker loop happens to run relative to it.
+        using var started = new CountdownEvent(threads);
+
+        var tasks = Enumerable.Range(0, threads).Select(t => Task.Run(() =>
+        {
+            for (int i = 0; i < iterationsPerThread; i++)
+            {
+                try
+                {
+                    var id = $"id{(t * 997 + i) % 25}";       // contend on a small id set
+                    var fp = $"fp{t}-{i}";
+                    cache.PutAnalysis(id, fp,
+                        new TechnicalMetrics { CompositeScore = i / (double)iterationsPerThread },
+                        new ExifInfo { Iso = 100 + i });
+                    cache.TryGetAnalysis(id, fp, out _, out _);
+                    cache.PutScore(id, fp, new ModelScore
+                    {
+                        ModelId = "m", ModelDisplayName = "m", Kind = ScoreKind.Aesthetic,
+                        Value = i, ScaleMax = 200, Resource = ResourceKind.Cpu,
+                    });
+                    cache.GetScores(id, fp);
+                    cache.PutPreview(id, fp, 200, 0, new byte[] { 1, 2, 3 });
+                    cache.GetPreviewPath(id, fp, 200);
+                    var batch = cache.NextBatchId();
+                    cache.AppendEdit(new RatingEdit { Batch = batch, ItemId = id, Label = "test" });
+                    cache.NextUndoBatch();
+                    cache.NextRedoBatch();
+                    cache.HistoryFor(id);
+                    cache.SetEditState(1, RatingEditState.Voided, "note");
+                    cache.HistoryCounts();
+                    cache.GetSidecarBelief(id);
+                    cache.PutSidecarBelief(id, new Dictionary<string, int?> { ["a.jpg"] = 3 });
+                    cache.PutSidecarBeliefs(new[] { (id, "a.jpg", (int?)3) }, onlyIfMissing: false);
+                }
+                catch (Exception ex) { errors.Add(ex); }
+                finally
+                {
+                    if (i == 0) started.Signal();
+                }
+            }
+        })).ToArray();
+
+        started.Wait(TimeSpan.FromSeconds(30));
+        cache.Dispose();
+        await Task.WhenAll(tasks);
 
         Assert.Empty(errors);
     }

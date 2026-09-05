@@ -13,6 +13,13 @@ namespace Monocle.Core.Cache;
 /// (FEATURES §8, #19). Lives in a <c>.monocle-cache</c> folder inside the shoot.
 /// Also stores the rating undo/redo history and Monocle's belief about what each sidecar
 /// currently says, so both survive a restart of the app.
+/// <para>
+/// Disposal is a state, not an error: once disposed every read answers as a miss and every write
+/// is dropped, and <see cref="Dispose"/> is idempotent. A shoot is closed while up to 8 analysis
+/// workers are still in flight, and a closed SQLite connection would otherwise throw once per
+/// remaining frame. <see cref="IsDisposed"/> lets a caller tell a dead cache from an empty one and
+/// stop early rather than grind through the rest of the shoot for nothing.
+/// </para>
 /// </summary>
 public sealed class ShootCache : IDisposable
 {
@@ -23,6 +30,16 @@ public sealed class ShootCache : IDisposable
     // but Microsoft.Data.Sqlite does not support concurrent commands/readers on a single
     // connection. Every DB access is serialized through this gate; the operations are short.
     private readonly object _gate = new();
+
+    // Written under _gate immediately before the connection is closed, so a call already holding
+    // the gate always completes against a live connection and every later one sees the cache is
+    // gone. volatile only for the lock-free IsDisposed read.
+    private volatile bool _disposed;
+
+    /// <summary>Whether this cache has been disposed. A snapshot — the answer can change the instant
+    /// after it is read — so it is a "this shoot is gone, stop early" hint, not a safety check. The
+    /// safety is that every method below is already a no-op once disposed.</summary>
+    public bool IsDisposed => _disposed;
 
     public ShootCache(string shootFolder)
     {
@@ -85,6 +102,8 @@ public sealed class ShootCache : IDisposable
         lock (_gate)
         {
             var result = new List<ModelScore>();
+            if (_disposed)
+                return result;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = "SELECT json FROM scores WHERE id = $id AND fingerprint = $fp";
             cmd.Parameters.AddWithValue("$id", id);
@@ -104,6 +123,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = """
                 INSERT INTO scores (id, modelId, fingerprint, json) VALUES ($id, $m, $fp, $j)
@@ -123,6 +144,8 @@ public sealed class ShootCache : IDisposable
         {
             metrics = null;
             exif = null;
+            if (_disposed)
+                return false;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = "SELECT fingerprint, metrics, exif FROM items WHERE id = $id";
             cmd.Parameters.AddWithValue("$id", id);
@@ -140,6 +163,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = """
                 INSERT INTO items (id, fingerprint, metrics, exif) VALUES ($id, $fp, $m, $e)
@@ -156,6 +181,11 @@ public sealed class ShootCache : IDisposable
     /// <summary>Path to a cached preview at the given size + rotation + crop, or null on a miss.</summary>
     public string? GetPreviewPath(string id, string fingerprint, int longEdge, int rotation = 0, string cropTag = "")
     {
+        // A miss rather than the blob that is still on disk: Pooling=False exists so a disposed
+        // cache releases the shoot folder to be moved or deleted, and handing out a path into a
+        // folder the caller just let go of is worse than making it decode the frame again.
+        if (_disposed)
+            return null;
         var path = PreviewPath(id, fingerprint, longEdge, rotation, cropTag);
         return File.Exists(path) ? path : null;
     }
@@ -182,8 +212,13 @@ public sealed class ShootCache : IDisposable
                 try { File.Delete(tmp); } catch { /* best-effort temp cleanup */ }
         }
 
+        // The blob above is written either way, so the caller still gets a usable path; only the
+        // index row and the stale prune are dropped once disposed. A later run over the same shoot
+        // re-indexes on its own first write, so nothing is stranded permanently.
         lock (_gate)
         {
+            if (_disposed)
+                return path;
             using (var ins = _db.CreateCommand())
             {
                 ins.CommandText = "INSERT OR REPLACE INTO previews (path, id, fingerprint) VALUES ($p, $id, $fp)";
@@ -231,6 +266,10 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            // 0 on a dead cache: a live one always answers 1 or more, so it can never collide with
+            // a real batch, and the AppendEdit that would have carried it is dropped anyway.
+            if (_disposed)
+                return 0;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = "SELECT COALESCE(MAX(batch), 0) + 1 FROM rating_history";
             return Convert.ToInt64(cmd.ExecuteScalar() ?? 1L);
@@ -243,6 +282,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using (var del = _db.CreateCommand())
             {
                 del.CommandText = "DELETE FROM rating_history WHERE state = $undone";
@@ -284,6 +325,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return Array.Empty<RatingEdit>();
             long batch;
             using (var pick = _db.CreateCommand())
             {
@@ -311,6 +354,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return Array.Empty<RatingEdit>();
             using var cmd = _db.CreateCommand();
             cmd.CommandText = """
                 SELECT seq, batch, id, label, state, beforeJson, afterJson, beforeDiskJson, afterDiskJson, note, ts
@@ -368,6 +413,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = note is null
                 ? "UPDATE rating_history SET state = $s WHERE seq = $q"
@@ -385,6 +432,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return (0, 0);
             using var cmd = _db.CreateCommand();
             cmd.CommandText = """
                 SELECT
@@ -406,6 +455,8 @@ public sealed class ShootCache : IDisposable
         lock (_gate)
         {
             var result = new Dictionary<string, int?>(StringComparer.OrdinalIgnoreCase);
+            if (_disposed)
+                return result;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = "SELECT fileName, rating FROM sidecar_state WHERE id = $id";
             cmd.Parameters.AddWithValue("$id", id);
@@ -422,6 +473,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using (var del = _db.CreateCommand())
             {
                 del.CommandText = "DELETE FROM sidecar_state WHERE id = $id";
@@ -454,6 +507,8 @@ public sealed class ShootCache : IDisposable
 
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using var tx = _db.BeginTransaction();
 
             if (!onlyIfMissing)
@@ -500,6 +555,8 @@ public sealed class ShootCache : IDisposable
     {
         lock (_gate)
         {
+            if (_disposed)
+                return;
             using var cmd = _db.CreateCommand();
             cmd.CommandText = sql;
             cmd.ExecuteNonQuery();
@@ -509,6 +566,11 @@ public sealed class ShootCache : IDisposable
     public void Dispose()
     {
         lock (_gate)
+        {
+            if (_disposed)
+                return;
+            _disposed = true;   // set inside the gate: no command can be in flight past this point
             _db.Dispose();
+        }
     }
 }

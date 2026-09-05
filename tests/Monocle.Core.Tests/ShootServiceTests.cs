@@ -73,6 +73,79 @@ public class ShootServiceTests : IDisposable
         }
     }
 
+    /// <summary>A runner that IS available but supplies a custom <c>UnavailableReasonAsync</c> —
+    /// used only to prove the reason travels through ShootService untouched. FakeRunner
+    /// deliberately does NOT implement this member, which is what the sibling test below pins.</summary>
+    private sealed class ReasonedFakeRunner : IModelRunner
+    {
+        private readonly string _id;
+        private readonly string _reason;
+
+        public ReasonedFakeRunner(string id, string reason)
+        {
+            _id = id;
+            _reason = reason;
+        }
+
+        public ModelDescriptor Descriptor => new()
+        {
+            Id = _id, DisplayName = _id, Category = ModelCategory.AestheticPredictor,
+            Description = "fake", Tradeoffs = "fake", Resource = ResourceKind.Cpu,
+            OutputKind = ScoreKind.Aesthetic, ScaleMax = 10,
+        };
+
+        public Task<bool> IsAvailableAsync(CancellationToken ct = default) => Task.FromResult(false);
+
+        public Task<string?> UnavailableReasonAsync(CancellationToken ct = default) => Task.FromResult<string?>(_reason);
+
+        public Task<ModelScore> ScoreAsync(ScoringContext context, CancellationToken ct = default) =>
+            throw new InvalidOperationException("never scored: always unavailable");
+    }
+
+    [Fact]
+    public async Task ScorerSkippedCarriesTheRunnersOwnUnavailableReason()
+    {
+        // R3 plumbing: ShootService must relay the runner's own explanation verbatim rather than
+        // always blaming the sidecar.
+        WriteJpeg("reason.jpg");
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var item = svc.Load(_dir)[0];
+
+        var skips = new List<string>();
+        svc.ScorerSkipped += skips.Add;
+
+        var runner = new ReasonedFakeRunner("picky",
+            "picky failed on every device on this machine (GPU and CPU). Nothing to fix in Monocle.");
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { runner });
+
+        var msg = Assert.Single(skips);
+        Assert.Equal(
+            $"picky skipped {item.BaseName}: picky failed on every device on this machine (GPU and CPU). "
+            + "Nothing to fix in Monocle.", msg);
+    }
+
+    [Fact]
+    public async Task ScorerSkippedFallsBackToGenericWordingWhenTheRunnerGivesNoReason()
+    {
+        // FakeRunner does NOT override UnavailableReasonAsync — proves the seam guarantee CLAUDE.md
+        // makes ("registering a runner makes it appear with no other code changes") still holds: a
+        // runner with nothing to add compiles unmodified and gets the generic fallback wording.
+        WriteJpeg("noreason.jpg");
+        var svc = new ShootService();
+        using var cache = new ShootCache(_dir);
+        var item = svc.Load(_dir)[0];
+
+        var skips = new List<string>();
+        svc.ScorerSkipped += skips.Add;
+
+        var runner = new FakeRunner("silent") { OnAvailable = _ => Task.FromResult(false) };
+        await svc.AnalyzeAsync(item, cache, rateIfUnrated: true, new IModelRunner[] { runner });
+
+        var msg = Assert.Single(skips);
+        Assert.Equal($"silent skipped {item.BaseName}: model unavailable.", msg);
+    }
+
     [Fact]
     public async Task RunnerThrowingInAvailabilityProbeIsSkippedNotFatal()
     {

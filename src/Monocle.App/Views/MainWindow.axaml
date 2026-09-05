@@ -552,29 +552,46 @@
                                                 Command="{Binding $parent[ItemsControl].((vm:MainWindowViewModel)DataContext).OpenCatalogEntryCommand}"
                                                 CommandParameter="{Binding}">
                                             <StackPanel Spacing="7">
-                                                <Grid ColumnDefinitions="*,Auto">
+                                                <Grid ColumnDefinitions="*,Auto,Auto">
                                                     <TextBlock Grid.Column="0" Text="{Binding Name}" FontWeight="SemiBold" FontSize="12.5"
                                                                TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                                                    <Border Grid.Column="1" CornerRadius="5" Padding="6,3" Background="{Binding StateBackground}">
+                                                    <Border Grid.Column="1" CornerRadius="5" Padding="6,3" Margin="0,0,6,0"
+                                                            Background="{Binding QueueStateBackground}" IsVisible="{Binding ShowQueueBadge}">
+                                                        <TextBlock Text="{Binding QueueStateLabel}" FontSize="9.5" FontWeight="Medium"
+                                                                   FontFamily="{StaticResource FontMono}" Foreground="{Binding QueueStateColor}"/>
+                                                    </Border>
+                                                    <Border Grid.Column="2" CornerRadius="5" Padding="6,3" Background="{Binding StateBackground}">
                                                         <TextBlock Text="{Binding StateLabel}" FontSize="9.5" FontWeight="Medium"
                                                                    FontFamily="{StaticResource FontMono}" Foreground="{Binding StateColor}"/>
                                                     </Border>
                                                 </Grid>
                                                 <TextBlock Text="{Binding Path}" FontSize="10.5" FontFamily="{StaticResource FontMono}"
                                                            Foreground="{StaticResource Text3}" TextTrimming="CharacterEllipsis"/>
-                                                <Grid ColumnDefinitions="Auto,Auto,*,Auto">
-                                                    <TextBlock Grid.Column="0" Text="{Binding FramesText}" FontSize="10.5"
-                                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text2}"/>
-                                                    <TextBlock Grid.Column="1" Text="{Binding PicksText}" FontSize="10.5" Margin="10,0,0,0"
-                                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Pick}"/>
-                                                    <TextBlock Grid.Column="3" Text="{Binding ScannedText}" FontSize="10.5"
+                                                <!-- Counts, then each date on its own right-aligned line. A four-digit
+                                                     frame count plus two timestamps does not fit the panel's width on one
+                                                     row, and squeezing them there clips the time off the end. -->
+                                                <StackPanel Spacing="3">
+                                                    <Grid ColumnDefinitions="Auto,Auto,*">
+                                                        <TextBlock Grid.Column="0" Text="{Binding FramesText}" FontSize="10.5"
+                                                                   FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text2}"/>
+                                                        <TextBlock Grid.Column="1" Text="{Binding PicksText}" FontSize="10.5" Margin="10,0,0,0"
+                                                                   FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Pick}"/>
+                                                    </Grid>
+                                                    <TextBlock Text="{Binding ScannedText, StringFormat='scanned {0}'}" FontSize="10.5"
+                                                               HorizontalAlignment="Right"
                                                                FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"/>
-                                                </Grid>
+                                                    <TextBlock Text="{Binding ProcessedText, StringFormat='processed {0}'}" FontSize="10.5"
+                                                               HorizontalAlignment="Right"
+                                                               FontFamily="{StaticResource FontMono}" Foreground="{StaticResource Text3}"/>
+                                                </StackPanel>
                                             </StackPanel>
                                             <Button.ContextFlyout>
                                                 <MenuFlyout>
                                                     <MenuItem Header="Refresh now"
                                                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).OpenCatalogEntryCommand}"
+                                                              CommandParameter="{Binding}"/>
+                                                    <MenuItem Header="Add to process queue"
+                                                              Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).QueueEntryCommand}"
                                                               CommandParameter="{Binding}"/>
                                                     <MenuItem Header="Show in Folders"
                                                               Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).RevealInTreeCommand}"
@@ -591,6 +608,47 @@
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
+
+                            <!-- QUEUE: unattended back-to-back scan+process over several catalogued
+                                 folders, driven by MainWindowViewModel.RunQueueAsync. Visible only
+                                 once something is queued. -->
+                            <Border IsVisible="{Binding IsQueueVisible}" Margin="4,4,4,0" Padding="10,9"
+                                    CornerRadius="9" Background="{StaticResource Surface2}"
+                                    BorderBrush="{StaticResource BorderSoft}" BorderThickness="1">
+                                <StackPanel Spacing="8">
+                                    <Grid ColumnDefinitions="*,Auto,Auto">
+                                        <TextBlock Grid.Column="0" Text="{Binding QueueCountText, StringFormat='QUEUE · {0}'}"
+                                                   FontSize="9.5" FontWeight="SemiBold" FontFamily="{StaticResource FontMono}"
+                                                   Foreground="{StaticResource Text3}" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Classes="chip" Content="Start" FontSize="11" Padding="9,3"
+                                                Command="{Binding RunQueueCommand}" IsEnabled="{Binding !QueueRunning}"
+                                                IsVisible="{Binding !QueueRunning}"/>
+                                        <Button Grid.Column="1" Classes="chip" Content="■ Stop" FontSize="11" Padding="9,3"
+                                                Command="{Binding StopQueueCommand}" IsVisible="{Binding QueueRunning}"/>
+                                        <Button Grid.Column="2" Classes="ghost" Content="Clear" FontSize="11" Padding="8,3"
+                                                Margin="6,0,0,0" Command="{Binding ClearQueueCommand}"/>
+                                    </Grid>
+                                    <ItemsControl ItemsSource="{Binding Queue}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate x:DataType="vm:CatalogEntryViewModel">
+                                                <Grid ColumnDefinitions="*,Auto,Auto" Margin="0,3">
+                                                    <TextBlock Grid.Column="0" Text="{Binding Name}" FontSize="11.5"
+                                                               TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="1" CornerRadius="5" Padding="6,2" Margin="6,0"
+                                                            Background="{Binding QueueStateBackground}">
+                                                        <TextBlock Text="{Binding QueueStateLabel}" FontSize="9" FontWeight="Medium"
+                                                                   FontFamily="{StaticResource FontMono}" Foreground="{Binding QueueStateColor}"/>
+                                                    </Border>
+                                                    <Button Grid.Column="2" Classes="ghost" Content="✕" FontSize="10" Padding="6,2"
+                                                            Command="{Binding $parent[Window].((vm:MainWindowViewModel)DataContext).DequeueEntryCommand}"
+                                                            CommandParameter="{Binding}"/>
+                                                </Grid>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+
                             <Border Margin="4,8,4,0" Padding="11,10" CornerRadius="9"
                                     Background="{StaticResource Surface2}" BorderBrush="{StaticResource BorderSoft}"
                                     BorderThickness="1">

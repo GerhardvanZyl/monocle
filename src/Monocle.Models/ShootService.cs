@@ -103,10 +103,13 @@ public sealed class ShootService
                         // be skipped, not abort the whole frame (FEATURES §6 graceful degrade).
                         if (!await runner.IsAvailableAsync(ct).ConfigureAwait(false))
                         {
-                            // A ticked model that's now unavailable (e.g. the sidecar went down, or its
-                            // Python deps were never installed) would otherwise vanish without a trace.
-                            ScorerSkipped?.Invoke($"{runner.Descriptor.DisplayName} skipped {item.BaseName}: model unavailable" +
-                                (runner.Descriptor.RequiresSidecar ? " (Python sidecar not running, or its deps aren't installed)." : "."));
+                            // A ticked model that's now unavailable would otherwise vanish without a
+                            // trace. Let the runner say why: this line used to blame the sidecar for
+                            // every case, including a model whose deps are installed and whose
+                            // sidecar is up but which this machine's GPU/CPU cannot run at all.
+                            var reason = await runner.UnavailableReasonAsync(ct).ConfigureAwait(false)
+                                         ?? "model unavailable.";
+                            ScorerSkipped?.Invoke($"{runner.Descriptor.DisplayName} skipped {item.BaseName}: {reason}");
                             continue;
                         }
                         var score = await runner.ScoreAsync(context, ct).ConfigureAwait(false);

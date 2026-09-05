@@ -31,8 +31,16 @@ public partial class MainWindowViewModel : ViewModelBase
     private readonly ModelRegistry _registry;
     private readonly AppSettings _settings;
     private ShootCache? _cache;
+    // The two runs that walk this shoot's ShootCache with Parallel.ForEachAsync workers, each with
+    // the source that stops it. StopRunsAsync cancels AND awaits both before anything disposes that
+    // cache: cancelling alone leaves up to 8 workers issuing commands on a closed SQLite connection
+    // for a moment afterwards, which is one exception per remaining frame. The scorer leg of a
+    // Process run gets its own linked source (StartAnalysisAsync) precisely so a new scan can stop
+    // it without also stopping a Claude cull leg that shares the Process run's token.
     private CancellationTokenSource? _scanCts;
-    private Task? _scanRun;   // the in-flight scan; awaited before a new scan disposes its cache
+    private Task? _scanRun;
+    private CancellationTokenSource? _analysisCts;
+    private Task? _analysisRun;
     private CancellationTokenSource? _cullCts;
     private CancellationTokenSource? _processCts;
 
@@ -1347,17 +1355,49 @@ public partial class MainWindowViewModel : ViewModelBase
             return;
         }
 
-        // Cancel any in-flight scan and wait for its analysis tasks to fully drain before the new
-        // run disposes the old ShootCache — otherwise the previous run's worker threads keep using
-        // a disposed cache (SQLite connection + blob writes).
-        _scanCts?.Cancel();
-        if (_scanRun is { } previous)
-            try { await previous; } catch { /* the previous run owns its own cancellation/errors */ }
+        // Every run in flight must be cancelled AND drained before the new run disposes the old
+        // ShootCache. This used to wait for a previous *scan* only, so a Process run's scorer leg
+        // kept using the cache the new scan was closing.
+        await StopRunsAsync();
 
         _scanCts = new CancellationTokenSource();
         var run = RunScanAsync(folder, _scanCts.Token);
         _scanRun = run;
         await run;
+    }
+
+    /// <summary>Cancel every run walking the current shoot and wait for it to actually finish, so
+    /// the caller may then dispose that shoot's <see cref="ShootCache"/>. Cancelling alone is not
+    /// enough: up to 8 <c>Parallel.ForEachAsync</c> workers keep issuing commands for a moment
+    /// afterwards, and a closed SQLite connection turns that into one exception per remaining frame.
+    /// <para>It never throws. Each run already reports its own cancellation or failure, and a scan
+    /// that rethrew the previous run's would leave the app with no shoot open at all.</para>
+    /// <para>A Claude cull leg is deliberately <i>not</i> stopped here — it owns its lifetime (see
+    /// <see cref="RunClaudeCullAsync"/>) and its one cache write is guarded against the shoot
+    /// changing underneath it instead.</para></summary>
+    private async Task StopRunsAsync()
+    {
+        // Snapshot before the first await: another entry point can replace these while we wait.
+        var scan = _scanRun;
+        var analysis = _analysisRun;
+        var analysisCts = _analysisCts;
+        _scanCts?.Cancel();
+        analysisCts?.Cancel();
+
+        foreach (var running in new[] { scan, analysis })
+            if (running is not null)
+                try { await running; } catch { /* the run itself logged why it ended */ }
+
+        // Drained, so nothing can still hold that token — but only clear the fields if they are
+        // still the ones we drained; a run started while we waited must stay drainable.
+        if (ReferenceEquals(_scanRun, scan))
+            _scanRun = null;
+        if (ReferenceEquals(_analysisRun, analysis))
+        {
+            _analysisRun = null;
+            _analysisCts = null;
+        }
+        analysisCts?.Dispose();
     }
 
     /// <summary>The scan body. Wrapped so <see cref="IsBusy"/> always resets (a throw or a
@@ -1374,7 +1414,7 @@ public partial class MainWindowViewModel : ViewModelBase
             Photos.Clear();
             VisiblePhotos.Clear();
             SelectedPhoto = null;
-            _cache?.Dispose();   // safe: the previous scan has drained (awaited in ScanAsync)
+            _cache?.Dispose();   // safe: every run holding it drained (StopRunsAsync, in ScanAsync)
             _cache = null;
             _history = null;     // the stack lives in that cache's db; a new shoot gets a new one
             _itemsById = new Dictionary<string, PhotoItem>(StringComparer.Ordinal);
@@ -1425,7 +1465,7 @@ public partial class MainWindowViewModel : ViewModelBase
             CullLog.Clear();   // the Run log tracks this run (scan now, not just cull)
             RunLog($"Scan started — {Total} photos (load + metrics only, no rating)");
 
-            await AnalyzeAllAsync(scorers, rateIfUnrated: false, claudeFollows: false, ct);
+            await StartAnalysisAsync(scorers, rateIfUnrated: false, claudeFollows: false, ct);
             CompletePipeline();
             RefreshStats();
             RestoreCullResume(folder);   // needs the cached model scores AnalyzeAllAsync just attached
@@ -1507,11 +1547,38 @@ public partial class MainWindowViewModel : ViewModelBase
             run.SetStatus(id, StageStatus.Done);
     }
 
+    /// <summary>Start an analysis leg and publish its task + token so <see cref="StopRunsAsync"/>
+    /// can drain it before the cache it is using is disposed. The leg gets its own source linked to
+    /// the caller's, which is what lets a new scan stop the scorer leg of a Process run while
+    /// leaving a Claude cull leg — which shares that run's token — running.</summary>
+    private Task StartAnalysisAsync(IReadOnlyList<IModelRunner> scorers, bool rateIfUnrated,
+                                    bool claudeFollows, CancellationToken ct, bool onlyMissing = false)
+    {
+        // Release the previous leg's source only once that leg has ended — a linked source still
+        // driving a Parallel loop must not be disposed under it. An overlapping leg (Process
+        // started during a scan) keeps its source until collected; it is still drained, via _scanRun.
+        if (_analysisRun is null or { IsCompleted: true })
+            _analysisCts?.Dispose();
+        _analysisCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var run = AnalyzeAllAsync(scorers, rateIfUnrated, claudeFollows, _analysisCts.Token, onlyMissing);
+        _analysisRun = run;
+        return run;
+    }
+
     private async Task AnalyzeAllAsync(IReadOnlyList<IModelRunner> scorers, bool rateIfUnrated,
                                        bool claudeFollows, CancellationToken ct, bool onlyMissing = false)
     {
         var cache = _cache!;
         var tiles = Photos.ToList();
+
+        // This run belongs to the cache it started with. If that cache is gone the run is pointless
+        // and every remaining frame would fail identically — one observed session logged 656 copies
+        // of the same stack trace — so the first worker to notice ends the whole run once, as a
+        // cancellation. Only a dead cache does this: a *model* failing is still swallowed per frame
+        // (CLAUDE.md graceful degrade).
+        using var runCts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        var runCt = runCts.Token;
+        var cacheGone = false;
 
         // Every frame is analysed again in this pass, so the counter starts at zero. Scan already
         // did this; Process did not, which left Analyzed still equal to Total from the preceding
@@ -1548,7 +1615,7 @@ public partial class MainWindowViewModel : ViewModelBase
             while (max-- > 0 && updates.TryDequeue(out var u))
             {
                 // Queued results from a superseded run must not touch the new shoot's grid/counters.
-                if (ct.IsCancellationRequested) { u.Bmp?.Dispose(); continue; }
+                if (runCt.IsCancellationRequested) { u.Bmp?.Dispose(); continue; }
                 if (!u.Done) { u.Tile.ScanFill = 0; u.Tile.Analyzing = true; continue; }
                 if (u.Bmp is not null)
                     u.Tile.Thumbnail = u.Bmp;
@@ -1565,7 +1632,7 @@ public partial class MainWindowViewModel : ViewModelBase
                     UpdateTileVisibility(u.Tile);
                 applied++;
             }
-            if (applied == 0 || ct.IsCancellationRequested)
+            if (applied == 0 || runCt.IsCancellationRequested)
                 return;
             var frac = Total == 0 ? 0 : (double)Analyzed / Total;
             ProgressFraction = frac;
@@ -1590,9 +1657,18 @@ public partial class MainWindowViewModel : ViewModelBase
         try
         {
         await Parallel.ForEachAsync(tiles,
-            new ParallelOptions { MaxDegreeOfParallelism = maxConcurrency, CancellationToken = ct },
+            new ParallelOptions { MaxDegreeOfParallelism = maxConcurrency, CancellationToken = runCt },
             async (tile, token) =>
             {
+                // Checked before anything is enqueued so a dead cache leaves no half-started frame.
+                // Racy by nature (several workers may set it, all to the same value); the write is
+                // published by the loop's own completion, which the finally below happens after.
+                if (cache.IsDisposed)
+                {
+                    cacheGone = true;
+                    runCts.Cancel();
+                    return;
+                }
                 updates.Enqueue((tile, null, false));   // mark started: pip goes Active on next tick
                 try
                 {
@@ -1621,6 +1697,11 @@ public partial class MainWindowViewModel : ViewModelBase
         {
             tick.Stop();
             Drain(int.MaxValue);   // resumes on the dispatcher, so this runs on the UI thread
+            if (cacheGone)
+            {
+                Diagnostics.Log.Warn("Analysis ended: this shoot's cache was closed by a newer run.");
+                RunLog("Analysis stopped — this shoot was closed or replaced.");
+            }
             // Keep the pip column expanded across to the Claude leg when it follows (one continuous
             // run); otherwise end the job so mode A hides pips / mode B collapses to the badge.
             if (!claudeFollows)
@@ -1630,7 +1711,7 @@ public partial class MainWindowViewModel : ViewModelBase
         // Honest accounting for "only score what's missing" (Task A): the progress bar/Analyzed
         // count still advance once per frame (a frame is still decoded/previewed), but this states
         // in the run log exactly how many frames did zero scorer work this pass.
-        if (onlyMissing && scorers.Count > 0 && !ct.IsCancellationRequested)
+        if (onlyMissing && scorers.Count > 0 && !runCt.IsCancellationRequested)
             RunLog(skippedFrames == 0
                 ? $"Only missing: no frame already had every ticked model — scored all {tiles.Count}."
                 : $"Only missing: skipped {skippedFrames}/{tiles.Count} frames already scored by every ticked model; scored {tiles.Count - skippedFrames}.");
@@ -2014,7 +2095,8 @@ public partial class MainWindowViewModel : ViewModelBase
                     SetupPipeline(scorers, rate: true, useClaude: claude.Count > 0);
                     lock (_scorerSkipReasons) _scorerSkipReasons.Clear();
                     RunLog($"Process ({(OnlyScoreMissing ? "only missing" : "re-score all")}) — scorers: {string.Join(", ", scorers.Select(s => s.Descriptor.DisplayName))}");
-                    await AnalyzeAllAsync(scorers, rateIfUnrated: true, claudeFollows: claude.Count > 0, ct, onlyMissing: OnlyScoreMissing);
+                    await StartAnalysisAsync(scorers, rateIfUnrated: true, claudeFollows: claude.Count > 0, ct,
+                                             onlyMissing: OnlyScoreMissing);
                     CompletePipeline();
                     RefreshStats();
                     ApplyFilter();
@@ -2038,6 +2120,15 @@ public partial class MainWindowViewModel : ViewModelBase
             // A cull leg reports cancellation instead of throwing (it leaves resumable work, not a
             // failure), so the last leg being stopped would otherwise land on "Process complete."
             ct.ThrowIfCancellationRequested();
+
+            // Stamp the catalog card here, not at the queue's call site: this is the one point both
+            // a manual Process click and a queued run pass through having actually finished, and
+            // neither the early returns above nor a cancellation reach it.
+            if (ActiveCatalogEntry is { } entry)
+            {
+                entry.LastProcessed = DateTime.UtcNow;
+                SaveCatalog();
+            }
             StatusText = "Process complete.";
         }
         catch (OperationCanceledException)
@@ -2075,7 +2166,9 @@ public partial class MainWindowViewModel : ViewModelBase
     /// first pass's work or overwrite a rating the user made in between.</param>
     private async Task RunClaudeCullAsync(ClaudeCullRunner runner, CancellationToken outerCt, bool resume = false)
     {
-        if (_cache is null || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
+        // The cache this leg belongs to, captured up front: the cull deliberately outlives a rescan
+        // (below), which replaces _cache, so the field cannot be trusted once the run is under way.
+        if (_cache is not { } cullCache || string.IsNullOrEmpty(FolderPath) || Photos.Count == 0)
         {
             StatusText = "Scan a folder before culling.";
             return;
@@ -2174,12 +2267,18 @@ public partial class MainWindowViewModel : ViewModelBase
                             // Attach + cache this model's verdict as its own ModelScore (keyed
                             // "claude:<modelId>") so a later model's set_rating doesn't clobber an
                             // earlier one's — only item.Stars/headline stay last-writer-wins (#5).
-                            if (tile is not null && TryGetStars(ev.ToolInput) is { } stars)
+                            // …but only while the shoot it judged is still the open one. A rescan
+                            // mid-cull replaces both _cache and the grid, and `tile` is then a frame
+                            // of the NEW shoot: writing here put shoot A's verdict, keyed by shoot
+                            // A's id, onto shoot B's tile and into shoot B's cache.db. Same guard
+                            // LoadDetailAsync uses after an await.
+                            if (tile is not null && ReferenceEquals(_cache, cullCache) &&
+                                TryGetStars(ev.ToolInput) is { } stars)
                             {
                                 var verdict = ClaudeVerdictScore(currentClaudeModelId, currentClaudeDisplay, stars, TryGetRationale(ev.ToolInput));
                                 tile.Item.Scores.RemoveAll(s => s.ModelId == verdict.ModelId);   // re-run replaces
                                 tile.Item.Scores.Add(verdict);
-                                _cache?.PutScore(tile.Item.Id, tile.Item.Fingerprint, verdict);
+                                cullCache.PutScore(tile.Item.Id, tile.Item.Fingerprint, verdict);
                             }
                             // The frame Claude just rated is complete: fill its bar and settle it (#1).
                             tile?.CompleteCull();
@@ -3034,9 +3133,16 @@ public partial class MainWindowViewModel : ViewModelBase
         _sidecar.Output -= OnSidecarOutput;
         _llama.Output -= OnLlamaOutput;
         _service.ScorerSkipped -= OnScorerSkipped;
+        // Cancel, then dispose, WITHOUT waiting. Cleanup runs synchronously on the UI thread from
+        // Window.OnClosed and every run resumes on that same dispatcher, so blocking here would
+        // deadlock shutdown against the very thread those runs need in order to finish. Not waiting
+        // is safe because a disposed ShootCache answers reads as misses and drops writes: a worker
+        // still in flight ends quietly instead of throwing once per remaining frame.
         _scanCts?.Cancel();
+        _analysisCts?.Cancel();
         _cullCts?.Cancel();
         _processCts?.Cancel();
+        _queueCts?.Cancel();
         _cache?.Dispose();
         _sidecar.Dispose();
         _llama.Dispose();      // kills the GPU server we launched, freeing VRAM

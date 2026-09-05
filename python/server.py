@@ -7,7 +7,7 @@ itself uses only the standard library, so /health and /models work even before t
 dependencies are installed; torch/transformers are imported lazily on the first /score call.
 
 Endpoints (JSON):
-  GET  /health  -> {"status":"ok","models":[ids],"ready":[ids],"loaded":[ids]}
+  GET  /health  -> {"status":"ok","models":[ids],"ready":[ids],"broken":[ids],"loaded":[ids]}
   GET  /models  -> {"models":[{id,name,kind,resource,scale_min,scale_max,description,tradeoffs,
                                info_url}, ...]}
   POST /score   -> body {"model":id,"image_b64":...,"kind":"quality|aesthetic|critique"}
@@ -16,7 +16,10 @@ Endpoints (JSON):
 
 "models" is every model the sidecar knows about; "ready" is the subset whose Python deps
 (torch/transformers/Pillow) are actually importable, so the app can tell "sidecar reachable"
-apart from "model truly runnable" and not offer a model that would fail at score time.
+apart from "model truly runnable" and not offer a model that would fail at score time. "broken" is
+the subset this machine proved it cannot run at all (see _pyiqa_broken) — it is reported because
+"the sidecar is down", "its deps are missing" and "your GPU and CPU both refused this network" are
+three different problems and the app used to name only the first.
 
 Two families live here. The critique models (Qwen2.5-VL, Mage-VL) are large VLMs and are GPU-only
 — CPU inference of a 5-7B model is not worth offering. The pyiqa metrics are small no-reference
@@ -538,7 +541,8 @@ class Handler(BaseHTTPRequestHandler):
             # the app can tell "sidecar reachable" from "model runnable" at all.
             self._send(200, {"status": "ok",
                              "models": [c["id"] for c in CATALOG] + list(PYIQA),
-                             "ready": _ready_models(), "loaded": list(_loaded)})
+                             "ready": _ready_models(), "broken": sorted(_pyiqa_broken),
+                             "loaded": list(_loaded)})
         elif self.path == "/models":
             self._send(200, {"models": catalog()})
         else:

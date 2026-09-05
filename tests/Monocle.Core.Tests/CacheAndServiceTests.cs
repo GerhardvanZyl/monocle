@@ -70,6 +70,119 @@ public class CacheAndServiceTests : IDisposable
     }
 
     [Fact]
+    public void GetPreviewPathRoundTripsAfterPutPreview()
+    {
+        // PutPreviewPrunesStaleFingerprintBlobs above checks the blob on disk directly; this checks
+        // the cache-lookup path itself (a live-cache hit and the miss before it) is not covered there.
+        using var cache = new ShootCache(_dir);
+        Assert.Null(cache.GetPreviewPath("id1", "fp1", 300));   // miss before anything is cached
+
+        var jpeg = new byte[] { 1, 2, 3, 4 };
+        var written = cache.PutPreview("id1", "fp1", 300, 0, jpeg);
+
+        var hit = cache.GetPreviewPath("id1", "fp1", 300);
+        Assert.Equal(written, hit);
+        Assert.True(File.Exists(hit));
+    }
+
+    [Fact]
+    public void DisposedCacheReadsAreMissesAndWritesAreSilentlyDropped()
+    {
+        // Constraint 3: a disposed ShootCache must never throw from a read or a write. Reads
+        // answer as a miss (empty list / false / null / (0,0) / 0), writes no-op. Covers every
+        // public member; NextBatchId/AppendEdit/NextUndoBatch/etc. against a LIVE cache are already
+        // exercised thoroughly by RatingHistoryTests (NewBatch/Apply/Undo/Redo/Counts), so this test
+        // only needs to prove the disposed-cache answer for each, not repeat the live-path coverage.
+        var cache = new ShootCache(_dir);
+        cache.Dispose();
+        Assert.True(cache.IsDisposed);
+
+        Assert.Empty(cache.GetScores("id1", "fp1"));
+        Assert.False(cache.TryGetAnalysis("id1", "fp1", out var metrics, out var exif));
+        Assert.Null(metrics);
+        Assert.Null(exif);
+        Assert.Null(cache.GetPreviewPath("id1", "fp1", 200));
+        Assert.Equal(0, cache.NextBatchId());
+        Assert.Empty(cache.NextUndoBatch());
+        Assert.Empty(cache.NextRedoBatch());
+        Assert.Empty(cache.HistoryFor("id1"));
+        Assert.Equal((0, 0), cache.HistoryCounts());
+        Assert.Empty(cache.GetSidecarBelief("id1"));
+
+        // Writes: no throw. Because Pooling=False releases the db file on Dispose, a fresh cache
+        // over the same folder can then prove none of these actually landed anywhere.
+        var writeEx = Record.Exception(() =>
+        {
+            cache.PutScore("id1", "fp1", new ModelScore
+            {
+                ModelId = "m", ModelDisplayName = "m", Kind = ScoreKind.Aesthetic,
+                Value = 1, ScaleMax = 10, Resource = ResourceKind.Cpu,
+            });
+            cache.PutAnalysis("id1", "fp1", new TechnicalMetrics { CompositeScore = 0.5 }, new ExifInfo { Iso = 200 });
+            cache.AppendEdit(new RatingEdit { Batch = 1, ItemId = "id1", Label = "x" });
+            cache.SetEditState(1, RatingEditState.Voided, "note");
+            cache.PutSidecarBelief("id1", new Dictionary<string, int?> { ["a.jpg"] = 3 });
+            cache.PutSidecarBeliefs(new[] { ("id1", "a.jpg", (int?)3) }, onlyIfMissing: false);
+        });
+        Assert.Null(writeEx);
+
+        // PutPreview: the blob is still written to disk (the caller shouldn't lose a decode it
+        // already paid for) at its normal content-derived path; only the "previews" index row
+        // (used solely to prune stale-fingerprint blobs, not to look one up) is dropped.
+        var previewPath = cache.PutPreview("id2", "fp2", 300, 0, new byte[] { 9, 9, 9 });
+        Assert.True(File.Exists(previewPath));
+
+        using var reopened = new ShootCache(_dir);
+        Assert.Empty(reopened.GetScores("id1", "fp1"));
+        Assert.False(reopened.TryGetAnalysis("id1", "fp1", out _, out _));
+        Assert.Equal((0, 0), reopened.HistoryCounts());
+        Assert.Empty(reopened.HistoryFor("id1"));
+        Assert.Empty(reopened.GetSidecarBelief("id1"));
+        // GetPreviewPath is a plain file-existence check at a content-derived path, not a DB
+        // lookup, so the un-indexed blob written above is still found by a fresh cache.
+        Assert.Equal(previewPath, reopened.GetPreviewPath("id2", "fp2", 300));
+    }
+
+    [Fact]
+    public void DisposeIsIdempotentAndIsDisposedFlips()
+    {
+        var cache = new ShootCache(_dir);
+        Assert.False(cache.IsDisposed);
+        cache.Dispose();
+        Assert.True(cache.IsDisposed);
+
+        var ex = Record.Exception(() => { cache.Dispose(); cache.Dispose(); });
+        Assert.Null(ex);
+        Assert.True(cache.IsDisposed);
+    }
+
+    [Fact]
+    public void DisposedCacheReleasesTheDbFileSoTheShootFolderCanBeMovedOrDeleted()
+    {
+        // Constraint 2: Pooling=False must never come back — pooling keeps the db file locked
+        // after Dispose, which would block moving or deleting the shoot folder. Uses its own
+        // directory (not the shared fixture _dir) since the move renders that path gone.
+        var shoot = Path.Combine(Path.GetTempPath(), "monocle_move_" + Guid.NewGuid().ToString("N"));
+        Directory.CreateDirectory(shoot);
+        try
+        {
+            var cache = new ShootCache(shoot);
+            cache.PutAnalysis("id1", "fp1", new TechnicalMetrics(), new ExifInfo());
+            cache.Dispose();
+
+            var moved = shoot + "_moved";
+            Directory.Move(shoot, moved);   // throws IOException if the db file is still locked
+            Assert.True(Directory.Exists(moved));
+            Directory.Delete(moved, recursive: true);
+        }
+        finally
+        {
+            if (Directory.Exists(shoot))
+                Directory.Delete(shoot, recursive: true);
+        }
+    }
+
+    [Fact]
     public async Task EndToEndAnalyzeRateSaveAndReload()
     {
         WriteJpeg("DSC001.jpg");

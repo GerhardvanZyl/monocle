@@ -51,6 +51,28 @@ public sealed class SidecarRunner : IModelRunner
         return runnable.Contains(_info.Id);
     }
 
+    /// <summary>Which of the four ways a sidecar model can be unavailable this actually is. The
+    /// distinction matters: only one of them is fixed by starting the sidecar or installing deps,
+    /// and the model this machine simply cannot run is not fixable in Monocle at all.</summary>
+    public async Task<string?> UnavailableReasonAsync(CancellationToken ct = default)
+    {
+        if (!_manager.Running)
+            return "the Python sidecar isn't running.";
+        var health = await _manager.HealthAsync(ct).ConfigureAwait(false);
+        if (health is null)
+            return "the Python sidecar isn't answering.";
+        if (!health.Models.Contains(_info.Id))
+            return $"the running Python sidecar doesn't offer {_info.Id}.";
+        // Broken is null on a sidecar too old to report it, which is "unknown", not "none" — so an
+        // old sidecar falls through to the deps wording it would have given before.
+        if (health.Broken?.Contains(_info.Id) == true)
+            return $"{_info.Id} failed on every device on this machine (GPU and CPU), so the sidecar "
+                   + "stopped offering it. Nothing to fix in Monocle.";
+        if ((health.Ready ?? health.Models).Contains(_info.Id))
+            return null;   // ready again between the two probes: nothing useful to say
+        return $"the Python sidecar offers {_info.Id} but can't run it — its Python deps aren't installed.";
+    }
+
     public async Task<ModelScore> ScoreAsync(ScoringContext context, CancellationToken ct = default)
     {
         if (context.PreviewJpeg is null)

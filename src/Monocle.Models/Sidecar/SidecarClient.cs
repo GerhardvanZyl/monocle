@@ -12,7 +12,12 @@ public sealed record SidecarHealth(
     [property: JsonPropertyName("loaded")] string[] Loaded,
     // Models whose Python deps are actually installed, so they can really score. Older sidecars
     // don't send this; null there means "fall back to Models" (see SidecarRunner.IsAvailableAsync).
-    [property: JsonPropertyName("ready")] string[]? Ready = null);
+    [property: JsonPropertyName("ready")] string[]? Ready = null,
+    // Models the sidecar tried on every device this machine has and could not run at all (a CNN
+    // metric MIOpen won't compile, for instance). They appear in Models but never in Ready, and
+    // that difference is the only thing separating "broken here" from "deps not installed" — which
+    // are different fixes. Null on an older sidecar means unknown, not none.
+    [property: JsonPropertyName("broken")] string[]? Broken = null);
 
 /// <summary>One entry of the sidecar's own model catalog, as served by GET /models. This is the
 /// same shape python/server.py's CATALOG uses, so a model added there arrives here complete

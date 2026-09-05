@@ -35,6 +35,11 @@ public sealed class AppSettings
     public List<CatalogEntrySetting> Catalog { get; set; } = new();
     public List<string> Favourites { get; set; } = new();
 
+    // Ordered catalogued-folder paths queued for unattended back-to-back scan+process. Session
+    // state (Running/Failed) is never persisted here — only the order, so an app killed mid-queue
+    // comes back with the interrupted entry at the head, plain Queued.
+    public List<string> ProcessQueue { get; set; } = new();
+
     // Claude cull instructions (AI Cull view). The knobs regenerate CullPrompt; CullPrompt is what's
     // actually sent (the user may hand-edit it). Empty CullPrompt => regenerate the default on load.
     public int CullKeepTarget { get; set; }                                       // 0 = no target
@@ -100,6 +105,7 @@ public sealed class CatalogEntrySetting
     public int Frames { get; set; }
     public int Picks { get; set; }
     public DateTime? LastScanned { get; set; }
+    public DateTime? LastProcessed { get; set; }
 }
 
 /// <summary>One "[axis] below [value] -> rating at most [N] stars" hard limit. Axis is a plain

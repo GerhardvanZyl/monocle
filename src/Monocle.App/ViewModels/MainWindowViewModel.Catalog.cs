@@ -93,6 +93,7 @@ public partial class MainWindowViewModel
                 Favourites.Add(new FolderNodeViewModel(Path.GetFileName(path.TrimEnd('\\', '/')), path, 0, isDrive: false));
 
         MarkCataloguedNodes();
+        RebuildQueueFromSettings();
         LeftTab = Catalog.Count > 0 ? "catalog" : "folders";
 
         // Drives arrive after the window does. DriveInfo.IsReady blocks on the SMB timeout for a
@@ -346,10 +347,12 @@ public partial class MainWindowViewModel
 
             // Hidden and System are skipped for the same reason the tree skips them: pointed at a
             // drive root this would otherwise descend $Recycle.Bin, System Volume Information and
-            // Windows, and catalogue the wallpaper folder as a shoot.
+            // Windows, and catalogue the wallpaper folder as a shoot. Dot folders go too: our own
+            // .monocle-cache holds preview JPEGs, so it looks exactly like a shoot from here.
             // Push in reverse so the pop order is alphabetical, which is the order the catalog
             // list ends up in and the order a photographer expects a year folder to expand in.
-            foreach (var sub in subs.Where(d => (d.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Hidden | FileAttributes.System)) == 0)
+            foreach (var sub in subs.Where(d => (d.Attributes & (FileAttributes.ReparsePoint | FileAttributes.Hidden | FileAttributes.System)) == 0
+                                            && !d.Name.StartsWith('.'))
                                     .OrderByDescending(d => d.Name, StringComparer.OrdinalIgnoreCase))
                 stack.Push(sub.FullName);
         }

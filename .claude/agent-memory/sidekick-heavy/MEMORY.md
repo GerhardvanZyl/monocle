@@ -1,3 +1,4 @@
 - [Sidecar write invariants](monocle-sidecar-invariants.md) — 0★ never clears xmp:Rating, the headline merge is additive, keywords leak; read-back is the only truth
 - [Staleness guard](monocle-staleness-guard.md) — how undo/revert avoid destroying On1/Lightroom edits, and why the baseline must never be re-seeded on scan
-- [Runtime GUI verification](monocle-runtime-verification.md) — build lock from a running app, focusing the window, wheel doesn't scroll, settings.json restore
+- [Run lifetime & ShootCache](monocle-run-lifetime.md) — who owns the cache, why the Claude cull must stay undrainable, why Cleanup must never wait
+- [Runtime & scratch-harness verification](monocle-runtime-verification.md) — build lock is debug-only, scratch console harnesses, seeding the real sidecar, GUI driving traps

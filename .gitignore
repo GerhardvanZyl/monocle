@@ -34,3 +34,6 @@ monocle.zip
 # llama.cpp Vulkan runtime (downloaded binaries) + GPU scratch tests
 tools/
 python/_gpu_test.*
+
+# dev-loop working output (briefs, findings, logs) — conventions.md IS committed
+.claude/review/runs/

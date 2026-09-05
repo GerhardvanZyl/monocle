@@ -88,6 +88,67 @@ public class SidecarClientTests
         Assert.Equal("ok", score!.Text);
     }
 
+    /// <summary>Serve one canned /health body and stop; used by the three tests below.</summary>
+    private static async Task<SidecarHealth?> HealthFromWireBody(int port, string body)
+    {
+        using var listener = new HttpListener();
+        listener.Prefixes.Add($"http://127.0.0.1:{port}/");
+        listener.Start();
+
+        var server = Task.Run(async () =>
+        {
+            var ctx = await listener.GetContextAsync();
+            var bytes = Encoding.UTF8.GetBytes(body);
+            ctx.Response.ContentType = "application/json";
+            ctx.Response.ContentLength64 = bytes.Length;
+            ctx.Response.OutputStream.Write(bytes, 0, bytes.Length);
+            ctx.Response.Close();
+        });
+
+        var client = new SidecarClient($"http://127.0.0.1:{port}");
+        var health = await client.HealthAsync();
+        await server;
+        listener.Stop();
+        return health;
+    }
+
+    [Fact]
+    public async Task OlderSidecarOmittingReadyAndBrokenParsesBothAsNull()
+    {
+        // Constraint 9: an older sidecar that predates BOTH fields must still work. Null, not
+        // empty, is the wire signal SidecarRunner reads as "unknown" and falls back on — an empty
+        // array would instead mean "asked, and the answer is none", which is a different fact.
+        var health = await HealthFromWireBody(18841, """{"status":"ok","models":["dbcnn"],"loaded":[]}""");
+
+        Assert.NotNull(health);
+        Assert.Null(health!.Ready);
+        Assert.Null(health.Broken);
+    }
+
+    [Fact]
+    public async Task SidecarWithReadyButNoBrokenFieldLeavesBrokenNull()
+    {
+        // A sidecar that has "ready" but predates "broken" (this fix's own predecessor state):
+        // Ready parses as given, Broken stays null (unknown), not empty.
+        var health = await HealthFromWireBody(18842,
+            """{"status":"ok","models":["dbcnn","topiq-nr-face"],"ready":["dbcnn"],"loaded":[]}""");
+
+        Assert.NotNull(health);
+        Assert.Equal(new[] { "dbcnn" }, health!.Ready);
+        Assert.Null(health.Broken);
+    }
+
+    [Fact]
+    public async Task SidecarReportingBothReadyAndBrokenParsesBothArrays()
+    {
+        var health = await HealthFromWireBody(18843,
+            """{"status":"ok","models":["dbcnn","topiq-nr-face"],"ready":["dbcnn"],"broken":["topiq-nr-face"],"loaded":[]}""");
+
+        Assert.NotNull(health);
+        Assert.Equal(new[] { "dbcnn" }, health!.Ready);
+        Assert.Equal(new[] { "topiq-nr-face" }, health.Broken);
+    }
+
     [Fact]
     public async Task HealthReturnsNullWhenNothingListening()
     {

@@ -49,7 +49,7 @@ manually, just `pip install` the appropriate torch build into `.venv` yourself.
 
 | Method | Path | Body / Response |
 |---|---|---|
-| GET | `/health` | `{"status":"ok","models":[ids],"loaded":[ids]}` |
+| GET | `/health` | `{"status":"ok","models":[ids],"ready":[ids],"broken":[ids],"loaded":[ids]}` |
 | GET | `/models` | catalog with descriptions + tradeoffs |
 | POST | `/score` | `{"model":id,"image_b64":..,"kind":..}` → `{"model","value","text","scale_max"}` |
 

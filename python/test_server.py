@@ -5,7 +5,10 @@ Guards two fixes worth keeping guarded:
   * Qwen reported "ready" on a box that can't actually run it (CPU-only, no llama.cpp URL).
   * A pyiqa metric that failed once on the GPU was retired instead of falling back to the CPU.
 """
+import json
 import os
+import threading
+import urllib.request
 import server
 
 
@@ -73,6 +76,30 @@ def test_a_metric_that_failed_everywhere_drops_out_of_ready():
         server._pyiqa_broken.discard("topiq-nr-face")
 
 
+def test_health_reports_broken_models():
+    """R3's wire plumbing: /health's "broken" field must reflect _pyiqa_broken, over a real HTTP
+    round trip through Handler.do_GET (not just the _ready_models() logic test_a_metric_that_
+    failed_everywhere_drops_out_of_ready above already covers) — this is what SidecarClient on the
+    C# side actually parses."""
+    stub_probes()
+    server._pyiqa_broken.add("topiq-nr-face")
+    try:
+        httpd = server.ThreadingHTTPServer(("127.0.0.1", 0), server.Handler)
+        port = httpd.server_address[1]
+        thread = threading.Thread(target=httpd.serve_forever, daemon=True)
+        thread.start()
+        try:
+            with urllib.request.urlopen(f"http://127.0.0.1:{port}/health", timeout=5) as resp:
+                body = json.loads(resp.read())
+            assert body["broken"] == sorted(server._pyiqa_broken)
+            assert "topiq-nr-face" in body["broken"]
+        finally:
+            httpd.shutdown()
+            thread.join(timeout=5)
+    finally:
+        server._pyiqa_broken.discard("topiq-nr-face")
+
+
 def test_score_and_catalog_agree_on_every_scale():
     """A score normalises against the scale the picker advertised, so the two must not drift."""
     stub_probes()
@@ -104,6 +131,7 @@ if __name__ == "__main__":
     test_gpu_metric_still_falls_back_to_cpu_after_a_late_failure()
     test_a_metric_known_to_be_cpu_does_not_retry_the_gpu()
     test_a_metric_that_failed_everywhere_drops_out_of_ready()
+    test_health_reports_broken_models()
     test_score_and_catalog_agree_on_every_scale()
     test_every_pyiqa_metric_is_described()
     test_liqe_style_tuple_output_is_reduced_to_a_number()
