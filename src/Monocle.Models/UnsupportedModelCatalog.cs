@@ -18,9 +18,10 @@ public static class UnsupportedModelCatalog
 {
     // Reasons are written for THIS machine's shape: Windows + an AMD GPU, so the working GPU paths
     // are ONNX Runtime/DirectML, llama.cpp/Vulkan, and the Python sidecar. Being PyTorch-only is no
-    // longer a blocker on its own — the sidecar hosts the pyiqa metrics, on whichever of CPU/GPU
-    // actually works for each — so what remains here needs a package or a runner that does not
-    // exist, which is an honest blocker rather than a verdict on the model.
+    // longer a blocker on its own — the sidecar hosts the pyiqa metrics, per-metric CPU/GPU because
+    // a ROCm wheel packaging gap, not a hardware limit, can take a metric off the GPU (mechanism:
+    // python/server.py's _gpu_usable_for_pyiqa) — so what remains here needs a package or a runner
+    // that does not exist, which is an honest blocker rather than a verdict on the model.
     public static readonly IReadOnlyList<BlockedModelGroup> Groups = new BlockedModelGroup[]
     {
         new("Preference models with no pyiqa metric and no ONNX export, so nothing here can host "

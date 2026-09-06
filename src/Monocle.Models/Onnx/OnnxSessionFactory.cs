@@ -35,9 +35,9 @@ public static class OnnxSessionFactory
                 return session;
             }
             // A GPU provider can register fine and still fail to *initialize* a specific model
-            // (e.g. DML 80070057 on a graph with an op it can't compile — aesthetic-predictor-v2.5).
-            // Without this, every score call re-attempted the same doomed init and the model never
-            // produced anything; on CPU it just runs slower.
+            // (a DML/CUDA/ROCm operator rejecting something about that graph). Without this, every
+            // score call re-attempted the same doomed init and the model never produced anything;
+            // on CPU it just runs slower.
             catch (Exception ex) when (!ep.StartsWith("CPU"))
             {
                 Diagnostic?.Invoke($"{name}: {ep} failed to initialize this model ({FirstLine(ex.Message)}) — falling back to CPU.");
