@@ -1,13 +1,21 @@
 """Stdlib self-check for the sidecar's model-readiness and device-fallback logic (no pytest, no
 heavy deps). Run: python test_server.py  ->  prints "ok" or asserts.
 
-Guards two fixes worth keeping guarded:
+Guards fixes worth keeping guarded:
   * Qwen reported "ready" on a box that can't actually run it (CPU-only, no llama.cpp URL).
   * A pyiqa metric that failed once on the GPU was retired instead of falling back to the CPU.
+  * _gpu_usable_for_pyiqa()'s self-calibrating probe: a healthy first probe must leave
+    torch.backends.cudnn.enabled untouched, a failing-then-passing retry must leave it disabled,
+    a failing-twice retry must restore it to whatever it was on entry (not a hardcoded True), and
+    a GPU reported not-ready must never even import torch. Torch is stubbed into sys.modules for
+    the duration of these so they run the same on a CPU-only box and in CI, which is the whole
+    point of stub_probes() below.
 """
 import json
 import os
+import sys
 import threading
+import types
 import urllib.request
 import server
 
@@ -125,6 +133,168 @@ def test_liqe_style_tuple_output_is_reduced_to_a_number():
     assert server._scalar(0.75) == 0.75
 
 
+def _reset_pyiqa_probe(gpu_ready):
+    """Unlike stub_probes(), this leaves _pyiqa_gpu_probe at None (unprobed) so a call to
+    _gpu_usable_for_pyiqa() actually runs its probe logic instead of short-circuiting on a cached
+    answer -- stub_probes() sets it to False specifically so *other* tests skip the probe."""
+    server._gpu_probe = gpu_ready
+    server._pyiqa_gpu_probe = None
+
+
+class _StubBatchNorm2d:
+    """Stands in for torch.nn.BatchNorm2d(8).cuda().eval()(x): raises on call number `i` in
+    `outcomes` where outcomes[i] is False, returns a stub tensor otherwise. One instance is
+    constructed and called once per _probe() invocation inside _gpu_usable_for_pyiqa."""
+
+    _outcomes = ()
+    _calls = 0
+
+    def __init__(self, *_a, **_kw):
+        pass
+
+    def cuda(self):
+        return self
+
+    def eval(self):
+        return self
+
+    def __call__(self, *_a, **_kw):
+        i = type(self)._calls
+        type(self)._calls += 1
+        ok = type(self)._outcomes[i] if i < len(type(self)._outcomes) else False
+        if not ok:
+            raise RuntimeError(f"stub probe failure #{i}")
+        return object()
+
+
+def _install_stub_torch(outcomes):
+    """A minimal fake `torch` module satisfying just what _gpu_usable_for_pyiqa's _probe() calls:
+    nn.BatchNorm2d(...).cuda().eval()(...), torch.randn(...).cuda(), torch.no_grad(), and a
+    settable backends.cudnn.enabled. `outcomes` is one bool per expected probe attempt (True =
+    that attempt succeeds). Returns the stub module; install/restore sys.modules is the caller's
+    job so it can run in a try/finally around the assertion.
+    """
+    bn_cls = type("_StubBatchNorm2d", (_StubBatchNorm2d,), {"_outcomes": outcomes, "_calls": 0})
+
+    class _NoGrad:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, *_exc):
+            return False
+
+    stub = types.ModuleType("torch")
+    stub.nn = types.SimpleNamespace(BatchNorm2d=bn_cls)
+    stub.randn = lambda *_a, **_kw: types.SimpleNamespace(cuda=lambda: object())
+    stub.no_grad = _NoGrad
+    stub.backends = types.SimpleNamespace(cudnn=types.SimpleNamespace(enabled=True))
+    return stub
+
+
+def test_probe_passing_on_first_try_leaves_cudnn_untouched():
+    """The constraint that matters most: a healthy CUDA/cuDNN box must not have cuDNN disabled
+    just because the code also knows how to route around a broken one."""
+    _reset_pyiqa_probe(gpu_ready=True)
+    stub = _install_stub_torch(outcomes=[True])
+    stub.backends.cudnn.enabled = "untouched"  # not True/False -- proves no assignment happened
+    had_torch = "torch" in sys.modules
+    old_torch = sys.modules.get("torch")
+    sys.modules["torch"] = stub
+    try:
+        assert server._gpu_usable_for_pyiqa() is True
+        assert stub.backends.cudnn.enabled == "untouched"
+    finally:
+        server._pyiqa_gpu_probe = None
+        if had_torch:
+            sys.modules["torch"] = old_torch
+        else:
+            del sys.modules["torch"]
+
+
+def test_probe_retries_with_cudnn_disabled_and_succeeds():
+    _reset_pyiqa_probe(gpu_ready=True)
+    stub = _install_stub_torch(outcomes=[False, True])
+    had_torch = "torch" in sys.modules
+    old_torch = sys.modules.get("torch")
+    sys.modules["torch"] = stub
+    try:
+        assert server._gpu_usable_for_pyiqa() is True
+        assert stub.backends.cudnn.enabled is False
+    finally:
+        server._pyiqa_gpu_probe = None
+        if had_torch:
+            sys.modules["torch"] = old_torch
+        else:
+            del sys.modules["torch"]
+
+
+def test_probe_failing_twice_reports_unusable_and_restores_cudnn_to_entry_value():
+    """The failure path must restore cudnn.enabled to whatever it was when the probe started, not
+    to a hardcoded True. Entry value here happens to be True (the stub's default), so this alone
+    would not catch a restore-to-True bug -- see
+    test_probe_failing_twice_restores_cudnn_to_false_when_that_was_the_entry_value for the case
+    that actually distinguishes the two."""
+    _reset_pyiqa_probe(gpu_ready=True)
+    stub = _install_stub_torch(outcomes=[False, False])
+    had_torch = "torch" in sys.modules
+    old_torch = sys.modules.get("torch")
+    sys.modules["torch"] = stub
+    try:
+        assert server._gpu_usable_for_pyiqa() is False
+        assert stub.backends.cudnn.enabled is True
+    finally:
+        server._pyiqa_gpu_probe = None
+        if had_torch:
+            sys.modules["torch"] = old_torch
+        else:
+            del sys.modules["torch"]
+
+
+def test_probe_failing_twice_restores_cudnn_to_false_when_that_was_the_entry_value():
+    """Regression test: a process that had deliberately disabled cuDNN before calling here must
+    not have it silently switched back on when both probes fail. The failure path used to restore
+    to a hardcoded True regardless of the entry value -- this is the case that catches that bug,
+    since entry=True can't distinguish "restored to True" from "restored to entry value"."""
+    _reset_pyiqa_probe(gpu_ready=True)
+    stub = _install_stub_torch(outcomes=[False, False])
+    stub.backends.cudnn.enabled = False
+    had_torch = "torch" in sys.modules
+    old_torch = sys.modules.get("torch")
+    sys.modules["torch"] = stub
+    try:
+        assert server._gpu_usable_for_pyiqa() is False
+        assert stub.backends.cudnn.enabled is False
+    finally:
+        server._pyiqa_gpu_probe = None
+        if had_torch:
+            sys.modules["torch"] = old_torch
+        else:
+            del sys.modules["torch"]
+
+
+def test_probe_skips_entirely_when_gpu_is_not_ready():
+    """When _gpu_ready() is False, _gpu_usable_for_pyiqa must return False without ever importing
+    or touching torch -- installing a stub that raises on any attribute access proves the `import
+    torch` branch was never reached, not just that its result was ignored."""
+    _reset_pyiqa_probe(gpu_ready=False)
+
+    class _ExplodesOnAnyAccess:
+        def __getattr__(self, name):
+            raise AssertionError(f"torch.{name} accessed but the GPU was not ready")
+
+    had_torch = "torch" in sys.modules
+    old_torch = sys.modules.get("torch")
+    sys.modules["torch"] = _ExplodesOnAnyAccess()
+    try:
+        assert server._gpu_usable_for_pyiqa() is False
+    finally:
+        server._pyiqa_gpu_probe = None
+        if had_torch:
+            sys.modules["torch"] = old_torch
+        else:
+            del sys.modules["torch"]
+
+
 if __name__ == "__main__":
     test_llama_url_makes_qwen_ready()
     test_cpu_only_is_not_ready()
@@ -135,4 +305,9 @@ if __name__ == "__main__":
     test_score_and_catalog_agree_on_every_scale()
     test_every_pyiqa_metric_is_described()
     test_liqe_style_tuple_output_is_reduced_to_a_number()
+    test_probe_passing_on_first_try_leaves_cudnn_untouched()
+    test_probe_retries_with_cudnn_disabled_and_succeeds()
+    test_probe_failing_twice_reports_unusable_and_restores_cudnn_to_entry_value()
+    test_probe_failing_twice_restores_cudnn_to_false_when_that_was_the_entry_value()
+    test_probe_skips_entirely_when_gpu_is_not_ready()
     print("ok")

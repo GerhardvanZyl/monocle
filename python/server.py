@@ -245,10 +245,19 @@ def _gpu_usable_for_pyiqa():
     """Whether the GPU can actually run these metrics, as opposed to merely being visible to torch.
 
     "torch.cuda.is_available()" is not that question. On the ROCm-on-Windows build this was written
-    against, the GPU runs convolutions happily and then dies compiling MIOpen's batch-norm kernel —
-    which every ResNet-backboned metric here needs, and none of the transformer ones do. Rather than
-    hardcode a per-metric guess, probe the one operation that actually fails: a 1x8x16x16 batch-norm
-    forward, which costs microseconds and no weights.
+    against, MIOpen JIT-compiles its kernels through hipRTC, and TheRock's ROCm 7.14 Windows wheel
+    ships no libc++ headers -- any MIOpen kernel that includes a C++ stdlib header (batch-norm among
+    them, but this is not specific to it or to any one backbone shape) fails to build. It is a wheel
+    packaging gap, not a hardware limit: PyTorch's own precompiled kernels for the same op work fine
+    once MIOpen is out of the path. Rather than hardcode a per-metric guess, probe the one operation
+    that actually fails: a 1x8x16x16 batch-norm forward, which costs microseconds and no weights.
+
+    Probed twice at most. The first attempt is the honest baseline -- on a healthy CUDA/cuDNN box it
+    passes and nothing else here runs. Only if it fails do we disable cuDNN (which is what routes
+    MIOpen calls on ROCm) and probe once more; that retry is what turns "no libc++ headers" back
+    into a usable GPU by skipping MIOpen's JIT path entirely. cuDNN is left disabled for the rest of
+    the process only when that is what made the probe pass -- never unconditionally, since a
+    healthy CUDA box would lose a real performance path for no reason.
 
     A failing probe means the pyiqa metrics are reported as CPU models. That is the deliberate
     direction to be wrong in: they all run on CPU, so understating is a pleasant surprise, while
@@ -260,14 +269,25 @@ def _gpu_usable_for_pyiqa():
         if not _gpu_ready():
             _pyiqa_gpu_probe = False
         else:
-            try:
-                import torch
+            import torch
+
+            def _probe():
                 bn = torch.nn.BatchNorm2d(8).cuda().eval()
                 with torch.no_grad():
                     bn(torch.randn(1, 8, 16, 16).cuda())
+
+            had = torch.backends.cudnn.enabled
+            try:
+                _probe()
                 _pyiqa_gpu_probe = True
-            except Exception:  # ponytail: any failure here means "don't promise the GPU"
-                _pyiqa_gpu_probe = False
+            except Exception:  # ponytail: any failure here means "try the MIOpen-off retry"
+                try:
+                    torch.backends.cudnn.enabled = False
+                    _probe()
+                    _pyiqa_gpu_probe = True
+                except Exception:  # ponytail: still unusable -- don't promise the GPU
+                    torch.backends.cudnn.enabled = had
+                    _pyiqa_gpu_probe = False
     return _pyiqa_gpu_probe
 
 
@@ -342,12 +362,14 @@ def _score_pyiqa(model_id, image_bytes):
     the weights; scoring itself is cheap.
 
     The per-metric GPU fallback is not defensive padding. "Torch can see a GPU" and "this network
-    runs on that GPU" are different questions: on the ROCm-on-Windows build this was developed
-    against, the transformer metrics (MANIQA) run on the GPU while every CNN one (DBCNN, TOPIQ,
-    HyperIQA) dies in MIOpen kernel compilation. These metrics are perfectly usable on CPU at a few
-    seconds a frame, so a metric the GPU can't run falls back rather than becoming unavailable —
-    which is the whole reason they are offered. The working device is remembered per metric, so the
-    fallback is paid once, not once per frame.
+    runs on that GPU" are different questions, and the gap isn't about the backbone: with
+    _gpu_usable_for_pyiqa's MIOpen-off retry in place, all ten metrics run on the GPU on this
+    machine. A metric can still fail on the GPU for reasons that have nothing to do with MIOpen --
+    VRAM on an unusually large frame, a weight download dying mid-way -- so the fallback still
+    earns its place; it's just no longer the routine case it was before that fix. A metric the GPU
+    can't run falls back to the CPU rather than becoming unavailable — which is the whole reason
+    they are offered. The working device is remembered per metric, so the fallback is paid once,
+    not once per frame.
 
     pyiqa's metrics accept a path or a tensor, not raw bytes, so the JPEG is decoded to a normalised
     CHW float tensor here. No resizing: these metrics do their own preprocessing, and MUSIQ in

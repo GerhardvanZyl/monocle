@@ -1,0 +1,1256 @@
+{
+  ".claude/settings.local.json": {
+    "mtime": 1783414988.8690064,
+    "seen": 1788596950.172653,
+    "ast_hash": "18ff9f73c1560cdce84f6d0f300b9d3a",
+    "semantic_hash": "18ff9f73c1560cdce84f6d0f300b9d3a"
+  },
+  ".mcp.json": {
+    "mtime": 1780987934.452879,
+    "seen": 1788596950.1726565,
+    "ast_hash": "4f1da1113f181b9552e236bb0eef1c0d",
+    "semantic_hash": "4f1da1113f181b9552e236bb0eef1c0d"
+  },
+  "Monocle.sln": {
+    "mtime": 1780987934.4538784,
+    "seen": 1788596950.1726582,
+    "ast_hash": "c8b675d0463f6a3d92a2c6174165cc69",
+    "semantic_hash": "c8b675d0463f6a3d92a2c6174165cc69"
+  },
+  "design/support.js": {
+    "mtime": 1787455958.1670787,
+    "seen": 1788596950.1726587,
+    "ast_hash": "37cb653323f84c54a810386b6b2c4942",
+    "semantic_hash": "37cb653323f84c54a810386b6b2c4942"
+  },
+  "python/export_onnx.py": {
+    "mtime": 1783222247.8597832,
+    "seen": 1788596950.1726594,
+    "ast_hash": "e1460d9f1f9e6b89f0cfd0f4a6bde328",
+    "semantic_hash": "e1460d9f1f9e6b89f0cfd0f4a6bde328"
+  },
+  "python/pyproject.toml": {
+    "mtime": 1787458651.0057752,
+    "seen": 1788596950.1726599,
+    "ast_hash": "6a1f1f52d02be603b77380c91a55ea5b",
+    "semantic_hash": "6a1f1f52d02be603b77380c91a55ea5b"
+  },
+  "python/server.py": {
+    "mtime": 1788584484.8684294,
+    "seen": 1788596950.1726606,
+    "ast_hash": "50aab59c8a44e83f8197d9f2826630c5",
+    "semantic_hash": "50aab59c8a44e83f8197d9f2826630c5"
+  },
+  "python/test_server.py": {
+    "mtime": 1788584484.870433,
+    "seen": 1788596950.172661,
+    "ast_hash": "444d5dff12525f6c98e97ab8a6660177",
+    "semantic_hash": "444d5dff12525f6c98e97ab8a6660177"
+  },
+  "scripts/publish-linux.sh": {
+    "mtime": 1780987934.456387,
+    "seen": 1788596950.1726615,
+    "ast_hash": "3ebfba43ce307c67295d8a259ff59ecc",
+    "semantic_hash": "3ebfba43ce307c67295d8a259ff59ecc"
+  },
+  "scripts/publish-windows.ps1": {
+    "mtime": 1780987934.456387,
+    "seen": 1788596950.172662,
+    "ast_hash": "dec48447843a69da9a1748b905fae594",
+    "semantic_hash": "dec48447843a69da9a1748b905fae594"
+  },
+  "src/Monocle.App/App.axaml.cs": {
+    "mtime": 1787445668.6100447,
+    "seen": 1788596950.1726623,
+    "ast_hash": "e8aee731923c27dd15dd54a779872085",
+    "semantic_hash": "e8aee731923c27dd15dd54a779872085"
+  },
+  "src/Monocle.App/Controls/ChartsControl.cs": {
+    "mtime": 1781778731.4323466,
+    "seen": 1788596950.172663,
+    "ast_hash": "c8f7df734241850664b2710580c1da2b",
+    "semantic_hash": "c8f7df734241850664b2710580c1da2b"
+  },
+  "src/Monocle.App/Controls/FlowchartControl.cs": {
+    "mtime": 1787445668.6310663,
+    "seen": 1788596950.1726635,
+    "ast_hash": "d9eec33d93cd32a90fc4ced590e340a0",
+    "semantic_hash": "d9eec33d93cd32a90fc4ced590e340a0"
+  },
+  "src/Monocle.App/Controls/PipelinePipsControl.cs": {
+    "mtime": 1784117934.139474,
+    "seen": 1788596950.172664,
+    "ast_hash": "6b472a1df90f0bcebd5163b75027bb59",
+    "semantic_hash": "6b472a1df90f0bcebd5163b75027bb59"
+  },
+  "src/Monocle.App/Controls/ZoomImage.axaml.cs": {
+    "mtime": 1786282285.8621266,
+    "seen": 1788596950.1726644,
+    "ast_hash": "ffb5192c0bb18bc56dc2b731d1a26324",
+    "semantic_hash": "ffb5192c0bb18bc56dc2b731d1a26324"
+  },
+  "src/Monocle.App/Converters/EqualityConverter.cs": {
+    "mtime": 1781778731.4343474,
+    "seen": 1788596950.1726649,
+    "ast_hash": "c8b33a8b4c00efb9e6cd9e3bf7936e90",
+    "semantic_hash": "c8b33a8b4c00efb9e6cd9e3bf7936e90"
+  },
+  "src/Monocle.App/Diagnostics/Log.cs": {
+    "mtime": 1783417773.1047275,
+    "seen": 1788596950.172665,
+    "ast_hash": "1ec165102279b8d9c6e0247d726cdc3d",
+    "semantic_hash": "1ec165102279b8d9c6e0247d726cdc3d"
+  },
+  "src/Monocle.App/Monocle.App.csproj": {
+    "mtime": 1787445668.6315699,
+    "seen": 1788596950.1726656,
+    "ast_hash": "14af9765fa37ff1be8132e0db47cc35f",
+    "semantic_hash": "14af9765fa37ff1be8132e0db47cc35f"
+  },
+  "src/Monocle.App/Program.cs": {
+    "mtime": 1783417758.3968275,
+    "seen": 1788596950.172666,
+    "ast_hash": "a54149ff20882027199fed9466022834",
+    "semantic_hash": "a54149ff20882027199fed9466022834"
+  },
+  "src/Monocle.App/Services/AppSettings.cs": {
+    "mtime": 1788584484.8714347,
+    "seen": 1788596950.1726665,
+    "ast_hash": "1fa2b3b960471cdd2652f64c5d70747e",
+    "semantic_hash": "1fa2b3b960471cdd2652f64c5d70747e"
+  },
+  "src/Monocle.App/Services/CullLauncher.cs": {
+    "mtime": 1786359182.0167165,
+    "seen": 1788596950.1726668,
+    "ast_hash": "b31b504c63fcc2661b14280cbb2dcf9c",
+    "semantic_hash": "b31b504c63fcc2661b14280cbb2dcf9c"
+  },
+  "src/Monocle.App/Services/LlamaServer.cs": {
+    "mtime": 1783420623.5822043,
+    "seen": 1788596950.1726675,
+    "ast_hash": "145acd1563b632e77bc9d63785080aa5",
+    "semantic_hash": "145acd1563b632e77bc9d63785080aa5"
+  },
+  "src/Monocle.App/Services/OnnxExporter.cs": {
+    "mtime": 1782905735.2300835,
+    "seen": 1788596950.1726682,
+    "ast_hash": "deceebe8d498387f131da97827766544",
+    "semantic_hash": "deceebe8d498387f131da97827766544"
+  },
+  "src/Monocle.App/Services/RatingHistory.cs": {
+    "mtime": 1786361439.0425422,
+    "seen": 1788596950.1726687,
+    "ast_hash": "f82ca7eac0e5432f10c4914aebb75746",
+    "semantic_hash": "f82ca7eac0e5432f10c4914aebb75746"
+  },
+  "src/Monocle.App/Services/RejectMover.cs": {
+    "mtime": 1781778731.4389994,
+    "seen": 1788596950.172669,
+    "ast_hash": "03a965cfc17449237b14fbef7f809c02",
+    "semantic_hash": "03a965cfc17449237b14fbef7f809c02"
+  },
+  "src/Monocle.App/Services/SidecarInstaller.cs": {
+    "mtime": 1782301374.9391026,
+    "seen": 1788596950.1726694,
+    "ast_hash": "a0e56ce0d1212c7f6fc7f229b0c74982",
+    "semantic_hash": "a0e56ce0d1212c7f6fc7f229b0c74982"
+  },
+  "src/Monocle.App/Services/SidecarLauncher.cs": {
+    "mtime": 1781778731.4399984,
+    "seen": 1788596950.17267,
+    "ast_hash": "47d7c7f85065d2da09c9424fb8339515",
+    "semantic_hash": "47d7c7f85065d2da09c9424fb8339515"
+  },
+  "src/Monocle.App/Services/ThemeManager.cs": {
+    "mtime": 1781778731.4399984,
+    "seen": 1788596950.1726701,
+    "ast_hash": "0b6590c8547a1f72a14bbd87094ee49f",
+    "semantic_hash": "0b6590c8547a1f72a14bbd87094ee49f"
+  },
+  "src/Monocle.App/Services/UrlLauncher.cs": {
+    "mtime": 1781778731.4399984,
+    "seen": 1788596950.1726706,
+    "ast_hash": "3891c3e5e61870bf80c49ae08dd2c974",
+    "semantic_hash": "3891c3e5e61870bf80c49ae08dd2c974"
+  },
+  "src/Monocle.App/ViewLocator.cs": {
+    "mtime": 1780987934.460387,
+    "seen": 1788596950.1726713,
+    "ast_hash": "7b9e7dc3c7136e714b98acd43e61d694",
+    "semantic_hash": "7b9e7dc3c7136e714b98acd43e61d694"
+  },
+  "src/Monocle.App/ViewModels/CatalogEntryViewModel.cs": {
+    "mtime": 1788584484.8714347,
+    "seen": 1788596950.1726716,
+    "ast_hash": "db180e8a752e5b62fb32a41fb1a783bb",
+    "semantic_hash": "db180e8a752e5b62fb32a41fb1a783bb"
+  },
+  "src/Monocle.App/ViewModels/CritiqueLine.cs": {
+    "mtime": 1782215084.8935652,
+    "seen": 1788596950.172672,
+    "ast_hash": "7f61dd6b83a45f0da4f1f292dde99138",
+    "semantic_hash": "7f61dd6b83a45f0da4f1f292dde99138"
+  },
+  "src/Monocle.App/ViewModels/CullCriterionViewModel.cs": {
+    "mtime": 1783417841.6667142,
+    "seen": 1788596950.1726725,
+    "ast_hash": "555a63a5aaf21b32b55b72311de9906d",
+    "semantic_hash": "555a63a5aaf21b32b55b72311de9906d"
+  },
+  "src/Monocle.App/ViewModels/FolderNodeViewModel.cs": {
+    "mtime": 1787456438.4243984,
+    "seen": 1788596950.172673,
+    "ast_hash": "8dbf8e9361ee92d91d8f76560885b644",
+    "semantic_hash": "8dbf8e9361ee92d91d8f76560885b644"
+  },
+  "src/Monocle.App/ViewModels/MainWindowViewModel.Catalog.cs": {
+    "mtime": 1788584484.8724341,
+    "seen": 1788596950.1726732,
+    "ast_hash": "815fdabaaf53b5984ee09dcaf55c0371",
+    "semantic_hash": "815fdabaaf53b5984ee09dcaf55c0371"
+  },
+  "src/Monocle.App/ViewModels/MainWindowViewModel.Queue.cs": {
+    "mtime": 1788584484.8724341,
+    "seen": 1788596950.1726737,
+    "ast_hash": "087aab08e40eff4cc5cbd3ba2fce6626",
+    "semantic_hash": "087aab08e40eff4cc5cbd3ba2fce6626"
+  },
+  "src/Monocle.App/ViewModels/MainWindowViewModel.cs": {
+    "mtime": 1788584484.8744361,
+    "seen": 1788596950.172674,
+    "ast_hash": "92cdb8ed81e6e285fc65fbc1d3e5b6d2",
+    "semantic_hash": "92cdb8ed81e6e285fc65fbc1d3e5b6d2"
+  },
+  "src/Monocle.App/ViewModels/ModelGroupViewModel.cs": {
+    "mtime": 1787463646.720489,
+    "seen": 1788596950.1726747,
+    "ast_hash": "401ac89e460f408f58718a399ebec02d",
+    "semantic_hash": "401ac89e460f408f58718a399ebec02d"
+  },
+  "src/Monocle.App/ViewModels/ModelOptionViewModel.cs": {
+    "mtime": 1787447981.889052,
+    "seen": 1788596950.172675,
+    "ast_hash": "67fed8c77496e91548f5a91c825795f8",
+    "semantic_hash": "67fed8c77496e91548f5a91c825795f8"
+  },
+  "src/Monocle.App/ViewModels/PhotoRowViewModel.cs": {
+    "mtime": 1780987934.4613874,
+    "seen": 1788596950.1726754,
+    "ast_hash": "14d9e988b89c25b11e8eb1b184b32986",
+    "semantic_hash": "14d9e988b89c25b11e8eb1b184b32986"
+  },
+  "src/Monocle.App/ViewModels/PhotoTileViewModel.cs": {
+    "mtime": 1787456295.0357285,
+    "seen": 1788596950.1726758,
+    "ast_hash": "dc3377393851fffb937db5e190c92618",
+    "semantic_hash": "dc3377393851fffb937db5e190c92618"
+  },
+  "src/Monocle.App/ViewModels/PipelineRowViewModel.cs": {
+    "mtime": 1787464128.4565547,
+    "seen": 1788596950.172676,
+    "ast_hash": "9c5278954c10b180f1ab3e711616d6ef",
+    "semantic_hash": "9c5278954c10b180f1ab3e711616d6ef"
+  },
+  "src/Monocle.App/ViewModels/ScoreDisplay.cs": {
+    "mtime": 1787445668.6350403,
+    "seen": 1788596950.1726766,
+    "ast_hash": "128ae4aaff45e1c991a44b7a5f5d5d01",
+    "semantic_hash": "128ae4aaff45e1c991a44b7a5f5d5d01"
+  },
+  "src/Monocle.App/ViewModels/ThresholdRuleViewModel.cs": {
+    "mtime": 1786359134.9977627,
+    "seen": 1788596950.1726773,
+    "ast_hash": "64b99f9ccd135ca7cb865aab93332dc6",
+    "semantic_hash": "64b99f9ccd135ca7cb865aab93332dc6"
+  },
+  "src/Monocle.App/ViewModels/ViewModelBase.cs": {
+    "mtime": 1780987934.4613874,
+    "seen": 1788596950.172678,
+    "ast_hash": "278f786e116ab363cfceb3c1c89cb400",
+    "semantic_hash": "278f786e116ab363cfceb3c1c89cb400"
+  },
+  "src/Monocle.App/ViewModels/WeightRowViewModel.cs": {
+    "mtime": 1786359128.8584754,
+    "seen": 1788596950.1726785,
+    "ast_hash": "7c60c5cf2d84809c0e92e5762665e117",
+    "semantic_hash": "7c60c5cf2d84809c0e92e5762665e117"
+  },
+  "src/Monocle.App/Views/CropWindow.axaml.cs": {
+    "mtime": 1780987934.4623873,
+    "seen": 1788596950.1726787,
+    "ast_hash": "fbbcf2510a26b0f9230eac52f19a5112",
+    "semantic_hash": "fbbcf2510a26b0f9230eac52f19a5112"
+  },
+  "src/Monocle.App/Views/MainWindow.axaml.cs": {
+    "mtime": 1787465344.0605516,
+    "seen": 1788596950.1726792,
+    "ast_hash": "1885c6044562e39ee0a33b91509adf31",
+    "semantic_hash": "1885c6044562e39ee0a33b91509adf31"
+  },
+  "src/Monocle.Core/Cache/RatingEdit.cs": {
+    "mtime": 1786356522.9084353,
+    "seen": 1788596950.1726797,
+    "ast_hash": "3da90a9127020a4ef34bcccf85de9ce3",
+    "semantic_hash": "3da90a9127020a4ef34bcccf85de9ce3"
+  },
+  "src/Monocle.Core/Cache/ShootCache.cs": {
+    "mtime": 1788584484.8895962,
+    "seen": 1788596950.1726801,
+    "ast_hash": "81a4e32ed28853b6bbda95efb42dc545",
+    "semantic_hash": "81a4e32ed28853b6bbda95efb42dc545"
+  },
+  "src/Monocle.Core/FolderScanner.cs": {
+    "mtime": 1787463795.7651236,
+    "seen": 1788596950.1726806,
+    "ast_hash": "a967e144b5d62d1dc2f5acff59c1bbe2",
+    "semantic_hash": "a967e144b5d62d1dc2f5acff59c1bbe2"
+  },
+  "src/Monocle.Core/Imaging/EmbeddedJpegExtractor.cs": {
+    "mtime": 1783858595.734891,
+    "seen": 1788596950.1726813,
+    "ast_hash": "15d4cc220dbef253f6d04535c2904703",
+    "semantic_hash": "15d4cc220dbef253f6d04535c2904703"
+  },
+  "src/Monocle.Core/Imaging/ExifReader.cs": {
+    "mtime": 1781778731.4470155,
+    "seen": 1788596950.1726816,
+    "ast_hash": "ca960b02596e87c0fefdb22d529b8346",
+    "semantic_hash": "ca960b02596e87c0fefdb22d529b8346"
+  },
+  "src/Monocle.Core/Imaging/GrayImage.cs": {
+    "mtime": 1780987934.4728951,
+    "seen": 1788596950.172682,
+    "ast_hash": "f84f44f34fbd614cf1ca087d4c20da52",
+    "semantic_hash": "f84f44f34fbd614cf1ca087d4c20da52"
+  },
+  "src/Monocle.Core/Imaging/IExifReader.cs": {
+    "mtime": 1780987934.4728951,
+    "seen": 1788596950.1726825,
+    "ast_hash": "b87dc6d2d64485827f9089e6d89bc5bf",
+    "semantic_hash": "b87dc6d2d64485827f9089e6d89bc5bf"
+  },
+  "src/Monocle.Core/Imaging/IImageDecoder.cs": {
+    "mtime": 1780987934.4728951,
+    "seen": 1788596950.1726828,
+    "ast_hash": "ff144b18343fa24ade6df724265a9131",
+    "semantic_hash": "ff144b18343fa24ade6df724265a9131"
+  },
+  "src/Monocle.Core/Imaging/OrientationMath.cs": {
+    "mtime": 1780987934.4738915,
+    "seen": 1788596950.1726832,
+    "ast_hash": "344f3b84e658634f1e763a7a32deb392",
+    "semantic_hash": "344f3b84e658634f1e763a7a32deb392"
+  },
+  "src/Monocle.Core/Imaging/RgbImage.cs": {
+    "mtime": 1780987934.4738915,
+    "seen": 1788596950.1726835,
+    "ast_hash": "8b8490775afdaf6bb0e89b3182282943",
+    "semantic_hash": "8b8490775afdaf6bb0e89b3182282943"
+  },
+  "src/Monocle.Core/Imaging/SkiaImageDecoder.cs": {
+    "mtime": 1783858595.7358942,
+    "seen": 1788596950.172684,
+    "ast_hash": "563a7d93cd125992d7b9cdbfc3814aec",
+    "semantic_hash": "563a7d93cd125992d7b9cdbfc3814aec"
+  },
+  "src/Monocle.Core/Imaging/TechnicalMetricsCalculator.cs": {
+    "mtime": 1783858595.7358942,
+    "seen": 1788596950.1726844,
+    "ast_hash": "4880878d2be7a65e9c8e5e0f0ee6d15a",
+    "semantic_hash": "4880878d2be7a65e9c8e5e0f0ee6d15a"
+  },
+  "src/Monocle.Core/Model/CropRect.cs": {
+    "mtime": 1780987934.4748917,
+    "seen": 1788596950.172685,
+    "ast_hash": "30e225569988b8508dc2dd2acb232aa2",
+    "semantic_hash": "30e225569988b8508dc2dd2acb232aa2"
+  },
+  "src/Monocle.Core/Model/Enums.cs": {
+    "mtime": 1780987934.4748917,
+    "seen": 1788596950.1726854,
+    "ast_hash": "d5ec4f4862ee83c27a1b854140b64245",
+    "semantic_hash": "d5ec4f4862ee83c27a1b854140b64245"
+  },
+  "src/Monocle.Core/Model/ModelScore.cs": {
+    "mtime": 1783858595.7368958,
+    "seen": 1788596950.1726859,
+    "ast_hash": "e6b7e4943dbcf3c28a994c0002d57217",
+    "semantic_hash": "e6b7e4943dbcf3c28a994c0002d57217"
+  },
+  "src/Monocle.Core/Model/PhotoFile.cs": {
+    "mtime": 1780987934.4758945,
+    "seen": 1788596950.172686,
+    "ast_hash": "a85db88b073ef9c7264db3549ba2f8a9",
+    "semantic_hash": "a85db88b073ef9c7264db3549ba2f8a9"
+  },
+  "src/Monocle.Core/Model/PhotoItem.cs": {
+    "mtime": 1780987934.4758945,
+    "seen": 1788596950.1726866,
+    "ast_hash": "a6536f6fabb1e746af3728e695f2fb2a",
+    "semantic_hash": "a6536f6fabb1e746af3728e695f2fb2a"
+  },
+  "src/Monocle.Core/Model/RatingSnapshot.cs": {
+    "mtime": 1786356510.346554,
+    "seen": 1788596950.172687,
+    "ast_hash": "a41abd5a4a074729c6115299098d486f",
+    "semantic_hash": "a41abd5a4a074729c6115299098d486f"
+  },
+  "src/Monocle.Core/Model/TechnicalMetrics.cs": {
+    "mtime": 1783858595.7368958,
+    "seen": 1788596950.1726875,
+    "ast_hash": "643cfec07dada362b9db354bdd61b064",
+    "semantic_hash": "643cfec07dada362b9db354bdd61b064"
+  },
+  "src/Monocle.Core/Monocle.Core.csproj": {
+    "mtime": 1780987934.4768915,
+    "seen": 1788596950.1726878,
+    "ast_hash": "671eb6019963df74e5ba90df6dd722bc",
+    "semantic_hash": "671eb6019963df74e5ba90df6dd722bc"
+  },
+  "src/Monocle.Core/PathGuard.cs": {
+    "mtime": 1781778731.4480155,
+    "seen": 1788596950.1726885,
+    "ast_hash": "8071fe97d3884a438f4b06fe4e2c8074",
+    "semantic_hash": "8071fe97d3884a438f4b06fe4e2c8074"
+  },
+  "src/Monocle.Core/Processes/ChildProcessJob.cs": {
+    "mtime": 1782301348.6335104,
+    "seen": 1788596950.172689,
+    "ast_hash": "dc280c1f30d1cf3bec2625ac92bc1dad",
+    "semantic_hash": "dc280c1f30d1cf3bec2625ac92bc1dad"
+  },
+  "src/Monocle.Core/Sidecars/AtomicFile.cs": {
+    "mtime": 1781778731.4480155,
+    "seen": 1788596950.1726892,
+    "ast_hash": "8044302bb21e6231bedfa86cd92e6e01",
+    "semantic_hash": "8044302bb21e6231bedfa86cd92e6e01"
+  },
+  "src/Monocle.Core/Sidecars/IMetadataFormat.cs": {
+    "mtime": 1786361394.4793465,
+    "seen": 1788596950.1726897,
+    "ast_hash": "a7e67693cf951868ec2bdac837cef8ef",
+    "semantic_hash": "a7e67693cf951868ec2bdac837cef8ef"
+  },
+  "src/Monocle.Core/Sidecars/MonocleKeywords.cs": {
+    "mtime": 1781778731.4490154,
+    "seen": 1788596950.1726902,
+    "ast_hash": "969cd8a0564b1d15fa3d45866c5d0d00",
+    "semantic_hash": "969cd8a0564b1d15fa3d45866c5d0d00"
+  },
+  "src/Monocle.Core/Sidecars/NotesFormat.cs": {
+    "mtime": 1782215084.8945656,
+    "seen": 1788596950.1726904,
+    "ast_hash": "770872d52ee24438bc9edd847335e9d6",
+    "semantic_hash": "770872d52ee24438bc9edd847335e9d6"
+  },
+  "src/Monocle.Core/Sidecars/PlainTextSidecar.cs": {
+    "mtime": 1781778731.4500155,
+    "seen": 1788596950.1726909,
+    "ast_hash": "c162a171b0393d1e4d475b9f0a3bc018",
+    "semantic_hash": "c162a171b0393d1e4d475b9f0a3bc018"
+  },
+  "src/Monocle.Core/Sidecars/SidecarLock.cs": {
+    "mtime": 1781778731.4510152,
+    "seen": 1788596950.1726913,
+    "ast_hash": "4ab8c5d58f907e8b267e31a9338d9398",
+    "semantic_hash": "4ab8c5d58f907e8b267e31a9338d9398"
+  },
+  "src/Monocle.Core/Sidecars/SidecarService.cs": {
+    "mtime": 1786362017.915824,
+    "seen": 1788596950.1726918,
+    "ast_hash": "881322c87e20e4d48ddf0d93b2e6d124",
+    "semantic_hash": "881322c87e20e4d48ddf0d93b2e6d124"
+  },
+  "src/Monocle.Core/Sidecars/SidecarStaleness.cs": {
+    "mtime": 1786361385.8126924,
+    "seen": 1788596950.1726923,
+    "ast_hash": "e6128b7fe81619265f17c43162c6bd89",
+    "semantic_hash": "e6128b7fe81619265f17c43162c6bd89"
+  },
+  "src/Monocle.Core/Sidecars/XmpData.cs": {
+    "mtime": 1786361534.2057495,
+    "seen": 1788596950.1726928,
+    "ast_hash": "e86576debc8df11810d4feaec7c74b4b",
+    "semantic_hash": "e86576debc8df11810d4feaec7c74b4b"
+  },
+  "src/Monocle.Core/Sidecars/XmpSidecar.cs": {
+    "mtime": 1786361547.4474912,
+    "seen": 1788596950.1726933,
+    "ast_hash": "8cbcf1f3f124e3988633e473f6071503",
+    "semantic_hash": "8cbcf1f3f124e3988633e473f6071503"
+  },
+  "src/Monocle.Core/SupportedFormats.cs": {
+    "mtime": 1780987934.4788914,
+    "seen": 1788596950.1726935,
+    "ast_hash": "4e898e7f25740101603609f819d3b03a",
+    "semantic_hash": "4e898e7f25740101603609f819d3b03a"
+  },
+  "src/Monocle.Mcp/Monocle.Mcp.csproj": {
+    "mtime": 1782301388.5206068,
+    "seen": 1788596950.172694,
+    "ast_hash": "7c7b0cff93d7b6c2085cde072953c37c",
+    "semantic_hash": "7c7b0cff93d7b6c2085cde072953c37c"
+  },
+  "src/Monocle.Mcp/PhotoTools.cs": {
+    "mtime": 1786361433.6326911,
+    "seen": 1788596950.1726944,
+    "ast_hash": "9d38226a7a45abe0e4b6c49339434077",
+    "semantic_hash": "9d38226a7a45abe0e4b6c49339434077"
+  },
+  "src/Monocle.Mcp/Program.cs": {
+    "mtime": 1780987934.4788914,
+    "seen": 1788596950.172695,
+    "ast_hash": "4ea57cb52c31404e26f3ff02cf2694f3",
+    "semantic_hash": "4ea57cb52c31404e26f3ff02cf2694f3"
+  },
+  "src/Monocle.Mcp/ShootState.cs": {
+    "mtime": 1786361414.5044599,
+    "seen": 1788596950.1726954,
+    "ast_hash": "15a716ba9514d1ae26d70eb248250ab5",
+    "semantic_hash": "15a716ba9514d1ae26d70eb248250ab5"
+  },
+  "src/Monocle.Models/Aesthetic/AestheticCalculator.cs": {
+    "mtime": 1783858595.738898,
+    "seen": 1788596950.172696,
+    "ast_hash": "92ef28d94abff77296f3ba6278dedb30",
+    "semantic_hash": "92ef28d94abff77296f3ba6278dedb30"
+  },
+  "src/Monocle.Models/Aesthetic/AestheticRunner.cs": {
+    "mtime": 1783858595.738898,
+    "seen": 1788596950.1726968,
+    "ast_hash": "7b58a99a5c8d72b9d47c5754e87eb4e9",
+    "semantic_hash": "7b58a99a5c8d72b9d47c5754e87eb4e9"
+  },
+  "src/Monocle.Models/Claude/ClaudeCullRunner.cs": {
+    "mtime": 1783339031.7820492,
+    "seen": 1788596950.1726973,
+    "ast_hash": "d68f6c3ae82f0827bd66d8d3ef12c7f5",
+    "semantic_hash": "d68f6c3ae82f0827bd66d8d3ef12c7f5"
+  },
+  "src/Monocle.Models/Claude/ClaudeCullService.cs": {
+    "mtime": 1787445668.6537843,
+    "seen": 1788596950.1726978,
+    "ast_hash": "8cbe34e44b0f54566b0ad58ea061d477",
+    "semantic_hash": "8cbe34e44b0f54566b0ad58ea061d477"
+  },
+  "src/Monocle.Models/Claude/ClaudeEvent.cs": {
+    "mtime": 1780987934.480893,
+    "seen": 1788596950.1726983,
+    "ast_hash": "3918a7e7a5b17d4a146c7098fc4e5bce",
+    "semantic_hash": "3918a7e7a5b17d4a146c7098fc4e5bce"
+  },
+  "src/Monocle.Models/Claude/ClaudeStreamParser.cs": {
+    "mtime": 1781778731.4596632,
+    "seen": 1788596950.1726987,
+    "ast_hash": "7412bb7d81435d94f899d7944296dfb6",
+    "semantic_hash": "7412bb7d81435d94f899d7944296dfb6"
+  },
+  "src/Monocle.Models/Claude/CullResume.cs": {
+    "mtime": 1787445668.654792,
+    "seen": 1788596950.1726992,
+    "ast_hash": "2705831ad696dd47f40932eb03cf1fd7",
+    "semantic_hash": "2705831ad696dd47f40932eb03cf1fd7"
+  },
+  "src/Monocle.Models/DefaultModelCatalog.cs": {
+    "mtime": 1787447974.511727,
+    "seen": 1788596950.1726997,
+    "ast_hash": "09fcc40582a9869f76b225d513b29ef2",
+    "semantic_hash": "09fcc40582a9869f76b225d513b29ef2"
+  },
+  "src/Monocle.Models/Export/ShootExporter.cs": {
+    "mtime": 1781778731.4606621,
+    "seen": 1788596950.1727,
+    "ast_hash": "124b454821a058f505db9a121bb74b7e",
+    "semantic_hash": "124b454821a058f505db9a121bb74b7e"
+  },
+  "src/Monocle.Models/Heuristic/HeuristicRatingEngine.cs": {
+    "mtime": 1783858595.739895,
+    "seen": 1788596950.1727004,
+    "ast_hash": "602c7afa2067057514dcef787bd84147",
+    "semantic_hash": "602c7afa2067057514dcef787bd84147"
+  },
+  "src/Monocle.Models/Heuristic/HeuristicRunner.cs": {
+    "mtime": 1780987934.482241,
+    "seen": 1788596950.172701,
+    "ast_hash": "35da95e6613c819111cf774d74251b6f",
+    "semantic_hash": "35da95e6613c819111cf774d74251b6f"
+  },
+  "src/Monocle.Models/IModelRunner.cs": {
+    "mtime": 1788584484.8945975,
+    "seen": 1788596950.1727014,
+    "ast_hash": "555d76b1818069bdb834c298fa2c60a1",
+    "semantic_hash": "555d76b1818069bdb834c298fa2c60a1"
+  },
+  "src/Monocle.Models/ModelDescriptor.cs": {
+    "mtime": 1787447978.0025587,
+    "seen": 1788596950.1727018,
+    "ast_hash": "4972b93bba869bdf53e1fe5a7d487355",
+    "semantic_hash": "4972b93bba869bdf53e1fe5a7d487355"
+  },
+  "src/Monocle.Models/ModelRegistry.cs": {
+    "mtime": 1780987934.4832406,
+    "seen": 1788596950.1727023,
+    "ast_hash": "6e4b2d6d993e2e57f9d2abf7d5d73d5d",
+    "semantic_hash": "6e4b2d6d993e2e57f9d2abf7d5d73d5d"
+  },
+  "src/Monocle.Models/Monocle.Models.csproj": {
+    "mtime": 1782907557.805036,
+    "seen": 1788596950.1727028,
+    "ast_hash": "3b120675af47ebcdb40433f66ede745d",
+    "semantic_hash": "3b120675af47ebcdb40433f66ede745d"
+  },
+  "src/Monocle.Models/Onnx/OnnxImagePreprocessor.cs": {
+    "mtime": 1783858595.739895,
+    "seen": 1788596950.1727033,
+    "ast_hash": "1c7f88b88d239e29f79182e8e8da95fe",
+    "semantic_hash": "1c7f88b88d239e29f79182e8e8da95fe"
+  },
+  "src/Monocle.Models/Onnx/OnnxModelCatalog.cs": {
+    "mtime": 1783858595.7408955,
+    "seen": 1788596950.1727035,
+    "ast_hash": "fc70b6cb26741c0568e5539842622b3a",
+    "semantic_hash": "fc70b6cb26741c0568e5539842622b3a"
+  },
+  "src/Monocle.Models/Onnx/OnnxModelConfig.cs": {
+    "mtime": 1783858595.7418964,
+    "seen": 1788596950.172704,
+    "ast_hash": "9b20ac26b2a3d8fc426dc9976c49eaa0",
+    "semantic_hash": "9b20ac26b2a3d8fc426dc9976c49eaa0"
+  },
+  "src/Monocle.Models/Onnx/OnnxModelInstaller.cs": {
+    "mtime": 1781778731.4651651,
+    "seen": 1788596950.1727045,
+    "ast_hash": "67a3c24929a0a93b0e66d08c3e1dd7d8",
+    "semantic_hash": "67a3c24929a0a93b0e66d08c3e1dd7d8"
+  },
+  "src/Monocle.Models/Onnx/OnnxScoreRunner.cs": {
+    "mtime": 1783858595.7418964,
+    "seen": 1788596950.172705,
+    "ast_hash": "3ed396d39a34601c537524ff89290e0c",
+    "semantic_hash": "3ed396d39a34601c537524ff89290e0c"
+  },
+  "src/Monocle.Models/Onnx/OnnxSessionFactory.cs": {
+    "mtime": 1784117631.591303,
+    "seen": 1788596950.1727052,
+    "ast_hash": "8b5790e8f231dd12e92165077da20a4b",
+    "semantic_hash": "8b5790e8f231dd12e92165077da20a4b"
+  },
+  "src/Monocle.Models/PhotoQuery.cs": {
+    "mtime": 1786283501.033257,
+    "seen": 1788596950.172706,
+    "ast_hash": "84b9b1395cb13b5ca4ff9d610fc1cabe",
+    "semantic_hash": "84b9b1395cb13b5ca4ff9d610fc1cabe"
+  },
+  "src/Monocle.Models/PipelineStatus.cs": {
+    "mtime": 1781778731.467171,
+    "seen": 1788596950.1727064,
+    "ast_hash": "7c27ff854484ef86e7300d95c1ccc96f",
+    "semantic_hash": "7c27ff854484ef86e7300d95c1ccc96f"
+  },
+  "src/Monocle.Models/Rating/AiRating.cs": {
+    "mtime": 1786356678.8037362,
+    "seen": 1788596950.1727066,
+    "ast_hash": "e5a8a9d68899cb24925bcff15aa48be0",
+    "semantic_hash": "e5a8a9d68899cb24925bcff15aa48be0"
+  },
+  "src/Monocle.Models/Scoring/ScoreCompositor.cs": {
+    "mtime": 1786359041.9494698,
+    "seen": 1788596950.172707,
+    "ast_hash": "e8d1a9f07af874ede536c4e80ec15655",
+    "semantic_hash": "e8d1a9f07af874ede536c4e80ec15655"
+  },
+  "src/Monocle.Models/Scoring/ScoreWeights.cs": {
+    "mtime": 1786359023.471496,
+    "seen": 1788596950.1727073,
+    "ast_hash": "9f20d883d924c576042ff38214819731",
+    "semantic_hash": "9f20d883d924c576042ff38214819731"
+  },
+  "src/Monocle.Models/Scoring/ScoreWeightsEnv.cs": {
+    "mtime": 1786359160.602472,
+    "seen": 1788596950.1727078,
+    "ast_hash": "3a169a370485ae0d30a79963e99c26a7",
+    "semantic_hash": "3a169a370485ae0d30a79963e99c26a7"
+  },
+  "src/Monocle.Models/ShootService.cs": {
+    "mtime": 1788584484.8955986,
+    "seen": 1788596950.1727083,
+    "ast_hash": "fa583d3e143c67e886c5b9c39675f22e",
+    "semantic_hash": "fa583d3e143c67e886c5b9c39675f22e"
+  },
+  "src/Monocle.Models/Sidecar/SidecarClient.cs": {
+    "mtime": 1788584484.8965988,
+    "seen": 1788596950.1727085,
+    "ast_hash": "ab57a25a52ab9525ce08acb3ab36c4a9",
+    "semantic_hash": "ab57a25a52ab9525ce08acb3ab36c4a9"
+  },
+  "src/Monocle.Models/Sidecar/SidecarManager.cs": {
+    "mtime": 1783420616.5680501,
+    "seen": 1788596950.1727092,
+    "ast_hash": "fd52502e0b0483df30d9dadb76036da4",
+    "semantic_hash": "fd52502e0b0483df30d9dadb76036da4"
+  },
+  "src/Monocle.Models/Sidecar/SidecarRunner.cs": {
+    "mtime": 1788584484.897598,
+    "seen": 1788596950.1727097,
+    "ast_hash": "225e2717ebc671408229b15e4e2667b7",
+    "semantic_hash": "225e2717ebc671408229b15e4e2667b7"
+  },
+  "src/Monocle.Models/Stats/ShootStats.cs": {
+    "mtime": 1780987934.4862413,
+    "seen": 1788596950.17271,
+    "ast_hash": "beb9a2a77c1975c3f230b1b914d08e4e",
+    "semantic_hash": "beb9a2a77c1975c3f230b1b914d08e4e"
+  },
+  "src/Monocle.Models/UnsupportedModelCatalog.cs": {
+    "mtime": 1787460946.7242746,
+    "seen": 1788596950.1727104,
+    "ast_hash": "2b2f6b148bc54f718addedf58b1407dc",
+    "semantic_hash": "2b2f6b148bc54f718addedf58b1407dc"
+  },
+  "src/Monocle.Pipeline/Monocle.Pipeline.csproj": {
+    "mtime": 1780987934.4862413,
+    "seen": 1788596950.172711,
+    "ast_hash": "c896249d05f2f68a27b94e21f63900f1",
+    "semantic_hash": "c896249d05f2f68a27b94e21f63900f1"
+  },
+  "src/Monocle.Pipeline/PipelineGraph.cs": {
+    "mtime": 1787445668.6806252,
+    "seen": 1788596950.1727114,
+    "ast_hash": "e9025c0c89d557c94cd31bdeb5ccd53e",
+    "semantic_hash": "e9025c0c89d557c94cd31bdeb5ccd53e"
+  },
+  "src/Monocle.Pipeline/PipelineRun.cs": {
+    "mtime": 1781778731.4691713,
+    "seen": 1788596950.1727116,
+    "ast_hash": "11b5617071435cc14f48c1eb70b51a96",
+    "semantic_hash": "11b5617071435cc14f48c1eb70b51a96"
+  },
+  "tests/Monocle.Core.Tests/AestheticTests.cs": {
+    "mtime": 1783858595.7443986,
+    "seen": 1788596950.172712,
+    "ast_hash": "c49f2f98989a8e6f81eaaaf4ff6d4496",
+    "semantic_hash": "c49f2f98989a8e6f81eaaaf4ff6d4496"
+  },
+  "tests/Monocle.Core.Tests/CacheAndServiceTests.cs": {
+    "mtime": 1788584484.8985968,
+    "seen": 1788596950.1727128,
+    "ast_hash": "15711e28066f0a79e19cd64444d1b816",
+    "semantic_hash": "15711e28066f0a79e19cd64444d1b816"
+  },
+  "tests/Monocle.Core.Tests/CatalogFreshnessTests.cs": {
+    "mtime": 1787463811.5085442,
+    "seen": 1788596950.172713,
+    "ast_hash": "2d38663cbb325bae0a9f9c29a298ed6b",
+    "semantic_hash": "2d38663cbb325bae0a9f9c29a298ed6b"
+  },
+  "tests/Monocle.Core.Tests/ClaudeTests.cs": {
+    "mtime": 1787445668.6806252,
+    "seen": 1788596950.1727135,
+    "ast_hash": "b937d852aff7ab34fc22cc9916011e74",
+    "semantic_hash": "b937d852aff7ab34fc22cc9916011e74"
+  },
+  "tests/Monocle.Core.Tests/ConcurrencyTests.cs": {
+    "mtime": 1788584484.8995967,
+    "seen": 1788596950.172714,
+    "ast_hash": "ef460d915f78e8bcdf026e7bbc002577",
+    "semantic_hash": "ef460d915f78e8bcdf026e7bbc002577"
+  },
+  "tests/Monocle.Core.Tests/CropTests.cs": {
+    "mtime": 1786361610.559497,
+    "seen": 1788596950.1727145,
+    "ast_hash": "ccf9947d251d9b9f952bd8a6b7c68a90",
+    "semantic_hash": "ccf9947d251d9b9f952bd8a6b7c68a90"
+  },
+  "tests/Monocle.Core.Tests/CullLauncherTests.cs": {
+    "mtime": 1783339031.7820492,
+    "seen": 1788596950.1727147,
+    "ast_hash": "851b473fec9ff62452ef8a1e05bd35d6",
+    "semantic_hash": "851b473fec9ff62452ef8a1e05bd35d6"
+  },
+  "tests/Monocle.Core.Tests/DecoderTests.cs": {
+    "mtime": 1783858595.7443986,
+    "seen": 1788596950.1727152,
+    "ast_hash": "aa3eac14bde4d478b8414d142d9dc7cd",
+    "semantic_hash": "aa3eac14bde4d478b8414d142d9dc7cd"
+  },
+  "tests/Monocle.Core.Tests/ExportTests.cs": {
+    "mtime": 1781778731.4741862,
+    "seen": 1788596950.1727154,
+    "ast_hash": "7180c4bc22a129dcd4eace5f9bf6b6fa",
+    "semantic_hash": "7180c4bc22a129dcd4eace5f9bf6b6fa"
+  },
+  "tests/Monocle.Core.Tests/GridNavigationTests.cs": {
+    "mtime": 1787445668.681627,
+    "seen": 1788596950.1727161,
+    "ast_hash": "b4f44370361f144ebdfb80b7443bd7d3",
+    "semantic_hash": "b4f44370361f144ebdfb80b7443bd7d3"
+  },
+  "tests/Monocle.Core.Tests/HeuristicTests.cs": {
+    "mtime": 1783858595.745403,
+    "seen": 1788596950.1727166,
+    "ast_hash": "48b69d83cacf7347fb99512a425b31ce",
+    "semantic_hash": "48b69d83cacf7347fb99512a425b31ce"
+  },
+  "tests/Monocle.Core.Tests/MetricsTests.cs": {
+    "mtime": 1783858595.746403,
+    "seen": 1788596950.1727169,
+    "ast_hash": "12292f11152e05d56d0bc95cee5df702",
+    "semantic_hash": "12292f11152e05d56d0bc95cee5df702"
+  },
+  "tests/Monocle.Core.Tests/ModelCatalogTests.cs": {
+    "mtime": 1781778731.4751916,
+    "seen": 1788596950.1727173,
+    "ast_hash": "871af16703839680c2038843c87979d8",
+    "semantic_hash": "871af16703839680c2038843c87979d8"
+  },
+  "tests/Monocle.Core.Tests/Monocle.Core.Tests.csproj": {
+    "mtime": 1783339031.783442,
+    "seen": 1788596950.1727178,
+    "ast_hash": "9fdac4d7c0b5588c0508e8026093ee9e",
+    "semantic_hash": "9fdac4d7c0b5588c0508e8026093ee9e"
+  },
+  "tests/Monocle.Core.Tests/OnnxModelInstallerTests.cs": {
+    "mtime": 1781778731.4759881,
+    "seen": 1788596950.172718,
+    "ast_hash": "74087ac2ac49cd3a34e2e55e5e8a21aa",
+    "semantic_hash": "74087ac2ac49cd3a34e2e55e5e8a21aa"
+  },
+  "tests/Monocle.Core.Tests/OnnxPreprocessTests.cs": {
+    "mtime": 1783858595.746403,
+    "seen": 1788596950.1727185,
+    "ast_hash": "b443a6c1ff252546df3fe9892b82473b",
+    "semantic_hash": "b443a6c1ff252546df3fe9892b82473b"
+  },
+  "tests/Monocle.Core.Tests/PairingTests.cs": {
+    "mtime": 1780987934.4902415,
+    "seen": 1788596950.172719,
+    "ast_hash": "48513a53e066b3640170c47eca179cdd",
+    "semantic_hash": "48513a53e066b3640170c47eca179cdd"
+  },
+  "tests/Monocle.Core.Tests/PathGuardTests.cs": {
+    "mtime": 1781778731.4769948,
+    "seen": 1788596950.1727197,
+    "ast_hash": "8b00200e1940c33a7f67e5d9b88562b5",
+    "semantic_hash": "8b00200e1940c33a7f67e5d9b88562b5"
+  },
+  "tests/Monocle.Core.Tests/PhotoQueryTests.cs": {
+    "mtime": 1786283513.0727909,
+    "seen": 1788596950.1727202,
+    "ast_hash": "d959bd4dd7a94e53d7b0f5e7615d9224",
+    "semantic_hash": "d959bd4dd7a94e53d7b0f5e7615d9224"
+  },
+  "tests/Monocle.Core.Tests/PipelineStatusTests.cs": {
+    "mtime": 1781778731.4769948,
+    "seen": 1788596950.1727204,
+    "ast_hash": "41bf7089e92e840ddb1d47ef55f336f9",
+    "semantic_hash": "41bf7089e92e840ddb1d47ef55f336f9"
+  },
+  "tests/Monocle.Core.Tests/PipelineTests.cs": {
+    "mtime": 1787445668.681627,
+    "seen": 1788596950.172721,
+    "ast_hash": "b3119bdabb574704ade7c979bcaeb8d7",
+    "semantic_hash": "b3119bdabb574704ade7c979bcaeb8d7"
+  },
+  "tests/Monocle.Core.Tests/RatingHistoryTests.cs": {
+    "mtime": 1786357341.388211,
+    "seen": 1788596950.1727214,
+    "ast_hash": "babfb80e20b75674fc196dfd78e392f2",
+    "semantic_hash": "babfb80e20b75674fc196dfd78e392f2"
+  },
+  "tests/Monocle.Core.Tests/RotationTests.cs": {
+    "mtime": 1786361610.5705068,
+    "seen": 1788596950.1727219,
+    "ast_hash": "34d1fb4e4e9bf7f9670d72316c70ee96",
+    "semantic_hash": "34d1fb4e4e9bf7f9670d72316c70ee96"
+  },
+  "tests/Monocle.Core.Tests/ScoreCompositorTests.cs": {
+    "mtime": 1786359080.8163197,
+    "seen": 1788596950.172722,
+    "ast_hash": "88efa09549dca974faf7958e7440ff12",
+    "semantic_hash": "88efa09549dca974faf7958e7440ff12"
+  },
+  "tests/Monocle.Core.Tests/ScoreDisplayTests.cs": {
+    "mtime": 1787445668.681627,
+    "seen": 1788596950.1727226,
+    "ast_hash": "5fe958c8ad96c4e06651a5417d9a9928",
+    "semantic_hash": "5fe958c8ad96c4e06651a5417d9a9928"
+  },
+  "tests/Monocle.Core.Tests/ScoreNormalizationTests.cs": {
+    "mtime": 1783858595.747403,
+    "seen": 1788596950.1727233,
+    "ast_hash": "032fedb0de7527e6fee3594bfd5dfefa",
+    "semantic_hash": "032fedb0de7527e6fee3594bfd5dfefa"
+  },
+  "tests/Monocle.Core.Tests/ShootServiceTests.cs": {
+    "mtime": 1788584484.901879,
+    "seen": 1788596950.1727238,
+    "ast_hash": "18440de159034d97087e1cc8755166bc",
+    "semantic_hash": "18440de159034d97087e1cc8755166bc"
+  },
+  "tests/Monocle.Core.Tests/SidecarClientTests.cs": {
+    "mtime": 1788584484.907395,
+    "seen": 1788596950.1727242,
+    "ast_hash": "a8f44f9bd8a36ad409db58bfcbd14266",
+    "semantic_hash": "a8f44f9bd8a36ad409db58bfcbd14266"
+  },
+  "tests/Monocle.Core.Tests/SidecarDiscoveryTests.cs": {
+    "mtime": 1787461083.8813632,
+    "seen": 1788596950.1727245,
+    "ast_hash": "8ebe5ba9b7eb6b73049f75d8777b8b00",
+    "semantic_hash": "8ebe5ba9b7eb6b73049f75d8777b8b00"
+  },
+  "tests/Monocle.Core.Tests/SidecarOutsideEditTests.cs": {
+    "mtime": 1786361977.3431814,
+    "seen": 1788596950.172725,
+    "ast_hash": "098568e13cf22740969cda71b6854560",
+    "semantic_hash": "098568e13cf22740969cda71b6854560"
+  },
+  "tests/Monocle.Core.Tests/SidecarSelfCheckTests.cs": {
+    "mtime": 1787465280.1800485,
+    "seen": 1788596950.1727252,
+    "ast_hash": "1bb989800c7330c3d7a720a4a0d0e548",
+    "semantic_hash": "1bb989800c7330c3d7a720a4a0d0e548"
+  },
+  "tests/Monocle.Core.Tests/SidecarTests.cs": {
+    "mtime": 1786361610.5251236,
+    "seen": 1788596950.1727257,
+    "ast_hash": "b9a40ea6f7e5d2054605430694847208",
+    "semantic_hash": "b9a40ea6f7e5d2054605430694847208"
+  },
+  "tests/Monocle.Core.Tests/StatsTests.cs": {
+    "mtime": 1780987934.4912417,
+    "seen": 1788596950.1727262,
+    "ast_hash": "d9d42b9237e79fc5f3d8c288c0399b29",
+    "semantic_hash": "d9d42b9237e79fc5f3d8c288c0399b29"
+  },
+  ".claude/agent-memory/sidekick-heavy/MEMORY.md": {
+    "mtime": 1788584484.847226,
+    "seen": 1788596950.1727269,
+    "ast_hash": "b98a147f042008c59915c7419660b79e",
+    "semantic_hash": "b98a147f042008c59915c7419660b79e"
+  },
+  ".claude/agent-memory/sidekick-heavy/monocle-run-lifetime.md": {
+    "mtime": 1788584484.847226,
+    "seen": 1788596950.1727273,
+    "ast_hash": "eb887b456eb19b0c06761752c0f196be",
+    "semantic_hash": "eb887b456eb19b0c06761752c0f196be"
+  },
+  ".claude/agent-memory/sidekick-heavy/monocle-runtime-verification.md": {
+    "mtime": 1788584484.8482232,
+    "seen": 1788596950.1727276,
+    "ast_hash": "16d2870d783cd5fdf5c7c751d08d76f2",
+    "semantic_hash": "16d2870d783cd5fdf5c7c751d08d76f2"
+  },
+  ".claude/agent-memory/sidekick-heavy/monocle-sidecar-invariants.md": {
+    "mtime": 1786358269.357209,
+    "seen": 1788596950.172728,
+    "ast_hash": "c6d436028283da165c6e732ed8a0ef72",
+    "semantic_hash": "c6d436028283da165c6e732ed8a0ef72"
+  },
+  ".claude/agent-memory/sidekick-heavy/monocle-staleness-guard.md": {
+    "mtime": 1786358281.3454335,
+    "seen": 1788596950.1727285,
+    "ast_hash": "3bdf16b2e473179b8d4e163dc13c0e06",
+    "semantic_hash": "3bdf16b2e473179b8d4e163dc13c0e06"
+  },
+  ".claude/agent-memory/sidekick/MEMORY.md": {
+    "mtime": 1788584484.849224,
+    "seen": 1788596950.172729,
+    "ast_hash": "c16383c759e62b100ed60add8f47fc9e",
+    "semantic_hash": "c16383c759e62b100ed60add8f47fc9e"
+  },
+  ".claude/agent-memory/sidekick/monocle-app-mvvm-conventions.md": {
+    "mtime": 1788584484.8603916,
+    "seen": 1788596950.1727295,
+    "ast_hash": "f0cbe8cc1288a244c919473677e4698c",
+    "semantic_hash": "f0cbe8cc1288a244c919473677e4698c"
+  },
+  ".claude/agent-memory/sidekick/monocle-build-workflow.md": {
+    "mtime": 1786266424.2752006,
+    "seen": 1788596950.17273,
+    "ast_hash": "685a50c291e764828b8a01da9d8ae3de",
+    "semantic_hash": "685a50c291e764828b8a01da9d8ae3de"
+  },
+  ".claude/agent-memory/sidekick/python-sidecar-conventions.md": {
+    "mtime": 1786282051.3101482,
+    "seen": 1788596950.1727304,
+    "ast_hash": "46f57aae2d849f589ed27e08be3de485",
+    "semantic_hash": "46f57aae2d849f589ed27e08be3de485"
+  },
+  ".claude/commands/cull.md": {
+    "mtime": 1780987934.4518776,
+    "seen": 1788596950.172731,
+    "ast_hash": "53c080e53399453f9ea5ba9e5ed2f8da",
+    "semantic_hash": "53c080e53399453f9ea5ba9e5ed2f8da"
+  },
+  ".claude/skills/verify/SKILL.md": {
+    "mtime": 1784116051.51,
+    "seen": 1788596950.1727314,
+    "ast_hash": "6b0c8d0d73c38fbafc27da9d9050f9fb",
+    "semantic_hash": "6b0c8d0d73c38fbafc27da9d9050f9fb"
+  },
+  "CLAUDE.md": {
+    "mtime": 1783339031.778541,
+    "seen": 1788596950.1727319,
+    "ast_hash": "bd1ff076880b4d59abc41e57c7d01ce2",
+    "semantic_hash": "bd1ff076880b4d59abc41e57c7d01ce2"
+  },
+  "FEATURES.md": {
+    "mtime": 1780960883.8817108,
+    "seen": 1788596950.1727324,
+    "ast_hash": "85898ca539c00ea4e24ceb9bf03951ed",
+    "semantic_hash": "85898ca539c00ea4e24ceb9bf03951ed"
+  },
+  "README.md": {
+    "mtime": 1783339031.7790444,
+    "seen": 1788596950.1727326,
+    "ast_hash": "8a72cf00d9fd02c8319e5b6c295fe0f1",
+    "semantic_hash": "8a72cf00d9fd02c8319e5b6c295fe0f1"
+  },
+  "design/Monocle 50 Mixes.dc.html": {
+    "mtime": 1787455958.1292787,
+    "seen": 1788596950.172733,
+    "ast_hash": "16034931a16b49d4a5dca14e54cd0aae",
+    "semantic_hash": "16034931a16b49d4a5dca14e54cd0aae"
+  },
+  "design/Monocle Critic Refinements.dc.html": {
+    "mtime": 1787455958.1342957,
+    "seen": 1788596950.1727338,
+    "ast_hash": "4781e9d0f124485c4197b6c76795ce04",
+    "semantic_hash": "4781e9d0f124485c4197b6c76795ce04"
+  },
+  "design/Monocle Critic Variants.dc.html": {
+    "mtime": 1787455958.1403315,
+    "seen": 1788596950.172734,
+    "ast_hash": "3534ae040e52550decf61379071552fe",
+    "semantic_hash": "3534ae040e52550decf61379071552fe"
+  },
+  "design/Monocle Icons.dc.html": {
+    "mtime": 1787455958.1449704,
+    "seen": 1788596950.1727355,
+    "ast_hash": "76431b1dfd462a4a6c4d76913877a188",
+    "semantic_hash": "76431b1dfd462a4a6c4d76913877a188"
+  },
+  "design/Monocle Robot Gentleman.dc.html": {
+    "mtime": 1787455958.1494923,
+    "seen": 1788596950.1727357,
+    "ast_hash": "d0ead948c518b88a571f950d55a9ac7c",
+    "semantic_hash": "d0ead948c518b88a571f950d55a9ac7c"
+  },
+  "design/Photo Critic v2.dc.html": {
+    "mtime": 1787455958.155012,
+    "seen": 1788596950.1727362,
+    "ast_hash": "49a20e1e3c8968590cc1b352abf8874a",
+    "semantic_hash": "49a20e1e3c8968590cc1b352abf8874a"
+  },
+  "design/Photo Critic.dc.html": {
+    "mtime": 1787455958.162571,
+    "seen": 1788596950.172737,
+    "ast_hash": "368ad90e34e348761e76d1efd2b75399",
+    "semantic_hash": "368ad90e34e348761e76d1efd2b75399"
+  },
+  "design/uploads/FEATURES.md": {
+    "mtime": 1787455958.0282087,
+    "seen": 1788596950.1727374,
+    "ast_hash": "85898ca539c00ea4e24ceb9bf03951ed",
+    "semantic_hash": "85898ca539c00ea4e24ceb9bf03951ed"
+  },
+  "docs/models.md": {
+    "mtime": 1782905805.4211693,
+    "seen": 1788596950.1727376,
+    "ast_hash": "b54fe87ad55098c7ded285031fc89503",
+    "semantic_hash": "b54fe87ad55098c7ded285031fc89503"
+  },
+  "docs/superpowers/plans/2026-07-05-headless-processing-reorg.md": {
+    "mtime": 1783330753.638047,
+    "seen": 1788596950.172738,
+    "ast_hash": "38c1ee39985878139e220cc5b6648ec7",
+    "semantic_hash": "38c1ee39985878139e220cc5b6648ec7"
+  },
+  "docs/superpowers/specs/2026-07-05-headless-processing-reorg-design.md": {
+    "mtime": 1783259743.3101778,
+    "seen": 1788596950.1727386,
+    "ast_hash": "53b742f5c9c391825a783016f70b7b49",
+    "semantic_hash": "53b742f5c9c391825a783016f70b7b49"
+  },
+  "models/README.md": {
+    "mtime": 1782904327.4151142,
+    "seen": 1788596950.1727388,
+    "ast_hash": "669ecb50f71582afb4aa1653c8a36403",
+    "semantic_hash": "669ecb50f71582afb4aa1653c8a36403"
+  },
+  "python/README.md": {
+    "mtime": 1788584484.8653922,
+    "seen": 1788596950.1727393,
+    "ast_hash": "2a9635b666e22581e75143321f2519de",
+    "semantic_hash": "2a9635b666e22581e75143321f2519de"
+  },
+  "version.txt": {
+    "mtime": 1788584484.908395,
+    "seen": 1788596950.1727397,
+    "ast_hash": "d1e04c1efe3b89da48a5521848cdacea",
+    "semantic_hash": "d1e04c1efe3b89da48a5521848cdacea"
+  },
+  "assets/icons/robot-neon.jpg": {
+    "mtime": 1781778731.4273467,
+    "seen": 1788596950.17274,
+    "ast_hash": "416b19a71896499ab03e001b17cd4b0a",
+    "semantic_hash": "416b19a71896499ab03e001b17cd4b0a"
+  },
+  "assets/icons/robot-neon.png": {
+    "mtime": 1781778731.4283473,
+    "seen": 1788596950.1727407,
+    "ast_hash": "c5d6e4c7262ce739320fa1c963f1f64f",
+    "semantic_hash": "c5d6e4c7262ce739320fa1c963f1f64f"
+  },
+  "assets/icons/robot-neon.svg": {
+    "mtime": 1781778731.4283473,
+    "seen": 1788596950.1727412,
+    "ast_hash": "adbfc1b26cd91f486700ea31df597824",
+    "semantic_hash": "adbfc1b26cd91f486700ea31df597824"
+  },
+  "design/exports/robot-flat.jpg": {
+    "mtime": 1787455957.9581673,
+    "seen": 1788596950.1727417,
+    "ast_hash": "2457cfc1365ee54fc81741da89ef5344",
+    "semantic_hash": "2457cfc1365ee54fc81741da89ef5344"
+  },
+  "design/exports/robot-flat.png": {
+    "mtime": 1787455957.968436,
+    "seen": 1788596950.1727421,
+    "ast_hash": "d176ce7aa2b861fb33306b27f7dcce70",
+    "semantic_hash": "d176ce7aa2b861fb33306b27f7dcce70"
+  },
+  "design/exports/robot-flat.svg": {
+    "mtime": 1787455957.9729414,
+    "seen": 1788596950.1727424,
+    "ast_hash": "d0c0dad3f61a2aab92d89b0b8690e80d",
+    "semantic_hash": "d0c0dad3f61a2aab92d89b0b8690e80d"
+  },
+  "design/exports/robot-handlebar.jpg": {
+    "mtime": 1787455957.979452,
+    "seen": 1788596950.1727428,
+    "ast_hash": "d8b94aef891d8ea9dd6aa1c1fb5e3734",
+    "semantic_hash": "d8b94aef891d8ea9dd6aa1c1fb5e3734"
+  },
+  "design/exports/robot-handlebar.png": {
+    "mtime": 1787455957.9839602,
+    "seen": 1788596950.1727433,
+    "ast_hash": "c40a3f7f468b7a2123bb1968cb5b79d1",
+    "semantic_hash": "c40a3f7f468b7a2123bb1968cb5b79d1"
+  },
+  "design/exports/robot-handlebar.svg": {
+    "mtime": 1787455957.9960253,
+    "seen": 1788596950.172744,
+    "ast_hash": "acd3ea69d1dc595adb15e14fee519a8d",
+    "semantic_hash": "acd3ea69d1dc595adb15e14fee519a8d"
+  },
+  "design/exports/robot-neon.jpg": {
+    "mtime": 1787455958.0010512,
+    "seen": 1788596950.1727445,
+    "ast_hash": "416b19a71896499ab03e001b17cd4b0a",
+    "semantic_hash": "416b19a71896499ab03e001b17cd4b0a"
+  },
+  "design/exports/robot-neon.png": {
+    "mtime": 1787455958.0061045,
+    "seen": 1788596950.1727448,
+    "ast_hash": "c5d6e4c7262ce739320fa1c963f1f64f",
+    "semantic_hash": "c5d6e4c7262ce739320fa1c963f1f64f"
+  },
+  "design/exports/robot-neon.svg": {
+    "mtime": 1787455958.0106337,
+    "seen": 1788596950.1727452,
+    "ast_hash": "adbfc1b26cd91f486700ea31df597824",
+    "semantic_hash": "adbfc1b26cd91f486700ea31df597824"
+  },
+  "design/screenshots/header.png": {
+    "mtime": 1787455958.0181906,
+    "seen": 1788596950.1727457,
+    "ast_hash": "dca684caef919e2ac7b2df2000ad9a5f",
+    "semantic_hash": "dca684caef919e2ac7b2df2000ad9a5f"
+  },
+  "design/screenshots/header2.png": {
+    "mtime": 1787455958.0226998,
+    "seen": 1788596950.1727462,
+    "ast_hash": "dca684caef919e2ac7b2df2000ad9a5f",
+    "semantic_hash": "dca684caef919e2ac7b2df2000ad9a5f"
+  },
+  "design/uploads/pasted-1787447259343-0.png": {
+    "mtime": 1787455958.0357265,
+    "seen": 1788596950.1727464,
+    "ast_hash": "efc6de73989d0697280270e5ad05d073",
+    "semantic_hash": "efc6de73989d0697280270e5ad05d073"
+  },
+  "design/uploads/pasted-1787447268655-0.png": {
+    "mtime": 1787455958.0462713,
+    "seen": 1788596950.172747,
+    "ast_hash": "d262f1b547053434d9e13aacece8fee4",
+    "semantic_hash": "d262f1b547053434d9e13aacece8fee4"
+  },
+  "design/uploads/pasted-1787447276372-0.png": {
+    "mtime": 1787455958.052295,
+    "seen": 1788596950.1727476,
+    "ast_hash": "55c96d6cc94334889ceb2bf75c55c166",
+    "semantic_hash": "55c96d6cc94334889ceb2bf75c55c166"
+  },
+  "design/uploads/pasted-1787447287031-0.png": {
+    "mtime": 1787455958.0583217,
+    "seen": 1788596950.1727479,
+    "ast_hash": "a565baa907a26bdba8264dc0d65a7dff",
+    "semantic_hash": "a565baa907a26bdba8264dc0d65a7dff"
+  },
+  "design/uploads/pasted-1787447316107-0.png": {
+    "mtime": 1787455958.0648324,
+    "seen": 1788596950.1727483,
+    "ast_hash": "10efbd5801ba2038e8558539874b88b1",
+    "semantic_hash": "10efbd5801ba2038e8558539874b88b1"
+  },
+  "design/uploads/pasted-1787447331986-0.png": {
+    "mtime": 1787455958.0763588,
+    "seen": 1788596950.1727488,
+    "ast_hash": "421c2afba389cd2970832b74fc47df76",
+    "semantic_hash": "421c2afba389cd2970832b74fc47df76"
+  },
+  "design/uploads/pasted-1787447342524-0.png": {
+    "mtime": 1787455958.0843625,
+    "seen": 1788596950.1727493,
+    "ast_hash": "688296a0967a7535976314a31f15167b",
+    "semantic_hash": "688296a0967a7535976314a31f15167b"
+  },
+  "design/uploads/pasted-1787447350038-0.png": {
+    "mtime": 1787455958.0914533,
+    "seen": 1788596950.1727498,
+    "ast_hash": "922038419e44d86ead370a52f4bcb425",
+    "semantic_hash": "922038419e44d86ead370a52f4bcb425"
+  },
+  "design/uploads/pasted-1787447357374-0.png": {
+    "mtime": 1787455958.0999599,
+    "seen": 1788596950.17275,
+    "ast_hash": "576cdc3284b51629094d808866463771",
+    "semantic_hash": "576cdc3284b51629094d808866463771"
+  },
+  "design/uploads/pasted-1787447531902-0.png": {
+    "mtime": 1787455958.10396,
+    "seen": 1788596950.1727505,
+    "ast_hash": "dd7456a5f7be3fa6e608ef9dc9abae84",
+    "semantic_hash": "dd7456a5f7be3fa6e608ef9dc9abae84"
+  },
+  "design/uploads/pasted-1787449847623-0.png": {
+    "mtime": 1787455958.1104944,
+    "seen": 1788596950.1727512,
+    "ast_hash": "ca940dc8a104be8c090109756af2ab07",
+    "semantic_hash": "ca940dc8a104be8c090109756af2ab07"
+  },
+  "design/uploads/pasted-1787449967648-0.png": {
+    "mtime": 1787455958.1165073,
+    "seen": 1788596950.1727517,
+    "ast_hash": "5085d336946e802de8cd2398c15d5501",
+    "semantic_hash": "5085d336946e802de8cd2398c15d5501"
+  },
+  "src/Monocle.App/Assets/robot-neon.png": {
+    "mtime": 1781778731.4313471,
+    "seen": 1788596950.172752,
+    "ast_hash": "c5d6e4c7262ce739320fa1c963f1f64f",
+    "semantic_hash": "c5d6e4c7262ce739320fa1c963f1f64f"
+  }
+}

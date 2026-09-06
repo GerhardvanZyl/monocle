@@ -53,6 +53,20 @@ desktop):**
 
 **`WM_CLOSE` posted to `Process.MainWindowHandle` closes the *main* window even if a native modal dialog owned by the same process is currently topmost/focused** (e.g. an open folder-picker) — the whole app exits (`Cleanup()` still runs). Close any such dialog first if you want to keep testing the main window.
 
+**`python/export_onnx.py` (2026-09-06, branch `gpu-scorers`):** `torch.onnx.export(dynamo=True)`
+tags every Reshape node with `allowzero=1`; DirectML's operator layer rejects that attribute in
+specific patterns (`80070057` at `InferenceSession` construction for certain shapes, e.g. node 28
+of `aesthetic-v2-5.onnx`), not categorically. A post-export pass (`_strip_noop_allowzero`) now
+strips it only when provably safe — shape input is a constant graph initializer with no 0 in it —
+and rewrites just the `.onnx` graph file in place (`onnx.load(..., load_external_data=False)` /
+`onnx.save_model`) so the large `.onnx.data` sidecar for `aesthetic-v2-5.onnx` is never touched.
+`nima.onnx` (legacy `dynamo=False` export) also carries one `allowzero` Reshape node and
+initialises fine on DML anyway — the attribute alone isn't sufficient to trigger the DML bug, only
+the SigLIP graph's pattern was observed to. `models/*.onnx` and `models/*.onnx.data` reach the app via
+`Monocle.App.csproj`'s `<None Include="..\..\models\*.onnx*" ... CopyToOutputDirectory="PreserveNewest">`
+glob — a normal `dotnet build`/`dotnet publish` picks up a freshly regenerated model with no
+hand-copying needed.
+
 Repo-specific: launching with a folder path arg auto-scans
 (`Monocle.App.exe "<folder>"`); a 1185-frame shoot takes roughly 20s to scan on this machine.
 AppSettings persist to `%LOCALAPPDATA%\Monocle\settings.json` — prefer toggling settings via the

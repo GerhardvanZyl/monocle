@@ -24,6 +24,7 @@ Add --check (and `pip install onnxruntime`) to also run each exported file and p
 mid-grey image, confirming it loads and produces a finite value in range.
 """
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -81,6 +82,67 @@ def export_aesthetic(path: Path):
     _export(model, dummy, path)
 
 
+def _strip_noop_allowzero(path: Path) -> int:
+    """torch.onnx.export(dynamo=True) tags every Reshape node with allowzero=1, and DirectML's
+    operator layer rejects it on at least some graphs that carry it -- aesthetic-predictor-v2.5
+    fails at node 28, Reshape "node_view_4", [1,729,16,72] -> [1,729,1152], with 80070057 "The
+    parameter is incorrect" in MLOperatorAuthorImpl.cpp while building the InferenceSession, while
+    nima.onnx initialises on DML with an allowzero Reshape of its own -- so whatever trips DML here
+    is pattern- or shape-specific, not the attribute's mere presence. Regardless of exactly when DML
+    trips, allowzero=1 only changes behaviour when the target shape contains a 0 (meaning "keep this
+    dim's size"), so for a Reshape whose shape is a constant with no 0 in it, dropping the attribute
+    is a provable no-op and safe to strip either way.
+
+    Only strips where that is provable from the graph itself: the shape input must resolve to a
+    graph initializer (a constant, not something computed at run time) whose value is available
+    (not itself pushed to external data) and contains no 0. Anything else keeps the attribute,
+    because guessing there would silently change what the graph computes. Operates on the .onnx
+    file already written to disk and rewrites just that file in place -- the initializer values
+    already loaded here are the small shape constants, not the model weights, which stay in the
+    external .data file untouched (loaded with load_external_data=False, so they are never read
+    into memory or rewritten)."""
+    import onnx
+    from onnx import numpy_helper, TensorProto
+
+    model = onnx.load(str(path), load_external_data=False)
+    initializers = {init.name: init for init in model.graph.initializer}
+    stripped = 0
+    for node in model.graph.node:
+        if node.op_type != "Reshape" or len(node.input) < 2:
+            continue
+        az_index = next((i for i, a in enumerate(node.attribute) if a.name == "allowzero"), None)
+        if az_index is None:
+            continue
+        shape_init = initializers.get(node.input[1])
+        if shape_init is None or shape_init.data_location == TensorProto.EXTERNAL:
+            continue  # not a constant, or its value isn't available here to check -- leave it alone
+        if (numpy_helper.to_array(shape_init) == 0).any():
+            continue  # allowzero genuinely changes semantics when a target dim is 0 -- keep it
+        del node.attribute[az_index]
+        stripped += 1
+
+    # onnx.save_model rewrites the .onnx graph file in place and isn't atomic; an interruption
+    # mid-write would leave a corrupt model at the real filename, which the app loads at startup
+    # with no other check -- a silently broken model rather than a loud failure. Write to a temp
+    # file in the same directory (same filesystem, so the os.replace below is atomic) and swap it
+    # in only once the write has fully completed. The external-data file (<name>.onnx.data) is
+    # untouched: its location is recorded as a relative filename, not tied to which .onnx file
+    # loaded it, so renaming the graph file next to it doesn't disturb it.
+    # str(path), not path.with_name -- callers (including this module's own tests) may pass either
+    # a Path or a plain str, and str() is what the rest of this function already normalises on.
+    tmp_path = str(path) + ".tmp"
+    try:
+        onnx.save_model(model, tmp_path)
+        os.replace(tmp_path, str(path))
+    except BaseException:
+        try:
+            os.remove(tmp_path)
+        except OSError:
+            pass          # cleanup is best-effort; never mask the real failure
+        raise
+    return stripped
+
+
 def _export(model: torch.nn.Module, dummy: torch.Tensor, path: Path, dynamo: bool = True):
     path.parent.mkdir(parents=True, exist_ok=True)
     with torch.no_grad():
@@ -89,6 +151,9 @@ def _export(model: torch.nn.Module, dummy: torch.Tensor, path: Path, dynamo: boo
             input_names=["input"], output_names=["score"],
             opset_version=OPSET, do_constant_folding=True, dynamo=dynamo,
         )
+    stripped = _strip_noop_allowzero(path)
+    if stripped:
+        print(f"  stripped no-op allowzero from {stripped} Reshape node(s)")
     import onnx
     onnx.checker.check_model(str(path))
     print(f"  wrote {path.name} ({path.stat().st_size // 1024} KiB)")
