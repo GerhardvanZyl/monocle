@@ -67,6 +67,11 @@ the SigLIP graph's pattern was observed to. `models/*.onnx` and `models/*.onnx.d
 glob — a normal `dotnet build`/`dotnet publish` picks up a freshly regenerated model with no
 hand-copying needed.
 
+**`version.txt` at repo root auto-increments on every `dotnet build`/`dotnet test`** (an MSBuild
+target stamps "Monocle version 0.1.NNN" and rewrites the file) — this is not deliberate work and
+pollutes `git status`/diffs. `git checkout -- version.txt` after every build/test invocation if you
+need a clean tree at the end (e.g. before reporting "nothing left but source+test changes").
+
 Repo-specific: launching with a folder path arg auto-scans
 (`Monocle.App.exe "<folder>"`); a 1185-frame shoot takes roughly 20s to scan on this machine.
 AppSettings persist to `%LOCALAPPDATA%\Monocle\settings.json` — prefer toggling settings via the

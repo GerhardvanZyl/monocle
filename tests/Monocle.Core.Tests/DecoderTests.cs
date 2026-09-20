@@ -71,6 +71,44 @@ public class DecoderTests : IDisposable
         Assert.Equal(120, codec.Info.Height);
     }
 
+    /// <summary>Build a marker-only JPEG stream (no real entropy coding — the extractor never
+    /// decodes, only walks markers) with the given SOFn byte and a zero-filled entropy section of
+    /// <paramref name="entropyPaddingBytes"/>, so tests can exercise SOF classification without a
+    /// real lossless encoder.</summary>
+    private static byte[] MakeFakeSofJpeg(byte sof, int entropyPaddingBytes)
+    {
+        using var ms = new MemoryStream();
+        ms.Write(new byte[] { 0xFF, 0xD8 });                            // SOI
+        ms.Write(new byte[] { 0xFF, sof, 0x00, 0x08, 0, 0, 0, 0, 0, 0 }); // SOFn, length 8 (6-byte payload)
+        ms.Write(new byte[] { 0xFF, 0xDA, 0x00, 0x04, 0x00, 0x3F });    // SOS, length 4 (2-byte payload)
+        ms.Write(new byte[entropyPaddingBytes]);                        // entropy data — all zero, no stray FF
+        ms.Write(new byte[] { 0xFF, 0xD9 });                            // EOI
+        return ms.ToArray();
+    }
+
+    [Fact]
+    public void RejectsLosslessSofStreamInFavorOfSmallerDecodableOne()
+    {
+        // A CR2's sensor data is itself stored as a lossless (SOF3) JPEG stream that dwarfs the
+        // real embedded preview (issue #7). Skia can't decode SOF3, so "largest wins" must lose
+        // to a smaller stream Skia actually can decode.
+        var lossless = MakeFakeSofJpeg(sof: 0xC3, entropyPaddingBytes: 100_000);
+        var preview = MakeJpeg(160, 120);
+
+        using var ms = new MemoryStream();
+        ms.Write(lossless);
+        ms.Write(new byte[] { 0x00 });
+        ms.Write(preview);
+        var rawBytes = ms.ToArray();
+
+        var extracted = EmbeddedJpegExtractor.ExtractFrom(rawBytes);
+        Assert.NotNull(extracted);
+
+        using var codec = SKCodec.Create(new MemoryStream(extracted!));
+        Assert.Equal(160, codec.Info.Width);
+        Assert.Equal(120, codec.Info.Height);
+    }
+
     [Fact]
     public void EmbeddedThumbnailDoesNotTruncateOuterJpeg()
     {
